@@ -1,0 +1,7 @@
+/* Lucera — Chakra UI handles styling. Only fonts + minimal global tweaks here. */
+
+html, body, #root { height: 100%; }
+body { margin: 0; }
+
+/* Allow tabular numerics utility (used in stats) */
+.nums { font-variant-numeric: tabular-nums; }

@@ -1,0 +1,79 @@
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { BrowserRouter, Route, Routes, Navigate } from "react-router-dom";
+import { AuthProvider, useAuth, UserRole } from "@/lib/auth";
+import { ProtectedRoute } from "@/components/ProtectedRoute";
+import { ReactNode } from "react";
+import Dashboard from "./pages/Dashboard";
+import Statistics from "./pages/Statistics";
+import Guardians from "./pages/Guardians";
+import Children from "./pages/Children";
+import Specialists from "./pages/Specialists";
+import Centers from "./pages/Centers";
+import Chats from "./pages/Chats";
+import Medications from "./pages/Medications";
+import Payments from "./pages/Payments";
+import Profile from "./pages/Profile";
+import Schedule from "./pages/Schedule";
+import MyChildren from "./pages/MyChildren";
+import MyAppointments from "./pages/MyAppointments";
+import MySubscription from "./pages/MySubscription";
+import NotFound from "./pages/NotFound";
+
+const queryClient = new QueryClient();
+
+function RoleRoute({ roles, children }: { roles: UserRole[]; children: ReactNode }) {
+  const { user } = useAuth();
+  if (!user) return null;
+  if (!roles.includes(user.rol)) return <Navigate to="/" replace />;
+  return <>{children}</>;
+}
+
+const App = () => (
+  <QueryClientProvider client={queryClient}>
+    <AuthProvider>
+      <BrowserRouter>
+        <Routes>
+          <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+          <Route path="/statistics" element={<ProtectedRoute><RoleRoute roles={["Admin","Médico","Acudiente"]}><Statistics /></RoleRoute></ProtectedRoute>} />
+
+          <Route path="/guardians" element={<ProtectedRoute><RoleRoute roles={["Admin"]}><Guardians /></RoleRoute></ProtectedRoute>} />
+          <Route path="/children" element={<ProtectedRoute><RoleRoute roles={["Admin"]}><Children /></RoleRoute></ProtectedRoute>} />
+          <Route path="/specialists" element={<ProtectedRoute><RoleRoute roles={["Admin"]}><Specialists /></RoleRoute></ProtectedRoute>} />
+          <Route path="/payments" element={<ProtectedRoute><RoleRoute roles={["Admin","Finanzas"]}><Payments /></RoleRoute></ProtectedRoute>} />
+
+          <Route path="/chats" element={<ProtectedRoute><RoleRoute roles={["Admin","Médico"]}><Chats /></RoleRoute></ProtectedRoute>} />
+          <Route path="/medications" element={<ProtectedRoute><RoleRoute roles={["Admin"]}><Medications /></RoleRoute></ProtectedRoute>} />
+
+          <Route path="/schedule" element={<ProtectedRoute><RoleRoute roles={["Médico"]}><Schedule /></RoleRoute></ProtectedRoute>} />
+
+          <Route path="/my-children" element={<ProtectedRoute><RoleRoute roles={["Acudiente"]}><MyChildren /></RoleRoute></ProtectedRoute>} />
+          <Route path="/my-appointments" element={<ProtectedRoute><RoleRoute roles={["Acudiente"]}><MyAppointments /></RoleRoute></ProtectedRoute>} />
+          <Route path="/my-subscription" element={<ProtectedRoute><RoleRoute roles={["Acudiente"]}><MySubscription /></RoleRoute></ProtectedRoute>} />
+
+          <Route path="/centers" element={<ProtectedRoute><Centers /></ProtectedRoute>} />
+          <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
+
+          {/* Legacy redirects */}
+          <Route path="/estadisticas" element={<Navigate to="/statistics" replace />} />
+          <Route path="/acudientes" element={<Navigate to="/guardians" replace />} />
+          <Route path="/ninos" element={<Navigate to="/children" replace />} />
+          <Route path="/medicos" element={<Navigate to="/specialists" replace />} />
+          <Route path="/especialistas" element={<Navigate to="/specialists" replace />} />
+          <Route path="/centros" element={<Navigate to="/centers" replace />} />
+          <Route path="/medicamentos" element={<Navigate to="/medications" replace />} />
+          <Route path="/pagos" element={<Navigate to="/payments" replace />} />
+          <Route path="/perfil" element={<Navigate to="/profile" replace />} />
+          <Route path="/agenda" element={<Navigate to="/schedule" replace />} />
+          <Route path="/mis-hijos" element={<Navigate to="/my-children" replace />} />
+          <Route path="/mis-consultas" element={<Navigate to="/my-appointments" replace />} />
+          <Route path="/mi-suscripcion" element={<Navigate to="/my-subscription" replace />} />
+          <Route path="/usuarios" element={<Navigate to="/guardians" replace />} />
+
+          <Route path="*" element={<NotFound />} />
+        </Routes>
+      </BrowserRouter>
+    </AuthProvider>
+  </QueryClientProvider>
+);
+
+export default App;
