@@ -24,6 +24,7 @@ import {
   Stethoscope,
   Users,
   CreditCard,
+  Eye,
   type LucideIcon,
 } from "lucide-react";
 import logoVertical from "@/assets/lucera-vertical.jpg";
@@ -49,10 +50,15 @@ const roleMeta: Record<
     label: "Acudiente",
     desc: "Mis hijos, consultas y plan",
   },
-  Finanzas: {
+  Ventas: {
     Icon: CreditCard,
-    label: "Finanzas",
+    label: "Ventas",
     desc: "Solo módulo de pagos",
+  },
+  Invitado: {
+    Icon: Eye,
+    label: "Invitado",
+    desc: "Solo lectura, sin edición",
   },
 };
 
@@ -251,6 +257,22 @@ export default function Login() {
                     onChange={(e) => setPassword(e.target.value)}
                   />
                 </FormControl>
+
+                <Text fontSize="xs" color="lucera.textMuted" textAlign="left">
+                  Al iniciar sesión aceptas nuestros{" "}
+                  <Text
+                    as="a"
+                    href="https://pdfobject.com/pdf/sample.pdf"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    color="vino.500"
+                    fontWeight={600}
+                    _hover={{ textDecoration: "underline" }}
+                  >
+                    términos y condiciones
+                  </Text>
+                  .
+                </Text>
 
                 <Button
                   type="submit"

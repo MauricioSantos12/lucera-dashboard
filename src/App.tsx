@@ -4,6 +4,8 @@ import { AuthProvider, useAuth, UserRole } from "@/lib/auth";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { ReactNode } from "react";
 import Dashboard from "./pages/Dashboard";
+import LandingPage from "./pages/LandingPage";
+import Register from "./pages/Register";
 import Statistics from "./pages/Statistics";
 import Guardians from "./pages/Guardians";
 import Children from "./pages/Children";
@@ -24,7 +26,7 @@ const queryClient = new QueryClient();
 function RoleRoute({ roles, children }: { roles: UserRole[]; children: ReactNode }) {
   const { user } = useAuth();
   if (!user) return null;
-  if (!roles.includes(user.rol)) return <Navigate to="/" replace />;
+  if (!roles.includes(user.rol)) return <Navigate to="/dashboard" replace />;
   return <>{children}</>;
 }
 
@@ -33,16 +35,18 @@ const App = () => (
     <AuthProvider>
       <BrowserRouter>
         <Routes>
-          <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-          <Route path="/statistics" element={<ProtectedRoute><RoleRoute roles={["Admin","Médico","Acudiente"]}><Statistics /></RoleRoute></ProtectedRoute>} />
+          <Route path="/" element={<LandingPage />} />
+          <Route path="/register" element={<Register />} />
+          <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+          <Route path="/statistics" element={<ProtectedRoute><RoleRoute roles={["Admin","Médico","Acudiente","Invitado"]}><Statistics /></RoleRoute></ProtectedRoute>} />
 
-          <Route path="/guardians" element={<ProtectedRoute><RoleRoute roles={["Admin"]}><Guardians /></RoleRoute></ProtectedRoute>} />
-          <Route path="/children" element={<ProtectedRoute><RoleRoute roles={["Admin"]}><Children /></RoleRoute></ProtectedRoute>} />
-          <Route path="/specialists" element={<ProtectedRoute><RoleRoute roles={["Admin"]}><Specialists /></RoleRoute></ProtectedRoute>} />
-          <Route path="/payments" element={<ProtectedRoute><RoleRoute roles={["Admin","Finanzas"]}><Payments /></RoleRoute></ProtectedRoute>} />
+          <Route path="/guardians" element={<ProtectedRoute><RoleRoute roles={["Admin","Invitado"]}><Guardians /></RoleRoute></ProtectedRoute>} />
+          <Route path="/children" element={<ProtectedRoute><RoleRoute roles={["Admin","Invitado"]}><Children /></RoleRoute></ProtectedRoute>} />
+          <Route path="/specialists" element={<ProtectedRoute><RoleRoute roles={["Admin","Invitado"]}><Specialists /></RoleRoute></ProtectedRoute>} />
+          <Route path="/payments" element={<ProtectedRoute><RoleRoute roles={["Admin","Ventas","Invitado"]}><Payments /></RoleRoute></ProtectedRoute>} />
 
-          <Route path="/chats" element={<ProtectedRoute><RoleRoute roles={["Admin","Médico"]}><Chats /></RoleRoute></ProtectedRoute>} />
-          <Route path="/medications" element={<ProtectedRoute><RoleRoute roles={["Admin"]}><Medications /></RoleRoute></ProtectedRoute>} />
+          <Route path="/chats" element={<ProtectedRoute><RoleRoute roles={["Admin","Médico","Invitado"]}><Chats /></RoleRoute></ProtectedRoute>} />
+          <Route path="/medications" element={<ProtectedRoute><RoleRoute roles={["Admin","Invitado"]}><Medications /></RoleRoute></ProtectedRoute>} />
 
           <Route path="/schedule" element={<ProtectedRoute><RoleRoute roles={["Médico"]}><Schedule /></RoleRoute></ProtectedRoute>} />
 
@@ -50,7 +54,7 @@ const App = () => (
           <Route path="/my-appointments" element={<ProtectedRoute><RoleRoute roles={["Acudiente"]}><MyAppointments /></RoleRoute></ProtectedRoute>} />
           <Route path="/my-subscription" element={<ProtectedRoute><RoleRoute roles={["Acudiente"]}><MySubscription /></RoleRoute></ProtectedRoute>} />
 
-          <Route path="/centers" element={<ProtectedRoute><Centers /></ProtectedRoute>} />
+          <Route path="/centers" element={<ProtectedRoute><RoleRoute roles={["Admin","Médico","Invitado"]}><Centers /></RoleRoute></ProtectedRoute>} />
           <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
 
           {/* Legacy redirects */}

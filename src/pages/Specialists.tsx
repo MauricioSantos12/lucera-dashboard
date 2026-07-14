@@ -32,12 +32,13 @@ import {
   useDisclosure,
   TableContainer,
 } from "@chakra-ui/react";
-import { Search, Plus, Pencil, Trash2, Stethoscope } from "lucide-react";
+import { Search, Plus, Pencil, Trash2, Stethoscope, Download } from "lucide-react";
 import { StatCard } from "@/components/StatCard";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { Pagination } from "@/components/Pagination";
 import { MultiSelect } from "@/components/MultiSelect";
 import { toast } from "@/lib/toast";
+import { exportToExcel } from "@/lib/exportToExcel";
 import { centros } from "@/lib/mockData";
 import { useAuth } from "@/lib/auth";
 
@@ -47,6 +48,8 @@ const estadoTone = (e: Especialista["estado"]) =>
 export default function Specialists() {
   const { user } = useAuth();
   const showCentros = user?.rol === "Admin" || user?.rol === "Médico";
+  const canEdit = user?.rol !== "Invitado";
+  const canExport = user?.rol !== "Invitado" && user?.rol !== "Ventas";
   const [data, setData] = useState<Especialista[]>(seed);
   const [especialidad, setEspecialidad] = useState("todas");
   const [q, setQ] = useState("");
@@ -142,13 +145,39 @@ export default function Specialists() {
             ))}
           </Select>
           <Button
-            colorScheme="vino"
-            variant={"solid"}
-            leftIcon={<Plus size={16} />}
-            onClick={() => openEdit(null)}
+            variant="solid"
+            leftIcon={<Download size={16} />}
+            isDisabled={!canExport}
+            onClick={() =>
+              exportToExcel(
+                filtered.map((e) => ({
+                  ID: e.id,
+                  Nombre: e.nombre,
+                  Especialidad: e.especialidad,
+                  Idoneidad: e.registroIdoneidad,
+                  Email: e.email,
+                  Modalidad: e.modalidad,
+                  Estado: e.estado,
+                  "Consultas/mes": e.consultasMes,
+                  Hospitales: e.hospitales.join(", "),
+                })),
+                "especialistas-lucera",
+                "Especialistas"
+              )
+            }
           >
-            Nuevo médico
+            Exportar
           </Button>
+          {canEdit && (
+            <Button
+              colorScheme="vino"
+              variant={"solid"}
+              leftIcon={<Plus size={16} />}
+              onClick={() => openEdit(null)}
+            >
+              Nuevo médico
+            </Button>
+          )}
         </Flex>
 
         <TableContainer
@@ -170,7 +199,7 @@ export default function Specialists() {
                 <Th display={{ base: "none", md: "table-cell" }} isNumeric>
                   Consultas/mes
                 </Th>
-                <Th textAlign="right">Acciones</Th>
+                {canEdit && <Th textAlign="right">Acciones</Th>}
               </Tr>
             </Thead>
             <Tbody>
@@ -231,23 +260,25 @@ export default function Specialists() {
                   >
                     {e.consultasMes}
                   </Td>
-                  <Td textAlign="right">
-                    <IconButton
-                      aria-label="Editar"
-                      size="sm"
-                      variant="ghost"
-                      icon={<Pencil size={14} />}
-                      onClick={() => openEdit(e)}
-                    />
-                    <IconButton
-                      aria-label="Eliminar"
-                      size="sm"
-                      variant="ghost"
-                      color="peligro.500"
-                      icon={<Trash2 size={14} />}
-                      onClick={() => setToDelete(e)}
-                    />
-                  </Td>
+                  {canEdit && (
+                    <Td textAlign="right">
+                      <IconButton
+                        aria-label="Editar"
+                        size="sm"
+                        variant="ghost"
+                        icon={<Pencil size={14} />}
+                        onClick={() => openEdit(e)}
+                      />
+                      <IconButton
+                        aria-label="Eliminar"
+                        size="sm"
+                        variant="ghost"
+                        color="peligro.500"
+                        icon={<Trash2 size={14} />}
+                        onClick={() => setToDelete(e)}
+                      />
+                    </Td>
+                  )}
                 </Tr>
               ))}
             </Tbody>

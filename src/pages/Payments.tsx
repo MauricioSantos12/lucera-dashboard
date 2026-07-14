@@ -34,6 +34,7 @@ import {
 import { StatCard } from "@/components/StatCard";
 import { Pagination } from "@/components/Pagination";
 import { exportToExcel } from "@/lib/exportToExcel";
+import { useAuth } from "@/lib/auth";
 
 const estadoStyle: Record<
   Pago["estado"],
@@ -54,6 +55,8 @@ type KpiProps = {
 };
 
 export default function Payments() {
+  const { user } = useAuth();
+  const canExport = user?.rol !== "Invitado" && user?.rol !== "Ventas";
   const [q, setQ] = useState("");
   const [metodo, setMetodo] = useState("todos");
   const [estado, setEstado] = useState("todos");
@@ -174,7 +177,7 @@ export default function Payments() {
             <option value="fallido">Fallido</option>
             <option value="reembolsado">Reembolsado</option>
           </Select>
-          <Button variant="solid" leftIcon={<Download size={16} />} onClick={() => exportToExcel(
+          <Button variant="solid" leftIcon={<Download size={16} />} isDisabled={!canExport} onClick={() => exportToExcel(
             filtered.map(p => ({ ID: p.id, Acudiente: p.acudiente, Plan: p.plan, Método: p.metodo, Monto: p.monto, Estado: p.estado, Fecha: p.fecha })),
             "pagos-lucera",
             "Pagos"

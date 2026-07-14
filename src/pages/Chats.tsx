@@ -12,9 +12,27 @@ import {
   Text,
   VStack,
   Badge,
-  Heading,
+  Table,
+  Thead,
+  Tbody,
+  Tr,
+  Th,
+  Td,
+  TableContainer,
+  IconButton,
+  Button,
 } from "@chakra-ui/react";
-import { Search, Phone, Bot, User, Stethoscope, Lock } from "lucide-react";
+import {
+  Search,
+  Phone,
+  Bot,
+  User,
+  Stethoscope,
+  Lock,
+  Eye,
+  ArrowLeft,
+  FileDown,
+} from "lucide-react";
 import { StatCard } from "@/components/StatCard";
 import { TriageBadge } from "@/components/TriageBadge";
 
@@ -22,7 +40,7 @@ const estadoTone = (e: ChatSesion["estado"]) =>
   e === "activa" ? "green" : e === "esperando" ? "yellow" : "gray";
 
 export default function Chats() {
-  const [selected, setSelected] = useState<ChatSesion>(chats[0]);
+  const [selected, setSelected] = useState<ChatSesion | null>(null);
   const [q, setQ] = useState("");
   const [filterTriaje, setFilterTriaje] = useState("todos");
 
@@ -34,116 +52,34 @@ export default function Chats() {
     return okQ && okT;
   });
 
-  return (
-    <DashboardLayout
-      title="Monitoreo de chats"
-      subtitle="Conversaciones de WhatsApp"
-    >
-      <Flex
-        gap={4}
-        h={{ base: "auto", lg: "calc(100vh - 220px)" }}
-        minH={{ lg: "600px" }}
-        direction={{ base: "column", lg: "row" }}
+  // Vista detalle
+  if (selected) {
+    return (
+      <DashboardLayout
+        title="Detalle de conversación"
+        subtitle={`${selected.paciente} · ${selected.id}`}
       >
-        {/* Lista */}
-        <Flex
-          direction="column"
-          w={{ base: "100%", lg: "33%" }}
-          bg="lucera.surface"
-          borderWidth="1px"
-          borderColor="lucera.border"
-          borderRadius="xl"
-          overflow="hidden"
+        <Button
+          variant="ghost"
+          size="sm"
+          leftIcon={<ArrowLeft size={16} />}
+          mb={4}
+          onClick={() => setSelected(null)}
         >
-          <VStack
-            p={4}
-            spacing={3}
-            borderBottomWidth="1px"
-            borderColor="lucera.border"
-            align="stretch"
-          >
-            <InputGroup>
-              <InputLeftElement pointerEvents="none">
-                <Search size={16} />
-              </InputLeftElement>
-              <Input
-                placeholder="Buscar paciente o teléfono…"
-                value={q}
-                onChange={(e) => setQ(e.target.value)}
-              />
-            </InputGroup>
-            <Select
-              value={filterTriaje}
-              onChange={(e) => setFilterTriaje(e.target.value)}
-            >
-              <option value="todos">Todos los triajes</option>
-              <option value="emergencia">🔴 Emergencia (Rojo)</option>
-              <option value="urgente">🟡 Urgente (Amarillo)</option>
-              <option value="general">🟢 General (Verde)</option>
-            </Select>
-          </VStack>
-          <Box flex={1} overflowY="auto">
-            {filtered.map((c) => (
-              <Box
-                key={c.id}
-                as="button"
-                w="100%"
-                textAlign="left"
-                px={4}
-                py={3}
-                borderBottomWidth="1px"
-                borderColor="lucera.borderSoft"
-                bg={selected.id === c.id ? "vino.50" : "transparent"}
-                borderLeftWidth={selected.id === c.id ? "2px" : "0"}
-                borderLeftColor="vino.500"
-                _hover={{ bg: selected.id === c.id ? "vino.50" : "crema.50" }}
-                onClick={() => setSelected(c)}
-              >
-                <Flex justify="space-between" mb={1}>
-                  <Text fontWeight={600} fontSize="sm" noOfLines={1}>
-                    {c.paciente}
-                  </Text>
-                  <Text
-                    fontSize="10px"
-                    color="lucera.textMuted"
-                    sx={{ fontVariantNumeric: "tabular-nums" }}
-                  >
-                    {c.hora}
-                  </Text>
-                </Flex>
-                <Text
-                  fontSize="xs"
-                  color="lucera.textMuted"
-                  noOfLines={1}
-                  mb={2}
-                >
-                  {c.ultimoMensaje}
-                </Text>
-                <HStack spacing={1.5}>
-                  <TriageBadge level={c.triaje} />
-                  <Badge
-                    colorScheme={estadoTone(c.estado)}
-                    textTransform="capitalize"
-                    fontSize="10px"
-                  >
-                    {c.estado}
-                  </Badge>
-                </HStack>
-              </Box>
-            ))}
-          </Box>
-        </Flex>
+          Volver a la lista
+        </Button>
 
-        {/* Conversación */}
         <Flex
           direction="column"
-          flex={1}
           bg="lucera.surface"
           borderWidth="1px"
           borderColor="lucera.border"
           borderRadius="xl"
           overflow="hidden"
+          h={{ base: "auto", lg: "calc(100vh - 280px)" }}
+          minH={{ lg: "500px" }}
         >
+          {/* Header */}
           <Flex
             p={4}
             borderBottomWidth="1px"
@@ -169,14 +105,23 @@ export default function Chats() {
                 <HStack fontSize="xs" color="lucera.textMuted">
                   <Phone size={10} />
                   <Text>
-                    {selected.telefono} · {selected.acudiente} · {selected.id}
+                    {selected.telefono} · {selected.acudiente}
                   </Text>
                 </HStack>
               </Box>
             </HStack>
-            <TriageBadge level={selected.triaje} />
+            <HStack>
+              <TriageBadge level={selected.triaje} />
+              <Badge
+                colorScheme={estadoTone(selected.estado)}
+                textTransform="capitalize"
+              >
+                {selected.estado}
+              </Badge>
+            </HStack>
           </Flex>
 
+          {/* Mensajes */}
           <Box flex={1} overflowY="auto" p={4} bg="crema.50">
             <VStack spacing={3} maxW="2xl" mx="auto" align="stretch">
               {selected.mensajes.map((m, i) => {
@@ -246,6 +191,7 @@ export default function Chats() {
             </VStack>
           </Box>
 
+          {/* Footer */}
           <HStack
             justify="center"
             p={3}
@@ -263,7 +209,120 @@ export default function Chats() {
             </Text>
           </HStack>
         </Flex>
-      </Flex>
+      </DashboardLayout>
+    );
+  }
+
+  // Vista tabla
+  return (
+    <DashboardLayout
+      title="Monitoreo de chats"
+      subtitle="Conversaciones de WhatsApp"
+    >
+      <StatCard>
+        <Flex
+          direction={{ base: "column", md: "row" }}
+          gap={3}
+          mb={4}
+          align={{ md: "center" }}
+        >
+          <InputGroup flex={1}>
+            <InputLeftElement pointerEvents="none">
+              <Search size={16} />
+            </InputLeftElement>
+            <Input
+              placeholder="Buscar por paciente o teléfono…"
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+            />
+          </InputGroup>
+          <Select
+            w={{ base: "100%", md: "240px" }}
+            value={filterTriaje}
+            onChange={(e) => setFilterTriaje(e.target.value)}
+          >
+            <option value="todos">Todos los triajes</option>
+            <option value="emergencia">🔴 Emergencia</option>
+            <option value="urgente">🟡 Urgente</option>
+            <option value="general">🟢 General</option>
+          </Select>
+        </Flex>
+
+        <TableContainer
+          borderWidth="1px"
+          borderColor="lucera.border"
+          borderRadius="md"
+        >
+          <Table size="sm">
+            <Thead bg="crema.100">
+              <Tr>
+                <Th>Paciente</Th>
+                <Th display={{ base: "none", md: "table-cell" }}>
+                  Descripción
+                </Th>
+                <Th>Categoría</Th>
+                <Th>Estado</Th>
+                <Th textAlign="center">Acciones</Th>
+              </Tr>
+            </Thead>
+            <Tbody>
+              {filtered.map((c) => (
+                <Tr key={c.id} _hover={{ bg: "crema.50" }}>
+                  <Td>
+                    <Text fontSize="sm" fontWeight={600}>
+                      {c.paciente}
+                    </Text>
+                    <Text fontSize="xs" color="lucera.textMuted">
+                      {c.acudiente}
+                    </Text>
+                  </Td>
+                  <Td display={{ base: "none", md: "table-cell" }}>
+                    <Text fontSize="xs" color="lucera.textMuted" noOfLines={2}>
+                      {c.resumenIA ?? c.ultimoMensaje}
+                    </Text>
+                  </Td>
+                  <Td>
+                    <TriageBadge level={c.triaje} />
+                  </Td>
+                  <Td>
+                    <Badge
+                      colorScheme={estadoTone(c.estado)}
+                      textTransform="capitalize"
+                    >
+                      {c.estado}
+                    </Badge>
+                  </Td>
+                  <Td textAlign="center">
+                    <IconButton
+                      aria-label="Ver detalle"
+                      size="sm"
+                      variant="ghost"
+                      icon={<Eye size={16} />}
+                      onClick={() => setSelected(c)}
+                    />
+                    {c.estado === "cerrada" && (
+                      <IconButton
+                        aria-label="Ver reporte"
+                        size="sm"
+                        variant="ghost"
+                        color="vino.500"
+                        icon={<FileDown size={16} />}
+                        as="a"
+                        href="https://pdfobject.com/pdf/sample.pdf"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      />
+                    )}
+                  </Td>
+                </Tr>
+              ))}
+            </Tbody>
+          </Table>
+        </TableContainer>
+        <Text mt={3} fontSize="xs" color="lucera.textMuted">
+          {filtered.length} de {chats.length} sesiones
+        </Text>
+      </StatCard>
     </DashboardLayout>
   );
 }

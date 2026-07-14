@@ -17,15 +17,16 @@ import {
   InputGroup,
   InputLeftElement,
 } from "@chakra-ui/react";
-import { Bell, LogOut, Search, Menu as MenuIcon } from "lucide-react";
+import { Bell, LogOut, Search, Menu as MenuIcon, UserCog } from "lucide-react";
 import { AppSidebar, SidebarProvider, useSidebarCtx } from "./AppSidebar";
 import { useAuth } from "@/lib/auth";
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { MotionPage } from "@/components/MotionPage";
 
 function Header({ title, subtitle }: { title: string; subtitle?: string }) {
   const { user, logout } = useAuth();
   const { onOpen, isMobile } = useSidebarCtx();
+  const navigate = useNavigate();
   const initials =
     user?.nombre
       .split(" ")
@@ -109,6 +110,15 @@ function Header({ title, subtitle }: { title: string; subtitle?: string }) {
             </Box>
             <MenuDivider />
             <MenuItem
+              icon={<UserCog size={14} />}
+              onClick={() => navigate("/profile")}
+              cursor="pointer"
+              transition="background 0.2s ease-in-out, color 0.2s ease-in-out"
+              _hover={{ bg: "crema.100" }}
+            >
+              Mi perfil
+            </MenuItem>
+            <MenuItem
               icon={<LogOut size={14} />}
               onClick={logout}
               cursor="pointer"
@@ -133,6 +143,8 @@ function Inner({
   title: string;
   subtitle?: string;
 }) {
+  const year = new Date().getFullYear();
+
   return (
     <Flex minH="100vh" w="100%" bg="lucera.bg">
       <AppSidebar />
@@ -169,7 +181,7 @@ function Inner({
           gap={1}
           justify="space-between"
         >
-          <Text>© 2025 Lucera · Sistema de Triaje Pediátrico</Text>
+          <Text>© {year} Lucera · Sistema de Triaje Pediátrico</Text>
           <Text>
             Cumplimos con la{" "}
             <Text as="strong" color="lucera.text">

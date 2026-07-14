@@ -43,11 +43,14 @@ import {
   XCircle,
   Pencil,
   Trash2,
+  Download,
 } from "lucide-react";
 import { StatCard } from "@/components/StatCard";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { Pagination } from "@/components/Pagination";
 import { toast } from "@/lib/toast";
+import { exportToExcel } from "@/lib/exportToExcel";
+import { useAuth } from "@/lib/auth";
 
 const catTone: Record<Medicamento["categoria"], string> = {
   Analgésico: "vino",
@@ -68,6 +71,9 @@ const cats: Medicamento["categoria"][] = [
 ];
 
 export default function Medications() {
+  const { user } = useAuth();
+  const canEdit = user?.rol !== "Invitado";
+  const canExport = user?.rol !== "Invitado" && user?.rol !== "Ventas";
   const [data, setData] = useState<Medicamento[]>(seed);
   const [q, setQ] = useState("");
   const [cat, setCat] = useState("todas");
@@ -184,13 +190,38 @@ export default function Medications() {
             <option value="descontinuado">Descontinuado</option>
           </Select>
           <Button
-            colorScheme="vino"
             variant="solid"
-            leftIcon={<Plus size={16} />}
-            onClick={() => openEdit(null)}
+            leftIcon={<Download size={16} />}
+            isDisabled={!canExport}
+            onClick={() =>
+              exportToExcel(
+                filtered.map((m) => ({
+                  ID: m.id,
+                  Nombre: m.nombre,
+                  Genérico: m.generico,
+                  Marca: m.marca ?? "",
+                  Categoría: m.categoria,
+                  Estado: m.estado,
+                  "Dosis/kg": m.dosisPorKg ?? "",
+                  "Recomendable IA": m.recomendable ? "Sí" : "No",
+                })),
+                "medicamentos-lucera",
+                "Medicamentos"
+              )
+            }
           >
-            Nuevo
+            Exportar
           </Button>
+          {canEdit && (
+            <Button
+              colorScheme="vino"
+              variant="solid"
+              leftIcon={<Plus size={16} />}
+              onClick={() => openEdit(null)}
+            >
+              Nuevo
+            </Button>
+          )}
         </Flex>
 
         <TableContainer
@@ -209,7 +240,7 @@ export default function Medications() {
                 </Th> */}
                 <Th>Estado</Th>
                 <Th textAlign="center">Recomendable IA</Th>
-                <Th textAlign="right">Acciones</Th>
+                {canEdit && <Th textAlign="right">Acciones</Th>}
               </Tr>
             </Thead>
             <Tbody>
@@ -281,23 +312,25 @@ export default function Medications() {
                       />
                     )}
                   </Td>
-                  <Td textAlign="right">
-                    <IconButton
-                      aria-label="Editar"
-                      size="sm"
-                      variant="ghost"
-                      icon={<Pencil size={14} />}
-                      onClick={() => openEdit(m)}
-                    />
-                    <IconButton
-                      aria-label="Eliminar"
-                      size="sm"
-                      variant="ghost"
-                      color="peligro.500"
-                      icon={<Trash2 size={14} />}
-                      onClick={() => setToDelete(m)}
-                    />
-                  </Td>
+                  {canEdit && (
+                    <Td textAlign="right">
+                      <IconButton
+                        aria-label="Editar"
+                        size="sm"
+                        variant="ghost"
+                        icon={<Pencil size={14} />}
+                        onClick={() => openEdit(m)}
+                      />
+                      <IconButton
+                        aria-label="Eliminar"
+                        size="sm"
+                        variant="ghost"
+                        color="peligro.500"
+                        icon={<Trash2 size={14} />}
+                        onClick={() => setToDelete(m)}
+                      />
+                    </Td>
+                  )}
                 </Tr>
               ))}
             </Tbody>

@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
-import { acudientes as seed, Acudiente } from "@/lib/mockData";
+import { acudientes as seed, Acudiente, paisesCiudades, segurosMedicos } from "@/lib/mockData";
+import { useAuth } from "@/lib/auth";
 import {
   Box,
   Button,
@@ -41,16 +42,21 @@ import {
   Phone,
   Mail,
   Baby,
+  Download,
 } from "lucide-react";
 import { StatCard } from "@/components/StatCard";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { Pagination } from "@/components/Pagination";
 import { toast } from "@/lib/toast";
+import { exportToExcel } from "@/lib/exportToExcel";
 
 const estadoTone = (e: Acudiente["estado"]) =>
   e === "activa" ? "green" : e === "suspendida" ? "yellow" : "red";
 
 export default function Guardians() {
+  const { user } = useAuth();
+  const canEdit = user?.rol !== "Invitado";
+  const canExport = user?.rol !== "Invitado" && user?.rol !== "Ventas";
   const [data, setData] = useState<Acudiente[]>(seed);
   const [q, setQ] = useState("");
   const [estado, setEstado] = useState("todos");
@@ -59,6 +65,7 @@ export default function Guardians() {
   const { isOpen, onOpen, onClose } = useDisclosure();
   const [editing, setEditing] = useState<Acudiente | null>(null);
   const [toDelete, setToDelete] = useState<Acudiente | null>(null);
+  const [pais, setPais] = useState("");
 
   const filtered = useMemo(() => {
     setPage(1);
@@ -76,6 +83,7 @@ export default function Guardians() {
 
   const openEdit = (a: Acudiente | null) => {
     setEditing(a);
+    setPais(a?.pais ?? "");
     onOpen();
   };
 
@@ -91,7 +99,10 @@ export default function Guardians() {
       email: String(fd.get("email")),
       telefono: String(fd.get("telefono")),
       relacion: fd.get("relacion") as Acudiente["relacion"],
+      pais: String(fd.get("pais")),
       ciudad: String(fd.get("ciudad")),
+      seguro: (fd.get("seguro") as Acudiente["seguro"]) || undefined,
+      seguroId: String(fd.get("seguroId") || "") || undefined,
       estado: fd.get("estado") as Acudiente["estado"],
       plan: fd.get("plan") as Acudiente["plan"],
     };
@@ -135,13 +146,43 @@ export default function Guardians() {
             <option value="baja">De baja</option>
           </Select>
           <Button
-            colorScheme="vino"
-            variant={"solid"}
-            leftIcon={<Plus size={16} />}
-            onClick={() => openEdit(null)}
+            variant="solid"
+            leftIcon={<Download size={16} />}
+            isDisabled={!canExport}
+            onClick={() =>
+              exportToExcel(
+                filtered.map((a) => ({
+                  ID: a.id,
+                  Nombre: a.nombre,
+                  Email: a.email,
+                  Teléfono: a.telefono,
+                  Relación: a.relacion,
+                  País: a.pais,
+                  Ciudad: a.ciudad,
+                  Seguro: a.seguro ?? "",
+                  "ID Seguro": a.seguroId ?? "",
+                  Plan: a.plan,
+                  Estado: a.estado,
+                  Niños: a.ninos.length,
+                  Registrado: a.registrado,
+                })),
+                "acudientes-lucera",
+                "Acudientes"
+              )
+            }
           >
-            Nuevo acudiente
+            Exportar
           </Button>
+          {canEdit && (
+            <Button
+              colorScheme="vino"
+              variant={"solid"}
+              leftIcon={<Plus size={16} />}
+              onClick={() => openEdit(null)}
+            >
+              Nuevo acudiente
+            </Button>
+          )}
         </Flex>
 
         <TableContainer
@@ -155,11 +196,12 @@ export default function Guardians() {
                 <Th>ID</Th>
                 <Th>Acudiente</Th>
                 <Th display={{ base: "none", md: "table-cell" }}>Contacto</Th>
-                <Th display={{ base: "none", lg: "table-cell" }}>Ciudad</Th>
+                <Th display={{ base: "none", lg: "table-cell" }}>País / Ciudad</Th>
                 <Th>Niños</Th>
                 <Th>Plan</Th>
+                <Th display={{ base: "none", md: "table-cell" }}>Seguro</Th>
                 <Th>Estado</Th>
-                <Th textAlign="right">Acciones</Th>
+                {canEdit && <Th textAlign="right">Acciones</Th>}
               </Tr>
             </Thead>
             <Tbody>
@@ -204,7 +246,8 @@ export default function Guardians() {
                     display={{ base: "none", lg: "table-cell" }}
                     fontSize="sm"
                   >
-                    {a.ciudad}
+                    <Text fontSize="xs" color="lucera.textMuted">{a.pais}</Text>
+                    <Text>{a.ciudad}</Text>
                   </Td>
                   <Td>
                     <Badge variant="outline">
@@ -217,6 +260,16 @@ export default function Guardians() {
                   <Td>
                     <Badge variant="outline">{a.plan}</Badge>
                   </Td>
+                  <Td display={{ base: "none", md: "table-cell" }} fontSize="xs">
+                    {a.seguro ? (
+                      <>
+                        <Text fontWeight={600}>{a.seguro}</Text>
+                        <Text color="lucera.textMuted">{a.seguroId}</Text>
+                      </>
+                    ) : (
+                      <Text color="lucera.textMuted">—</Text>
+                    )}
+                  </Td>
                   <Td>
                     <Badge
                       colorScheme={estadoTone(a.estado)}
@@ -225,23 +278,25 @@ export default function Guardians() {
                       {a.estado}
                     </Badge>
                   </Td>
-                  <Td textAlign="right">
-                    <IconButton
-                      aria-label="Editar"
-                      size="sm"
-                      variant="ghost"
-                      icon={<Pencil size={14} />}
-                      onClick={() => openEdit(a)}
-                    />
-                    <IconButton
-                      aria-label="Eliminar"
-                      size="sm"
-                      variant="ghost"
-                      color="peligro.500"
-                      icon={<Trash2 size={14} />}
-                      onClick={() => setToDelete(a)}
-                    />
-                  </Td>
+                  {canEdit && (
+                    <Td textAlign="right">
+                      <IconButton
+                        aria-label="Editar"
+                        size="sm"
+                        variant="ghost"
+                        icon={<Pencil size={14} />}
+                        onClick={() => openEdit(a)}
+                      />
+                      <IconButton
+                        aria-label="Eliminar"
+                        size="sm"
+                        variant="ghost"
+                        color="peligro.500"
+                        icon={<Trash2 size={14} />}
+                        onClick={() => setToDelete(a)}
+                      />
+                    </Td>
+                  )}
                 </Tr>
               ))}
             </Tbody>
@@ -302,8 +357,45 @@ export default function Guardians() {
                   </Select>
                 </FormControl>
                 <FormControl isRequired>
+                  <FormLabel>País</FormLabel>
+                  <Select
+                    name="pais"
+                    value={pais}
+                    onChange={(e) => setPais(e.target.value)}
+                    placeholder="Seleccionar país"
+                  >
+                    {Object.keys(paisesCiudades).map((p) => (
+                      <option key={p} value={p}>{p}</option>
+                    ))}
+                  </Select>
+                </FormControl>
+                <FormControl isRequired>
                   <FormLabel>Ciudad</FormLabel>
-                  <Input name="ciudad" defaultValue={editing?.ciudad} />
+                  <Select
+                    name="ciudad"
+                    defaultValue={editing?.ciudad}
+                    placeholder="Seleccionar ciudad"
+                  >
+                    {(paisesCiudades[pais] ?? []).map((c) => (
+                      <option key={c} value={c}>{c}</option>
+                    ))}
+                  </Select>
+                </FormControl>
+                <FormControl>
+                  <FormLabel>Seguro médico</FormLabel>
+                  <Select
+                    name="seguro"
+                    defaultValue={editing?.seguro ?? ""}
+                    placeholder="Sin seguro"
+                  >
+                    {segurosMedicos.map((s) => (
+                      <option key={s} value={s}>{s}</option>
+                    ))}
+                  </Select>
+                </FormControl>
+                <FormControl>
+                  <FormLabel>ID del seguro</FormLabel>
+                  <Input name="seguroId" placeholder="Número de póliza" defaultValue={editing?.seguroId} />
                 </FormControl>
                 <FormControl>
                   <FormLabel>Plan</FormLabel>

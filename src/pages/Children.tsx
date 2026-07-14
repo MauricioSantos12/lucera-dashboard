@@ -42,11 +42,14 @@ import {
   Plus,
   Pencil,
   Trash2,
+  Download,
 } from "lucide-react";
 import { StatCard } from "@/components/StatCard";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { Pagination } from "@/components/Pagination";
 import { toast } from "@/lib/toast";
+import { exportToExcel } from "@/lib/exportToExcel";
+import { useAuth } from "@/lib/auth";
 
 type Row = NinoPaciente & {
   edad: number;
@@ -73,6 +76,9 @@ function buildRows(source: typeof acudientes): Row[] {
 }
 
 export default function Children() {
+  const { user } = useAuth();
+  const canEdit = user?.rol !== "Invitado";
+  const canExport = user?.rol !== "Invitado" && user?.rol !== "Ventas";
   const perPage = 10;
   const [data, setData] = useState<Row[]>(buildRows(acudientes));
   const [page, setPage] = useState(1);
@@ -195,13 +201,40 @@ export default function Children() {
             <option value="condiciones">Con condiciones</option>
           </Select>
           <Button
-            colorScheme="vino"
             variant="solid"
-            leftIcon={<Plus size={16} />}
-            onClick={() => openEdit(null)}
+            leftIcon={<Download size={16} />}
+            isDisabled={!canExport}
+            onClick={() =>
+              exportToExcel(
+                filtered.map((r) => ({
+                  ID: r.id,
+                  Nombre: r.nombre,
+                  "F. Nacimiento": r.fechaNacimiento,
+                  Edad: r.edad,
+                  "Peso (kg)": r.pesoKg ?? "",
+                  "Tipo Sangre": r.tipoSangre ?? "",
+                  Alergias: (r.alergias ?? []).join(", "),
+                  Condiciones: (r.condiciones ?? []).join(", "),
+                  Acudiente: r.acudienteNombre,
+                  Teléfono: r.telefono,
+                })),
+                "ninos-lucera",
+                "Niños"
+              )
+            }
           >
-            Nuevo niño
+            Exportar
           </Button>
+          {canEdit && (
+            <Button
+              colorScheme="vino"
+              variant="solid"
+              leftIcon={<Plus size={16} />}
+              onClick={() => openEdit(null)}
+            >
+              Nuevo niño
+            </Button>
+          )}
         </Flex>
 
         <TableContainer
@@ -224,7 +257,7 @@ export default function Children() {
                   Alergias / Condiciones
                 </Th>
                 <Th>Acudiente</Th>
-                <Th textAlign="right">Acciones</Th>
+                {canEdit && <Th textAlign="right">Acciones</Th>}
               </Tr>
             </Thead>
             <Tbody>
@@ -311,23 +344,25 @@ export default function Children() {
                       {r.relacion} · {r.telefono}
                     </Text>
                   </Td>
-                  <Td textAlign="right">
-                    <IconButton
-                      aria-label="Editar"
-                      size="sm"
-                      variant="ghost"
-                      icon={<Pencil size={14} />}
-                      onClick={() => openEdit(r)}
-                    />
-                    <IconButton
-                      aria-label="Eliminar"
-                      size="sm"
-                      variant="ghost"
-                      color="peligro.500"
-                      icon={<Trash2 size={14} />}
-                      onClick={() => setToDelete(r)}
-                    />
-                  </Td>
+                  {canEdit && (
+                    <Td textAlign="right">
+                      <IconButton
+                        aria-label="Editar"
+                        size="sm"
+                        variant="ghost"
+                        icon={<Pencil size={14} />}
+                        onClick={() => openEdit(r)}
+                      />
+                      <IconButton
+                        aria-label="Eliminar"
+                        size="sm"
+                        variant="ghost"
+                        color="peligro.500"
+                        icon={<Trash2 size={14} />}
+                        onClick={() => setToDelete(r)}
+                      />
+                    </Td>
+                  )}
                 </Tr>
               ))}
             </Tbody>

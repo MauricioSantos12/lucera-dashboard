@@ -33,12 +33,13 @@ import {
   Td,
   TableContainer,
 } from "@chakra-ui/react";
-import { Search, Plus, Building2, Pencil, Trash2, Star } from "lucide-react";
+import { Search, Plus, Building2, Pencil, Trash2, Star, Download } from "lucide-react";
 import { StatCard } from "@/components/StatCard";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { Pagination } from "@/components/Pagination";
 import { useAuth } from "@/lib/auth";
 import { toast } from "@/lib/toast";
+import { exportToExcel } from "@/lib/exportToExcel";
 
 const tipoTone: Record<Centro["tipo"], string> = {
   Hospital: "vino",
@@ -51,6 +52,8 @@ const tipoTone: Record<Centro["tipo"], string> = {
 export default function Centers() {
   const { user } = useAuth();
   const isAdmin = user?.rol === "Admin";
+  const canEdit = user?.rol !== "Invitado" && isAdmin;
+  const canExport = user?.rol !== "Invitado" && user?.rol !== "Ventas";
   const [data, setData] = useState<Centro[]>(seed);
   const [q, setQ] = useState("");
   const [tipo, setTipo] = useState("todos");
@@ -134,7 +137,30 @@ export default function Centers() {
               </option>
             ))}
           </Select>
-          {isAdmin && (
+          <Button
+            variant="solid"
+            leftIcon={<Download size={16} />}
+            isDisabled={!canExport}
+            onClick={() =>
+              exportToExcel(
+                filtered.map((c) => ({
+                  ID: c.id,
+                  Nombre: c.nombre,
+                  Tipo: c.tipo,
+                  Ciudad: c.ciudad,
+                  Dirección: c.direccion,
+                  Teléfono: c.telefono,
+                  Horarios: c.horarios,
+                  Recomendado: c.recomendado ? "Sí" : "No",
+                })),
+                "centros-lucera",
+                "Centros"
+              )
+            }
+          >
+            Exportar
+          </Button>
+          {canEdit && (
             <Button
               colorScheme="vino"
               variant="solid"
@@ -162,7 +188,7 @@ export default function Centers() {
                 <Th display={{ base: "none", md: "table-cell" }}>Teléfono</Th>
                 <Th display={{ base: "none", lg: "table-cell" }}>Horarios</Th>
                 <Th textAlign="center">Recomendado</Th>
-                {isAdmin && <Th textAlign="right">Acciones</Th>}
+                {canEdit && <Th textAlign="right">Acciones</Th>}
               </Tr>
             </Thead>
             <Tbody>
@@ -231,7 +257,7 @@ export default function Centers() {
                       </Text>
                     )}
                   </Td>
-                  {isAdmin && (
+                  {canEdit && (
                     <Td textAlign="right">
                       <IconButton
                         aria-label="Editar"

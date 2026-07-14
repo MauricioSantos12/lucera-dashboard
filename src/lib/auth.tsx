@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, ReactNode } from "react";
 
-export type UserRole = "Admin" | "Médico" | "Acudiente" | "Finanzas";
+export type UserRole = "Admin" | "Médico" | "Acudiente" | "Ventas" | "Invitado";
 
 export type AuthUser = {
   email: string;
@@ -25,7 +25,8 @@ export const demoAccounts: Record<UserRole, AuthUser> = {
   Admin: { email: "admin@lucera.pa", nombre: "Admin Técnico", rol: "Admin", telefono: "+507 6000-0001" },
   Médico: { email: "esanchez@lucera.pa", nombre: "Dra. Elena Sánchez", rol: "Médico", telefono: "+507 6000-0201", refId: "M-201" },
   Acudiente: { email: "maria.mendoza@gmail.com", nombre: "María Mendoza", rol: "Acudiente", telefono: "+507 6123-4567", refId: "AC-1042" },
-  Finanzas: { email: "finanzas@lucera.pa", nombre: "Carla Núñez", rol: "Finanzas", telefono: "+507 6000-0099" },
+  Ventas: { email: "ventas@lucera.pa", nombre: "Carla Núñez", rol: "Ventas", telefono: "+507 6000-0099" },
+  Invitado: { email: "invitado@lucera.pa", nombre: "Usuario Invitado", rol: "Invitado", telefono: "+507 6000-0000" },
 };
 
 export function AuthProvider({ children }: { children: ReactNode }) {

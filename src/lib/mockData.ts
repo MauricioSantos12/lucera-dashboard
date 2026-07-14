@@ -71,6 +71,42 @@ export const tipoAtencion = [
   { tipo: "Derivada a presencial", value: 750 },
 ];
 
+// ---------------- Seguros médicos ----------------
+export const segurosMedicos = [
+  "MAPFRE",
+  "Pan-American Life Insurance Group (PALIG)",
+  "Blue Cross and Blue Shield of Panama",
+  "Internacional de Seguros (IS)",
+  "Seguros SURA",
+] as const;
+
+export type SeguroMedico = (typeof segurosMedicos)[number];
+
+// ---------------- País / Ciudad ----------------
+export const paisesCiudades: Record<string, string[]> = {
+  Panamá: [
+    "Ciudad de Panamá",
+    "San Miguelito",
+    "David",
+    "Colón",
+    "Santiago",
+    "La Chorrera",
+    "Chitré",
+    "Penonomé",
+    "Bocas del Toro",
+  ],
+  Colombia: [
+    "Bogotá",
+    "Medellín",
+    "Cali",
+    "Barranquilla",
+    "Cartagena",
+    "Bucaramanga",
+    "Pereira",
+    "Santa Marta",
+  ],
+};
+
 // ---------------- Acudientes y pacientes pediátricos ----------------
 export type Relacion = "Madre" | "Padre" | "Tutor" | "Abuelo/a";
 export type EstadoCuenta = "activa" | "suspendida" | "baja";
@@ -91,7 +127,10 @@ export type Acudiente = {
   email: string;
   nombre: string;
   relacion: Relacion;
+  pais: string;
   ciudad: string;
+  seguro?: SeguroMedico;
+  seguroId?: string;
   estado: EstadoCuenta;
   plan: "Gratuito" | "Premium Mensual" | "Premium Anual";
   registrado: string;
@@ -105,7 +144,10 @@ export const acudientes: Acudiente[] = [
     email: "maria.mendoza@gmail.com",
     nombre: "María Mendoza",
     relacion: "Madre",
+    pais: "Panamá",
     ciudad: "Ciudad de Panamá",
+    seguro: "MAPFRE",
+    seguroId: "MAP-20251112-001",
     estado: "activa",
     plan: "Premium Mensual",
     registrado: "2025-11-12",
@@ -126,6 +168,7 @@ export const acudientes: Acudiente[] = [
     email: "lquintero@hotmail.com",
     nombre: "Luis Quintero",
     relacion: "Padre",
+    pais: "Panamá",
     ciudad: "San Miguelito",
     estado: "activa",
     plan: "Gratuito",
@@ -151,7 +194,10 @@ export const acudientes: Acudiente[] = [
     email: "carmen.r@yahoo.com",
     nombre: "Carmen Rodríguez",
     relacion: "Madre",
+    pais: "Panamá",
     ciudad: "David",
+    seguro: "Blue Cross and Blue Shield of Panama",
+    seguroId: "BCBS-2025-4421",
     estado: "activa",
     plan: "Premium Anual",
     registrado: "2025-09-21",
@@ -173,7 +219,10 @@ export const acudientes: Acudiente[] = [
     email: "ana.castillo@gmail.com",
     nombre: "Ana Castillo",
     relacion: "Madre",
+    pais: "Panamá",
     ciudad: "Colón",
+    seguro: "Seguros SURA",
+    seguroId: "SURA-PA-88712",
     estado: "activa",
     plan: "Premium Mensual",
     registrado: "2026-01-15",
@@ -193,6 +242,7 @@ export const acudientes: Acudiente[] = [
     email: "rperez@gmail.com",
     nombre: "Roberto Pérez",
     relacion: "Padre",
+    pais: "Panamá",
     ciudad: "Santiago",
     estado: "suspendida",
     plan: "Gratuito",
@@ -212,6 +262,7 @@ export const acudientes: Acudiente[] = [
     email: "patricia.h@gmail.com",
     nombre: "Patricia Herrera",
     relacion: "Madre",
+    pais: "Panamá",
     ciudad: "Ciudad de Panamá",
     estado: "activa",
     plan: "Premium Mensual",
@@ -232,7 +283,10 @@ export const acudientes: Acudiente[] = [
     email: "jorge.vega@gmail.com",
     nombre: "Jorge Vega",
     relacion: "Padre",
+    pais: "Panamá",
     ciudad: "La Chorrera",
+    seguro: "Pan-American Life Insurance Group (PALIG)",
+    seguroId: "PALIG-507-33201",
     estado: "activa",
     plan: "Premium Anual",
     registrado: "2025-07-19",
@@ -252,6 +306,7 @@ export const acudientes: Acudiente[] = [
     email: "maria.mendoza@gmail.com",
     nombre: "María Mendoza",
     relacion: "Madre",
+    pais: "Panamá",
     ciudad: "Ciudad de Panamá",
     estado: "activa",
     plan: "Premium Mensual",
@@ -273,6 +328,7 @@ export const acudientes: Acudiente[] = [
     email: "lquintero@hotmail.com",
     nombre: "Luis Quintero",
     relacion: "Padre",
+    pais: "Panamá",
     ciudad: "San Miguelito",
     estado: "activa",
     plan: "Gratuito",
@@ -298,6 +354,7 @@ export const acudientes: Acudiente[] = [
     email: "carmen.r@yahoo.com",
     nombre: "Carmen Rodríguez",
     relacion: "Madre",
+    pais: "Panamá",
     ciudad: "David",
     estado: "activa",
     plan: "Premium Anual",
@@ -320,7 +377,10 @@ export const acudientes: Acudiente[] = [
     email: "ana.castillo@gmail.com",
     nombre: "Ana Castillo",
     relacion: "Madre",
-    ciudad: "Colón",
+    pais: "Colombia",
+    ciudad: "Bogotá",
+    seguro: "Internacional de Seguros (IS)",
+    seguroId: "IS-COL-55023",
     estado: "activa",
     plan: "Premium Mensual",
     registrado: "2026-01-15",
@@ -340,7 +400,8 @@ export const acudientes: Acudiente[] = [
     email: "rperez@gmail.com",
     nombre: "Roberto Pérez",
     relacion: "Padre",
-    ciudad: "Santiago",
+    pais: "Colombia",
+    ciudad: "Medellín",
     estado: "suspendida",
     plan: "Gratuito",
     registrado: "2025-08-04",
@@ -359,6 +420,7 @@ export const acudientes: Acudiente[] = [
     email: "patricia.h@gmail.com",
     nombre: "Patricia Herrera",
     relacion: "Madre",
+    pais: "Panamá",
     ciudad: "Ciudad de Panamá",
     estado: "activa",
     plan: "Premium Mensual",
@@ -379,6 +441,7 @@ export const acudientes: Acudiente[] = [
     email: "jorge.vega@gmail.com",
     nombre: "Jorge Vega",
     relacion: "Padre",
+    pais: "Panamá",
     ciudad: "La Chorrera",
     estado: "activa",
     plan: "Premium Anual",

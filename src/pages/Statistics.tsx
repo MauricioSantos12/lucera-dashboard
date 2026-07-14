@@ -1,5 +1,6 @@
+import { useState, useMemo } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
-import { AuthUser, useAuth } from "@/lib/auth";
+import { useAuth } from "@/lib/auth";
 import {
   Activity,
   MessageSquare,
@@ -7,25 +8,19 @@ import {
   Heart,
   TrendingUp,
   Users,
-  ArrowUpRight,
-  ArrowDownRight,
   DollarSign,
   Building2,
   Baby,
-  CalendarDays,
-  Crown,
+  Search,
+  Download,
   type LucideIcon,
 } from "lucide-react";
 import {
-  AreaChart,
-  Area,
   BarChart,
   Bar,
   PieChart,
   Pie,
   Cell,
-  LineChart,
-  Line,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -33,15 +28,13 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import {
-  sesionesPorMes,
   triajeStats,
-  csatTrend,
   chats,
   planesDistribucion,
   kpisGenerales,
   acudientes,
-  disponibilidad,
-  medicos,
+  paisesCiudades,
+  segurosMedicos,
 } from "@/lib/mockData";
 import {
   Box,
@@ -51,13 +44,15 @@ import {
   SimpleGrid,
   Text,
   Heading,
-  Badge,
+  Input,
+  Select,
   Button,
   Icon,
 } from "@chakra-ui/react";
-import { Link as RouterLink, Navigate } from "react-router-dom";
+import { Navigate } from "react-router-dom";
 import { StatCard } from "@/components/StatCard";
 import { TriageBadge } from "@/components/TriageBadge";
+import { exportToExcel } from "@/lib/exportToExcel";
 
 interface triajeColorsProps {
   General: string;
@@ -77,13 +72,11 @@ interface StatProps {
   icon: LucideIcon;
   label: string;
   value: string | number;
-  trend?: string;
-  trendUp?: boolean;
   accent: { bg: string; fg: string };
   sub?: string;
 }
 
-function Stat({ icon, label, value, trend, trendUp, accent, sub }: StatProps) {
+function Stat({ icon, label, value, accent, sub }: StatProps) {
   return (
     <StatCard>
       <Flex justify="space-between" align="flex-start">
@@ -123,606 +116,402 @@ function Stat({ icon, label, value, trend, trendUp, accent, sub }: StatProps) {
           <Icon as={icon} boxSize={5} />
         </Flex>
       </Flex>
-      {/* {trend && (
-        <HStack spacing={1} mt={3} fontSize="xs">
-          <Icon
-            as={trendUp ? ArrowUpRight : ArrowDownRight}
-            boxSize={3.5}
-            color={trendUp ? "exito.500" : "peligro.500"}
-          />
-          <Text fontWeight={600} color={trendUp ? "exito.500" : "peligro.500"}>
-            {trend}
-          </Text>
-          <Text color="lucera.textMuted">vs. mes anterior</Text>
-        </HStack>
-      )} */}
     </StatCard>
-  );
-}
-
-function AdminStatistics() {
-  const k = kpisGenerales;
-  return (
-    <>
-      <SimpleGrid columns={{ base: 1, sm: 2, lg: 4 }} spacing={4} mb={4}>
-        <Stat
-          icon={Users}
-          label="Acudientes activos"
-          value={k.acudientesActivos.toLocaleString()}
-          trend="+12.4%"
-          trendUp
-          accent={{ bg: "vino.50", fg: "vino.500" }}
-          sub="Cuentas activas"
-        />
-        <Stat
-          icon={Baby}
-          label="Niños registrados"
-          value={k.ninosRegistrados.toLocaleString()}
-          trend="+9.1%"
-          trendUp
-          accent={{ bg: "naranja.50", fg: "naranja.500" }}
-          sub="Pacientes pediátricos"
-        />
-        <Stat
-          icon={MessageSquare}
-          label="Sesiones del mes"
-          value={k.sesionesMes.toLocaleString()}
-          trend="+8.3%"
-          trendUp
-          accent={{ bg: "amarillo.50", fg: "amarillo.700" }}
-          sub="Conversaciones completas"
-        />
-        <Stat
-          icon={DollarSign}
-          label="Ingresos del mes"
-          value={`$${k.ingresosMes.toLocaleString("en-US", {
-            minimumFractionDigits: 2,
-          })}`}
-          trend="+15.2%"
-          trendUp
-          accent={{ bg: "exito.500", fg: "white" }}
-          sub="Stripe + Yappy"
-        />
-      </SimpleGrid>
-
-      <SimpleGrid columns={{ base: 1, sm: 2, lg: 4 }} spacing={4} mb={6}>
-        <Stat
-          icon={AlertTriangle}
-          label="Emergencias detectadas"
-          value={k.emergenciasDetectadas}
-          trend="-3.1%"
-          trendUp
-          accent={{ bg: "peligro.500", fg: "white" }}
-          sub="Triaje rojo (mes)"
-        />
-        <Stat
-          icon={Building2}
-          label="Derivaciones presenciales"
-          value={k.derivacionesPresenciales}
-          trend="+6.7%"
-          trendUp
-          accent={{ bg: "naranja.50", fg: "naranja.500" }}
-          sub="Sesiones → cita"
-        />
-        <Stat
-          icon={TrendingUp}
-          label="Conversión a Premium"
-          value={`${k.conversionPremium}%`}
-          trend="+2.1pp"
-          trendUp
-          accent={{ bg: "vino.50", fg: "vino.500" }}
-          sub="Gratuito → Pago"
-        />
-        <Stat
-          icon={Heart}
-          label="CSAT (≥4★)"
-          value={`${k.csat}%`}
-          trend="+1.8pp"
-          trendUp
-          accent={{ bg: "exito.500", fg: "white" }}
-          sub="Calificación voluntaria"
-        />
-      </SimpleGrid>
-
-      <SimpleGrid columns={{ base: 1, lg: 4 }} spacing={4} mb={6}>
-        {/* <StatCard gridColumn={{ lg: "span 2" }}>
-          <Box mb={4}>
-            <Heading size="sm" fontFamily="heading">
-              Sesiones mensuales · conversión a Premium
-            </Heading>
-            <Text fontSize="xs" color="lucera.textMuted">
-              Conversaciones completas
-            </Text>
-          </Box>
-          <ResponsiveContainer width="100%" height={260}>
-            <AreaChart data={sesionesPorMes}>
-              <defs>
-                <linearGradient id="g1" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#6d122b" stopOpacity={0.4} />
-                  <stop offset="95%" stopColor="#6d122b" stopOpacity={0} />
-                </linearGradient>
-                <linearGradient id="g2" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#ef7d54" stopOpacity={0.5} />
-                  <stop offset="95%" stopColor="#ef7d54" stopOpacity={0} />
-                </linearGradient>
-              </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="#e9d2b1" />
-              <XAxis dataKey="mes" tick={{ fontSize: 11, fill: "#7b5a48" }} />
-              <YAxis tick={{ fontSize: 11, fill: "#7b5a48" }} />
-              <Tooltip
-                contentStyle={{
-                  background: "white",
-                  border: "1px solid #e9d2b1",
-                  borderRadius: 8,
-                  fontSize: 12,
-                }}
-              />
-              <Area
-                type="monotone"
-                dataKey="sesiones"
-                stroke="#6d122b"
-                strokeWidth={2}
-                fill="url(#g1)"
-              />
-              <Area
-                type="monotone"
-                dataKey="premium"
-                stroke="#ef7d54"
-                strokeWidth={2}
-                fill="url(#g2)"
-              />
-            </AreaChart>
-          </ResponsiveContainer>
-        </StatCard> */}
-        <StatCard gridColumn={{ lg: "span 2" }}>
-          <Heading size="sm" fontFamily="heading" mb={4}>
-            Distribución por plan
-          </Heading>
-          <ResponsiveContainer width="100%" height={240}>
-            <BarChart
-              data={planesDistribucion}
-              layout="vertical"
-              margin={{ left: 20 }}
-            >
-              <CartesianGrid strokeDasharray="3 3" stroke="#e9d2b1" />
-              <XAxis type="number" tick={{ fontSize: 11, fill: "#7b5a48" }} />
-              <YAxis
-                type="category"
-                dataKey="plan"
-                tick={{ fontSize: 11, fill: "#7b5a48" }}
-                width={120}
-              />
-              <Tooltip
-                contentStyle={{
-                  background: "white",
-                  border: "1px solid #e9d2b1",
-                  borderRadius: 8,
-                  fontSize: 12,
-                }}
-              />
-              <Bar dataKey="usuarios" radius={[0, 6, 6, 0]}>
-                {planesDistribucion.map((_, i) => (
-                  <Cell key={i} fill={planColors[i % planColors.length]} />
-                ))}
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
-        </StatCard>
-        <StatCard gridColumn={{ lg: "span 2" }}>
-          <Heading size="sm" fontFamily="heading" mb={4}>
-            Distribución por triaje
-          </Heading>
-          <ResponsiveContainer width="100%" height={220}>
-            <PieChart>
-              <Pie
-                data={triajeStats}
-                dataKey="value"
-                nameKey="nivel"
-                innerRadius={50}
-                outerRadius={80}
-                paddingAngle={2}
-              >
-                {triajeStats.map((e, i) => (
-                  <Cell
-                    key={i}
-                    fill={(triajeColors as triajeColorsProps)[e.nivel]}
-                  />
-                ))}
-              </Pie>
-              <Tooltip
-                contentStyle={{
-                  background: "white",
-                  border: "1px solid #e9d2b1",
-                  borderRadius: 8,
-                  fontSize: 12,
-                }}
-              />
-            </PieChart>
-          </ResponsiveContainer>
-          <VStack align="stretch" spacing={1.5} mt={2}>
-            {triajeStats.map((t) => (
-              <HStack key={t.nivel} fontSize="xs">
-                <Box
-                  h="10px"
-                  w="10px"
-                  borderRadius="full"
-                  bg={(triajeColors as triajeColorsProps)[t.nivel]}
-                />
-                <Text color="lucera.textMuted" flex={1}>
-                  {t.nivel}
-                </Text>
-                <Text
-                  fontWeight={700}
-                  sx={{ fontVariantNumeric: "tabular-nums" }}
-                >
-                  {t.value}
-                </Text>
-              </HStack>
-            ))}
-          </VStack>
-        </StatCard>
-      </SimpleGrid>
-
-      {/* <SimpleGrid columns={{ base: 1, lg: 2 }} spacing={4}>
-        <StatCard>
-          <Heading size="sm" fontFamily="heading" mb={4}>
-            CSAT semanal
-          </Heading>
-          <ResponsiveContainer width="100%" height={240}>
-            <LineChart data={csatTrend}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#e9d2b1" />
-              <XAxis
-                dataKey="semana"
-                tick={{ fontSize: 11, fill: "#7b5a48" }}
-              />
-              <YAxis
-                domain={[80, 100]}
-                tick={{ fontSize: 11, fill: "#7b5a48" }}
-              />
-              <Tooltip
-                contentStyle={{
-                  background: "white",
-                  border: "1px solid #e9d2b1",
-                  borderRadius: 8,
-                  fontSize: 12,
-                }}
-              />
-              <Line
-                type="monotone"
-                dataKey="csat"
-                stroke="#ef7d54"
-                strokeWidth={2.5}
-                dot={{ r: 4 }}
-              />
-            </LineChart>
-          </ResponsiveContainer>
-        </StatCard>
-      </SimpleGrid> */}
-
-      <StatCard mt={6}>
-        <Flex justify="space-between" align="center" mb={4}>
-          <Heading size="sm" fontFamily="heading">
-            Sesiones recientes
-          </Heading>
-          <Icon as={Activity} boxSize={4} color="naranja.500" />
-        </Flex>
-        <VStack align="stretch" spacing={0}>
-          {chats.slice(0, 4).map((c) => (
-            <HStack
-              key={c.id}
-              py={2}
-              borderBottomWidth="1px"
-              borderColor="lucera.borderSoft"
-              _last={{ borderBottom: 0 }}
-              spacing={3}
-            >
-              <TriageBadge level={c.triaje} />
-              <Box flex={1} minW={0}>
-                <Text fontSize="sm" fontWeight={600} noOfLines={1}>
-                  {c.paciente}
-                </Text>
-                <Text fontSize="xs" color="lucera.textMuted" noOfLines={1}>
-                  {c.acudiente} · {c.ultimoMensaje}
-                </Text>
-              </Box>
-              <Text
-                fontSize="xs"
-                color="lucera.textMuted"
-                sx={{ fontVariantNumeric: "tabular-nums" }}
-              >
-                {c.hora}
-              </Text>
-            </HStack>
-          ))}
-        </VStack>
-      </StatCard>
-    </>
-  );
-}
-
-function DoctorStatistics({ user }: { user: AuthUser }) {
-  const medicoNombre =
-    medicos.find((m) => m.id === user.refId)?.nombre ?? user.nombre;
-  const misSlots = disponibilidad.filter(
-    (s) => s.especialista === medicoNombre
-  );
-  const reservados = misSlots.filter((s) => s.estado === "reservado").length;
-  const disponibles = misSlots.filter((s) => s.estado === "disponible").length;
-
-  return (
-    <>
-      <SimpleGrid columns={{ base: 1, sm: 2, lg: 4 }} spacing={4} mb={6}>
-        <Stat
-          icon={CalendarDays}
-          label="Citas reservadas"
-          value={reservados}
-          accent={{ bg: "vino.50", fg: "vino.500" }}
-          sub="Próximos días"
-        />
-        <Stat
-          icon={Activity}
-          label="Franjas disponibles"
-          value={disponibles}
-          accent={{ bg: "exito.500", fg: "white" }}
-          sub="Sin reservar"
-        />
-        <Stat
-          icon={MessageSquare}
-          label="Sesiones derivadas"
-          value={12}
-          accent={{ bg: "naranja.50", fg: "naranja.500" }}
-          sub="Esta semana"
-        />
-        <Stat
-          icon={Heart}
-          label="Mi CSAT"
-          value="94%"
-          accent={{ bg: "amarillo.50", fg: "amarillo.700" }}
-          sub="≥4★ pacientes"
-        />
-      </SimpleGrid>
-
-      <SimpleGrid columns={{ base: 1, lg: 2 }} spacing={4}>
-        <StatCard>
-          <Flex justify="space-between" align="center" mb={3}>
-            <Heading size="sm" fontFamily="heading">
-              Próximas citas
-            </Heading>
-            <Button
-              as={RouterLink}
-              to="/schedule"
-              size="sm"
-              variant="outline"
-              leftIcon={<CalendarDays size={14} />}
-            >
-              Ver agenda
-            </Button>
-          </Flex>
-          {misSlots
-            .filter((s) => s.estado === "reservado")
-            .slice(0, 5)
-            .map((s, i) => (
-              <HStack
-                key={i}
-                py={2}
-                borderBottomWidth="1px"
-                borderColor="lucera.borderSoft"
-                _last={{ borderBottom: 0 }}
-              >
-                <Text
-                  fontFamily="mono"
-                  fontSize="sm"
-                  sx={{ fontVariantNumeric: "tabular-nums" }}
-                >
-                  {s.fecha} · {s.startHour}
-                </Text>
-                <Badge variant="outline">{s.modalidad}</Badge>
-                <Badge ml="auto" colorScheme="vino">
-                  Reservado
-                </Badge>
-              </HStack>
-            ))}
-          {reservados === 0 && (
-            <Text
-              fontSize="sm"
-              color="lucera.textMuted"
-              py={6}
-              textAlign="center"
-            >
-              Sin citas reservadas
-            </Text>
-          )}
-        </StatCard>
-
-        <StatCard>
-          <Flex justify="space-between" align="center" mb={3}>
-            <Heading size="sm" fontFamily="heading">
-              Sesiones recientes
-            </Heading>
-            <Button as={RouterLink} to="/chats" size="sm" variant="outline">
-              Ver todas
-            </Button>
-          </Flex>
-          {chats.slice(0, 4).map((c) => (
-            <HStack
-              key={c.id}
-              py={2}
-              borderBottomWidth="1px"
-              borderColor="lucera.borderSoft"
-              _last={{ borderBottom: 0 }}
-              spacing={3}
-            >
-              <TriageBadge level={c.triaje} />
-              <Text fontSize="sm" flex={1} noOfLines={1}>
-                {c.paciente}
-              </Text>
-              <Text
-                fontSize="xs"
-                color="lucera.textMuted"
-                sx={{ fontVariantNumeric: "tabular-nums" }}
-              >
-                {c.hora}
-              </Text>
-            </HStack>
-          ))}
-        </StatCard>
-      </SimpleGrid>
-    </>
-  );
-}
-
-function GuardiansStatistics({ user }: { user: AuthUser }) {
-  const ac = acudientes.find((a) => a.id === user.refId) ?? acudientes[0];
-  const misChats = chats.filter((c) => c.acudiente === ac.nombre);
-  return (
-    <>
-      <SimpleGrid columns={{ base: 1, sm: 2, lg: 4 }} spacing={4} mb={6}>
-        <Stat
-          icon={Baby}
-          label="Mis hijos"
-          value={ac.ninos.length}
-          accent={{ bg: "naranja.50", fg: "naranja.500" }}
-          sub="Registrados"
-        />
-        <Stat
-          icon={MessageSquare}
-          label="Mis consultas"
-          value={misChats.length || 5}
-          accent={{ bg: "vino.50", fg: "vino.500" }}
-          sub="Total históricas"
-        />
-        <Stat
-          icon={Crown}
-          label="Plan actual"
-          value={ac.plan.replace("Premium ", "")}
-          accent={{ bg: "amarillo.50", fg: "amarillo.700" }}
-          sub={ac.plan === "Gratuito" ? "Hazte Premium" : "Suscripción activa"}
-        />
-        {/* <Stat
-          icon={Heart}
-          label="Salud familiar"
-          value="OK"
-          accent={{ bg: "exito.500", fg: "white" }}
-          sub="Sin alertas"
-        /> */}
-      </SimpleGrid>
-
-      <SimpleGrid columns={{ base: 1, lg: 2 }} spacing={4} mb={4}>
-        <StatCard>
-          <Heading size="sm" fontFamily="heading" mb={3}>
-            Mis hijos
-          </Heading>
-          {ac.ninos.map((n) => {
-            const edad = Math.floor(
-              (Date.now() - new Date(n.fechaNacimiento).getTime()) /
-                (365.25 * 86400000)
-            );
-            return (
-              <HStack
-                key={n.id}
-                py={2}
-                borderBottomWidth="1px"
-                borderColor="lucera.borderSoft"
-                _last={{ borderBottom: 0 }}
-                spacing={3}
-              >
-                <Flex
-                  h="36px"
-                  w="36px"
-                  borderRadius="full"
-                  bg="naranja.50"
-                  align="center"
-                  justify="center"
-                >
-                  <Baby size={16} color="#ef7d54" />
-                </Flex>
-                <Box flex={1}>
-                  <Text fontSize="sm" fontWeight={600}>
-                    {n.nombre}
-                  </Text>
-                  <Text fontSize="xs" color="lucera.textMuted">
-                    {edad} años · {n.pesoKg ?? "—"} kg
-                  </Text>
-                </Box>
-                {(n.alergias?.length ?? 0) > 0 && (
-                  <Badge colorScheme="amarillo">⚠ Alergias</Badge>
-                )}
-              </HStack>
-            );
-          })}
-          <Button
-            as={RouterLink}
-            to="/my-children"
-            variant="outline"
-            w="100%"
-            mt={3}
-          >
-            Gestionar mis hijos
-          </Button>
-        </StatCard>
-
-        <StatCard>
-          <Heading size="sm" fontFamily="heading" mb={3}>
-            Última consulta
-          </Heading>
-          {(misChats.length ? misChats : chats.slice(0, 1)).map((c) => (
-            <HStack
-              key={c.id}
-              py={2}
-              borderBottomWidth="1px"
-              borderColor="lucera.borderSoft"
-              _last={{ borderBottom: 0 }}
-              spacing={3}
-            >
-              <TriageBadge level={c.triaje} />
-              <Box flex={1} minW={0}>
-                <Text fontSize="sm" fontWeight={600} noOfLines={1}>
-                  {c.paciente}
-                </Text>
-                <Text fontSize="xs" color="lucera.textMuted" noOfLines={1}>
-                  {c.ultimoMensaje}
-                </Text>
-              </Box>
-              <Text
-                fontSize="xs"
-                color="lucera.textMuted"
-                sx={{ fontVariantNumeric: "tabular-nums" }}
-              >
-                {c.hora}
-              </Text>
-            </HStack>
-          ))}
-          <Button
-            as={RouterLink}
-            to="/my-appointments"
-            variant="outline"
-            w="100%"
-            mt={3}
-          >
-            Ver historial completo
-          </Button>
-        </StatCard>
-      </SimpleGrid>
-    </>
   );
 }
 
 export default function Statistics() {
   const { user } = useAuth();
   if (!user) return null;
-  if (user.rol === "Finanzas") return <Navigate to="/payments" replace />;
-  const subtitle =
-    user.rol === "Admin"
-      ? "Indicadores operativos del chatbot pediátrico Lucera"
-      : user.rol === "Médico"
-      ? "Tu actividad clínica en Lucera"
-      : "Resumen de tu cuenta familiar";
+  if (user.rol === "Ventas") return <Navigate to="/payments" replace />;
+
+  const canExport = user.rol !== "Invitado" && user.rol !== "Ventas";
+
+  const [fechaInicio, setFechaInicio] = useState("");
+  const [fechaFin, setFechaFin] = useState("");
+  const [pais, setPais] = useState("");
+  const [seguro, setSeguro] = useState("");
+  const [acudienteFilter, setAcudienteFilter] = useState("");
+  const [applied, setApplied] = useState(false);
+  const [snapshot, setSnapshot] = useState({ fechaInicio: "", fechaFin: "", pais: "", seguro: "", acudiente: "" });
+
+  const handleSearch = () => {
+    setSnapshot({ fechaInicio, fechaFin, pais, seguro, acudiente: acudienteFilter });
+    setApplied(true);
+  };
+
+  const filteredAcudientes = useMemo(() => {
+    if (!applied) return [];
+    return acudientes.filter((a) => {
+      const okPais = !snapshot.pais || snapshot.pais === "todos" || a.pais === snapshot.pais;
+      const okSeguro = !snapshot.seguro || snapshot.seguro === "todos" || a.seguro === snapshot.seguro;
+      const okAcudiente = !snapshot.acudiente || snapshot.acudiente === "todos" || a.id === snapshot.acudiente;
+      const okFechaInicio = !snapshot.fechaInicio || a.registrado >= snapshot.fechaInicio;
+      const okFechaFin = !snapshot.fechaFin || a.registrado <= snapshot.fechaFin;
+      return okPais && okSeguro && okAcudiente && okFechaInicio && okFechaFin;
+    });
+  }, [applied, snapshot]);
+
+  const k = kpisGenerales;
 
   return (
-    <DashboardLayout title="Estadísticas" subtitle={subtitle}>
-      {user.rol === "Admin" && <AdminStatistics />}
-      {user.rol === "Médico" && <DoctorStatistics user={user} />}
-      {user.rol === "Acudiente" && <GuardiansStatistics user={user} />}
+    <DashboardLayout
+      title="Estadísticas"
+      subtitle="Indicadores operativos del chatbot pediátrico Lucera"
+    >
+      {/* Filtros */}
+      <StatCard mb={6}>
+        <Flex
+          direction={{ base: "column", md: "row" }}
+          gap={3}
+          align={{ md: "end" }}
+          wrap="wrap"
+        >
+          <Box>
+            <Text fontSize="xs" fontWeight={600} mb={1}>
+              Fecha inicio
+            </Text>
+            <Input
+              type="date"
+              size="sm"
+              value={fechaInicio}
+              onChange={(e) => setFechaInicio(e.target.value)}
+            />
+          </Box>
+          <Box>
+            <Text fontSize="xs" fontWeight={600} mb={1}>
+              Fecha fin
+            </Text>
+            <Input
+              type="date"
+              size="sm"
+              value={fechaFin}
+              onChange={(e) => setFechaFin(e.target.value)}
+            />
+          </Box>
+          <Box>
+            <Text fontSize="xs" fontWeight={600} mb={1}>
+              País
+            </Text>
+            <Select
+              size="sm"
+              placeholder="Seleccionar opción"
+              value={pais}
+              onChange={(e) => setPais(e.target.value)}
+            >
+              <option value="todos">Todos</option>
+              {Object.keys(paisesCiudades).map((p) => (
+                <option key={p} value={p}>
+                  {p}
+                </option>
+              ))}
+            </Select>
+          </Box>
+          <Box>
+            <Text fontSize="xs" fontWeight={600} mb={1}>
+              Seguro médico
+            </Text>
+            <Select
+              size="sm"
+              placeholder="Seleccionar opción"
+              value={seguro}
+              onChange={(e) => setSeguro(e.target.value)}
+            >
+              <option value="todos">Todos</option>
+              {segurosMedicos.map((s) => (
+                <option key={s} value={s}>
+                  {s}
+                </option>
+              ))}
+            </Select>
+          </Box>
+          <Box>
+            <Text fontSize="xs" fontWeight={600} mb={1}>
+              Acudiente
+            </Text>
+            <Select
+              size="sm"
+              placeholder="Seleccionar opción"
+              value={acudienteFilter}
+              onChange={(e) => setAcudienteFilter(e.target.value)}
+            >
+              <option value="todos">Todos</option>
+              {acudientes.map((a) => (
+                <option key={a.id} value={a.id}>
+                  {a.nombre}
+                </option>
+              ))}
+            </Select>
+          </Box>
+          <Button
+            colorScheme="vino"
+            size="sm"
+            leftIcon={<Search size={14} />}
+            onClick={handleSearch}
+            isDisabled={!fechaInicio && !fechaFin && !pais && !seguro && !acudienteFilter}
+          >
+            Buscar
+          </Button>
+          {applied && (
+            <Button
+              size="sm"
+              variant="solid"
+              leftIcon={<Download size={14} />}
+              isDisabled={!canExport}
+              onClick={() =>
+                exportToExcel(
+                  filteredAcudientes.map((a) => ({
+                    ID: a.id,
+                    Nombre: a.nombre,
+                    Email: a.email,
+                    Teléfono: a.telefono,
+                    País: a.pais,
+                    Ciudad: a.ciudad,
+                    Seguro: a.seguro ?? "",
+                    "ID Seguro": a.seguroId ?? "",
+                    Plan: a.plan,
+                    Estado: a.estado,
+                    Niños: a.ninos.length,
+                    Registrado: a.registrado,
+                  })),
+                  "estadisticas-lucera",
+                  "Estadísticas"
+                )
+              }
+            >
+              Exportar
+            </Button>
+          )}
+        </Flex>
+      </StatCard>
+
+      {/* Sin filtros aplicados */}
+      {!applied && (
+        <Flex
+          direction="column"
+          align="center"
+          justify="center"
+          py={20}
+          color="lucera.textMuted"
+        >
+          <Icon as={Activity} boxSize={10} mb={3} opacity={0.4} />
+          <Text fontSize="sm">
+            Selecciona los filtros y presiona "Buscar" para ver las
+            estadísticas.
+          </Text>
+        </Flex>
+      )}
+
+      {/* Con filtros aplicados */}
+      {applied && (
+        <>
+          <SimpleGrid columns={{ base: 1, sm: 2, lg: 4 }} spacing={4} mb={4}>
+            <Stat
+              icon={Users}
+              label="Acudientes"
+              value={filteredAcudientes.length}
+              accent={{ bg: "vino.50", fg: "vino.500" }}
+              sub="Coinciden con filtros"
+            />
+            <Stat
+              icon={Baby}
+              label="Niños registrados"
+              value={filteredAcudientes.reduce(
+                (sum, a) => sum + a.ninos.length,
+                0
+              )}
+              accent={{ bg: "naranja.50", fg: "naranja.500" }}
+              sub="Pacientes pediátricos"
+            />
+            <Stat
+              icon={MessageSquare}
+              label="Sesiones del mes"
+              value={k.sesionesMes.toLocaleString()}
+              accent={{ bg: "amarillo.50", fg: "amarillo.700" }}
+              sub="Conversaciones completas"
+            />
+            <Stat
+              icon={DollarSign}
+              label="Ingresos del mes"
+              value={`$${k.ingresosMes.toLocaleString("en-US", {
+                minimumFractionDigits: 2,
+              })}`}
+              accent={{ bg: "exito.500", fg: "white" }}
+              sub="Stripe + Yappy"
+            />
+          </SimpleGrid>
+
+          <SimpleGrid columns={{ base: 1, sm: 2, lg: 4 }} spacing={4} mb={6}>
+            <Stat
+              icon={AlertTriangle}
+              label="Emergencias detectadas"
+              value={k.emergenciasDetectadas}
+              accent={{ bg: "peligro.500", fg: "white" }}
+              sub="Triaje rojo (mes)"
+            />
+            <Stat
+              icon={Building2}
+              label="Derivaciones presenciales"
+              value={k.derivacionesPresenciales}
+              accent={{ bg: "naranja.50", fg: "naranja.500" }}
+              sub="Sesiones → cita"
+            />
+            <Stat
+              icon={TrendingUp}
+              label="Conversión a Premium"
+              value={`${k.conversionPremium}%`}
+              accent={{ bg: "vino.50", fg: "vino.500" }}
+              sub="Gratuito → Pago"
+            />
+            <Stat
+              icon={Heart}
+              label="CSAT (≥4★)"
+              value={`${k.csat}%`}
+              accent={{ bg: "exito.500", fg: "white" }}
+              sub="Calificación voluntaria"
+            />
+          </SimpleGrid>
+
+          <SimpleGrid columns={{ base: 1, lg: 2 }} spacing={4} mb={6}>
+            <StatCard>
+              <Heading size="sm" fontFamily="heading" mb={4}>
+                Distribución por plan
+              </Heading>
+              <ResponsiveContainer width="100%" height={240}>
+                <BarChart
+                  data={planesDistribucion}
+                  layout="vertical"
+                  margin={{ left: 20 }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e9d2b1" />
+                  <XAxis
+                    type="number"
+                    tick={{ fontSize: 11, fill: "#7b5a48" }}
+                  />
+                  <YAxis
+                    type="category"
+                    dataKey="plan"
+                    tick={{ fontSize: 11, fill: "#7b5a48" }}
+                    width={120}
+                  />
+                  <Tooltip
+                    contentStyle={{
+                      background: "white",
+                      border: "1px solid #e9d2b1",
+                      borderRadius: 8,
+                      fontSize: 12,
+                    }}
+                  />
+                  <Bar dataKey="usuarios" radius={[0, 6, 6, 0]}>
+                    {planesDistribucion.map((_, i) => (
+                      <Cell key={i} fill={planColors[i % planColors.length]} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </StatCard>
+            <StatCard>
+              <Heading size="sm" fontFamily="heading" mb={4}>
+                Distribución por triaje
+              </Heading>
+              <ResponsiveContainer width="100%" height={220}>
+                <PieChart>
+                  <Pie
+                    data={triajeStats}
+                    dataKey="value"
+                    nameKey="nivel"
+                    innerRadius={50}
+                    outerRadius={80}
+                    paddingAngle={2}
+                  >
+                    {triajeStats.map((e, i) => (
+                      <Cell
+                        key={i}
+                        fill={
+                          (triajeColors as triajeColorsProps)[
+                            e.nivel as keyof triajeColorsProps
+                          ]
+                        }
+                      />
+                    ))}
+                  </Pie>
+                  <Tooltip
+                    contentStyle={{
+                      background: "white",
+                      border: "1px solid #e9d2b1",
+                      borderRadius: 8,
+                      fontSize: 12,
+                    }}
+                  />
+                </PieChart>
+              </ResponsiveContainer>
+              <VStack align="stretch" spacing={1.5} mt={2}>
+                {triajeStats.map((t) => (
+                  <HStack key={t.nivel} fontSize="xs">
+                    <Box
+                      h="10px"
+                      w="10px"
+                      borderRadius="full"
+                      bg={
+                        (triajeColors as triajeColorsProps)[
+                          t.nivel as keyof triajeColorsProps
+                        ]
+                      }
+                    />
+                    <Text color="lucera.textMuted" flex={1}>
+                      {t.nivel}
+                    </Text>
+                    <Text
+                      fontWeight={700}
+                      sx={{ fontVariantNumeric: "tabular-nums" }}
+                    >
+                      {t.value}
+                    </Text>
+                  </HStack>
+                ))}
+              </VStack>
+            </StatCard>
+          </SimpleGrid>
+
+          <StatCard>
+            <Flex justify="space-between" align="center" mb={4}>
+              <Heading size="sm" fontFamily="heading">
+                Sesiones recientes
+              </Heading>
+              <Icon as={Activity} boxSize={4} color="naranja.500" />
+            </Flex>
+            <VStack align="stretch" spacing={0}>
+              {chats.slice(0, 4).map((c) => (
+                <HStack
+                  key={c.id}
+                  py={2}
+                  borderBottomWidth="1px"
+                  borderColor="lucera.borderSoft"
+                  _last={{ borderBottom: 0 }}
+                  spacing={3}
+                >
+                  <TriageBadge level={c.triaje} />
+                  <Box flex={1} minW={0}>
+                    <Text fontSize="sm" fontWeight={600} noOfLines={1}>
+                      {c.paciente}
+                    </Text>
+                    <Text fontSize="xs" color="lucera.textMuted" noOfLines={1}>
+                      {c.acudiente} · {c.ultimoMensaje}
+                    </Text>
+                  </Box>
+                  <Text
+                    fontSize="xs"
+                    color="lucera.textMuted"
+                    sx={{ fontVariantNumeric: "tabular-nums" }}
+                  >
+                    {c.hora}
+                  </Text>
+                </HStack>
+              ))}
+            </VStack>
+          </StatCard>
+        </>
+      )}
     </DashboardLayout>
   );
 }

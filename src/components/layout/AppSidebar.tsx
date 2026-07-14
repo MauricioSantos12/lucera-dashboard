@@ -38,42 +38,42 @@ type Item = { title: string; url: string; icon: LucideIcon; roles: UserRole[] };
 const allItems: Item[] = [
   {
     title: "Resumen",
-    url: "/",
+    url: "/dashboard",
     icon: LayoutDashboard,
-    roles: ["Admin", "Médico", "Acudiente", "Finanzas"],
+    roles: ["Admin", "Médico", "Acudiente", "Ventas", "Invitado"],
   },
   {
     title: "Estadísticas",
     url: "/statistics",
     icon: BarChart3,
-    roles: ["Admin", "Médico", "Acudiente"],
+    roles: ["Admin", "Médico", "Acudiente", "Invitado"],
   },
-  { title: "Acudientes", url: "/guardians", icon: Users, roles: ["Admin"] },
-  { title: "Niños", url: "/children", icon: Baby, roles: ["Admin"] },
+  { title: "Acudientes", url: "/guardians", icon: Users, roles: ["Admin", "Invitado"] },
+  { title: "Niños", url: "/children", icon: Baby, roles: ["Admin", "Invitado"] },
   {
     title: "Médicos",
     url: "/specialists",
     icon: Stethoscope,
-    roles: ["Admin"],
+    roles: ["Admin", "Invitado"],
   },
   {
     title: "Centros de atención",
     url: "/centers",
     icon: Building2,
-    roles: ["Admin", "Médico"],
+    roles: ["Admin", "Médico", "Invitado"],
   },
   {
     title: "Sesiones (Chats)",
     url: "/chats",
     icon: MessageSquare,
-    roles: ["Admin", "Médico"],
+    roles: ["Admin", "Médico", "Invitado"],
   },
-  { title: "Medicamentos", url: "/medications", icon: Pill, roles: ["Admin"] },
+  { title: "Medicamentos", url: "/medications", icon: Pill, roles: ["Admin", "Invitado"] },
   {
     title: "Pagos",
     url: "/payments",
     icon: CreditCard,
-    roles: ["Admin", "Finanzas"],
+    roles: ["Admin", "Ventas", "Invitado"],
   },
   {
     title: "Mi agenda",
@@ -136,7 +136,7 @@ function SidebarLink({
   return (
     <RouterNavLink
       to={item.url}
-      end={item.url === "/"}
+      end={item.url === "/dashboard"}
       onClick={onNav}
       style={{ textDecoration: "none" }}
     >
@@ -166,8 +166,8 @@ function SidebarBody({ onNav }: { onNav?: () => void }) {
   const role = user?.rol ?? "Admin";
   const items = allItems.filter((i) => i.roles.includes(role));
   const isActive = (path: string) =>
-    path === "/"
-      ? location.pathname === "/"
+    path === "/dashboard"
+      ? location.pathname === "/dashboard"
       : location.pathname.startsWith(path);
 
   return (
@@ -178,7 +178,7 @@ function SidebarBody({ onNav }: { onNav?: () => void }) {
       bg="lucera.sidebar"
       color="lucera.sidebarFg"
     >
-      <HStack p={4} borderBottomWidth="1px" borderColor="vino.600" spacing={3}>
+      <HStack as={RouterNavLink} to="/" p={4} borderBottomWidth="1px" borderColor="vino.600" spacing={3} style={{ textDecoration: "none" }}>
         <Box
           h={10}
           w={10}
@@ -229,8 +229,10 @@ function SidebarBody({ onNav }: { onNav?: () => void }) {
             ? "Operación"
             : role === "Médico"
             ? "Clínica"
-            : role === "Finanzas"
-            ? "Finanzas"
+            : role === "Ventas"
+            ? "Ventas"
+            : role === "Invitado"
+            ? "Vista general"
             : "Mi cuenta"}
         </Text>
         <VStack align="stretch" spacing={0.5}>
@@ -244,27 +246,6 @@ function SidebarBody({ onNav }: { onNav?: () => void }) {
           ))}
         </VStack>
 
-        <Text
-          px={5}
-          py={2}
-          mt={4}
-          fontSize="10px"
-          letterSpacing="widest"
-          textTransform="uppercase"
-          opacity={0.5}
-        >
-          Cuenta
-        </Text>
-        <SidebarLink
-          item={{
-            title: "Mi perfil",
-            url: "/profile",
-            icon: UserCog,
-            roles: ["Admin", "Médico", "Acudiente", "Finanzas"],
-          }}
-          active={isActive("/profile")}
-          onNav={onNav}
-        />
       </Box>
 
       <Box

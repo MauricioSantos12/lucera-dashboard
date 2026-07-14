@@ -18,7 +18,7 @@ const MotionBox = motion(Box);
 export default function Dashboard() {
   const { user } = useAuth();
   if (!user) return null;
-  // if (user.rol === "Finanzas") return <Navigate to="/payments" replace />;
+  // if (user.rol === "Ventas") return <Navigate to="/payments" replace />;
 
   return (
     <DashboardLayout
@@ -63,11 +63,11 @@ export default function Dashboard() {
           {user.rol !== "Acudiente" && (
             <Button
               as={RouterLink}
-              to={user.rol === "Finanzas" ? "/payments" : "/statistics"}
+              to={user.rol === "Ventas" ? "/payments" : "/statistics"}
               colorScheme="vino"
               variant="solid"
             >
-              {user.rol === "Finanzas" ? "Ver Pagos" : "Ver estadísticas"}
+              {user.rol === "Ventas" ? "Ver Pagos" : "Ver estadísticas"}
             </Button>
           )}
         </VStack>
