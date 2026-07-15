@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useAuth, UserRole, demoAccounts } from "@/lib/auth";
+import { useAuth, UserRole, type AuthUser } from "@/lib/auth";
 import {
   Box,
   Button,
@@ -17,75 +17,64 @@ import {
   Text,
   VStack,
 } from "@chakra-ui/react";
-import {
-  ShieldCheck,
-  Smartphone,
-  Shield,
-  Stethoscope,
-  Users,
-  CreditCard,
-  Eye,
-  type LucideIcon,
-} from "lucide-react";
+import { ShieldCheck, Smartphone } from "lucide-react";
 import logoVertical from "@/assets/lucera-vertical.jpg";
 import logoSymbol from "@/assets/lucera-symbol.jpg";
 import { toast } from "@/lib/toast";
+import { BACKEND_URL } from "@/lib/config";
+import type { LoginResponse } from "@/lib/apiTypes";
 
-const roleMeta: Record<
-  UserRole,
-  { Icon: LucideIcon; label: string; desc: string }
-> = {
-  Admin: {
-    Icon: Shield,
-    label: "Administrador",
-    desc: "Gestión completa de la plataforma",
-  },
-  Médico: {
-    Icon: Stethoscope,
-    label: "Médico / Pediatra",
-    desc: "Agenda, sesiones y derivaciones",
-  },
-  Acudiente: {
-    Icon: Users,
-    label: "Acudiente",
-    desc: "Mis hijos, consultas y plan",
-  },
-  Ventas: {
-    Icon: CreditCard,
-    label: "Ventas",
-    desc: "Solo módulo de pagos",
-  },
-  Invitado: {
-    Icon: Eye,
-    label: "Invitado",
-    desc: "Solo lectura, sin edición",
-  },
-};
+// Paso de verificación por código oculto temporalmente (no eliminado).
+// Controlado por VITE_REQUIRE_MFA_CODE en .env; cambia a "true" para reactivarlo.
+const REQUIRE_MFA_CODE = import.meta.env.VITE_REQUIRE_MFA_CODE === "true";
 
 export default function Login() {
   const { login } = useAuth();
   const [step, setStep] = useState<"creds" | "mfa">("creds");
   const [loading, setLoading] = useState(false);
-  const [rol, setRol] = useState<UserRole>("Admin");
-  const [email, setEmail] = useState(demoAccounts.Admin.email);
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [otp, setOtp] = useState("");
+  const [pendingAuth, setPendingAuth] = useState<{
+    user: AuthUser;
+    token: string;
+  } | null>(null);
 
-  const onChangeRol = (r: UserRole) => {
-    setRol(r);
-    setEmail(demoAccounts[r].email);
-  };
-
-  const handleCreds = (e: React.FormEvent) => {
+  const handleCreds = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    setTimeout(() => {
+    try {
+      const res = await fetch(`${BACKEND_URL}/auth/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      });
+      if (!res.ok) {
+        throw new Error("Correo o contraseña incorrectos");
+      }
+      const data: LoginResponse = await res.json();
+      const acc: AuthUser = {
+        email: data.user.email,
+        nombre: data.user.name,
+        rol: data.user.role as UserRole,
+      };
       setLoading(false);
+      if (!REQUIRE_MFA_CODE) {
+        login(acc, data.access_token);
+        toast.success(`Bienvenido(a), ${acc.nombre}`);
+        return;
+      }
+      setPendingAuth({ user: acc, token: data.access_token });
       setStep("mfa");
       toast.success("Código de verificación enviado por mail", {
-        description: `Revisa tu correo ${demoAccounts[rol].email}`,
+        description: `Revisa tu correo ${acc.email}`,
       });
-    }, 600);
+    } catch (err) {
+      setLoading(false);
+      toast.error("No se pudo iniciar sesión", {
+        description: err instanceof Error ? err.message : undefined,
+      });
+    }
   };
   const handleMfa = (e: React.FormEvent) => {
     e.preventDefault();
@@ -93,15 +82,13 @@ export default function Login() {
       toast.error("Ingresa los 6 dígitos del código");
       return;
     }
+    if (!pendingAuth) return;
     setLoading(true);
     setTimeout(() => {
-      const acc = { ...demoAccounts[rol], email };
-      login(acc);
-      toast.success(`Bienvenido(a), ${acc.nombre}`);
+      login(pendingAuth.user, pendingAuth.token);
+      toast.success(`Bienvenido(a), ${pendingAuth.user.nombre}`);
     }, 500);
   };
-
-  console.log({ roleMeta });
 
   return (
     <SimpleGrid minH="100vh" columns={{ base: 1, lg: 2 }}>
@@ -194,50 +181,8 @@ export default function Login() {
                 <Box>
                   <Heading size="lg">Iniciar sesión</Heading>
                   <Text fontSize="sm" color="lucera.textMuted" mt={1}>
-                    Selecciona tu rol para probar la experiencia.
+                    Ingresa tus credenciales para acceder al panel.
                   </Text>
-                </Box>
-
-                <Box>
-                  <FormLabel mb={2}>Tipo de cuenta</FormLabel>
-                  <SimpleGrid columns={{ base: 2, sm: 4 }} spacing={2}>
-                    {(Object.keys(roleMeta) as UserRole[]).map((r) => {
-                      const M = roleMeta[r];
-                      const active = rol === r;
-                      return (
-                        <Box
-                          as="button"
-                          type="button"
-                          key={r}
-                          onClick={() => onChangeRol(r)}
-                          textAlign="left"
-                          borderWidth="1px"
-                          borderRadius="lg"
-                          p={3}
-                          borderColor={active ? "vino.500" : "lucera.border"}
-                          bg={active ? "vino.50" : "white"}
-                          _hover={{ bg: active ? "vino.50" : "crema.100" }}
-                          transition="all 120ms"
-                        >
-                          <M.Icon
-                            size={16}
-                            color={active ? "#6d122b" : "#7b5a48"}
-                          />
-                          <Text fontSize="xs" fontWeight={700} mt={1.5}>
-                            {M.label}
-                          </Text>
-                          <Text
-                            fontSize="10px"
-                            color="lucera.textMuted"
-                            mt={0.5}
-                            lineHeight={1.2}
-                          >
-                            {M.desc}
-                          </Text>
-                        </Box>
-                      );
-                    })}
-                  </SimpleGrid>
                 </Box>
 
                 <FormControl isRequired>
@@ -321,7 +266,7 @@ export default function Login() {
                   <Heading size="lg">Verificación by Email</Heading>
                   <Text fontSize="sm" color="lucera.textMuted" mt={1}>
                     Código de 6 dígitos enviado a{" "}
-                    <strong>{demoAccounts[rol].email}</strong>.
+                    <strong>{pendingAuth?.user.email}</strong>.
                   </Text>
                 </Box>
 

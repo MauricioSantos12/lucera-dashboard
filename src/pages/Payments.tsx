@@ -1,6 +1,14 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
-import { pagos, Pago } from "@/lib/mockData";
+import { Pago } from "@/lib/mockData";
+import { useFetch } from "@/hooks/useFetch";
+import {
+  paymentMethodToEs,
+  paymentStatusToEs,
+  paymentPlanToEs,
+} from "@/lib/apiMappings";
+import type { PaymentApi, PaginatedResponse } from "@/lib/apiTypes";
+import { toast } from "@/lib/toast";
 import {
   Box,
   Button,
@@ -33,6 +41,7 @@ import {
 } from "lucide-react";
 import { StatCard } from "@/components/StatCard";
 import { Pagination } from "@/components/Pagination";
+import { LoadingState } from "@/components/LoadingState";
 import { exportToExcel } from "@/lib/exportToExcel";
 import { useAuth } from "@/lib/auth";
 
@@ -54,14 +63,55 @@ type KpiProps = {
   fg: string;
 };
 
+function paymentApiToPago(p: PaymentApi): Pago {
+  return {
+    id: p.id,
+    acudiente: p.guardian,
+    monto: p.amount,
+    metodo: paymentMethodToEs[p.method] ?? "Stripe",
+    plan: (paymentPlanToEs[p.plan] ?? p.plan) as Pago["plan"],
+    estado: paymentStatusToEs[p.status] ?? "pendiente",
+    fecha: p.date,
+    respuestaProveedor: p.providerResponse,
+    tipoPago: p.paymentType,
+  };
+}
+
 export default function Payments() {
-  const { user } = useAuth();
+  const { user, token } = useAuth();
   const canExport = user?.rol !== "Invitado" && user?.rol !== "Ventas";
+
+  const {
+    data: paymentsData,
+    loading: paymentsLoading,
+    error: paymentsError,
+  } = useFetch<PaginatedResponse<PaymentApi>>(
+    token ? "/api/payments?page=1&page_limit=500" : null
+  );
+  const pagos = useMemo(
+    () => (paymentsData?.items ?? []).map(paymentApiToPago),
+    [paymentsData]
+  );
+
+  useEffect(() => {
+    if (paymentsError) {
+      toast.error("No se pudieron cargar los pagos", {
+        description: paymentsError,
+      });
+    }
+  }, [paymentsError]);
+
   const [q, setQ] = useState("");
   const [metodo, setMetodo] = useState("todos");
   const [estado, setEstado] = useState("todos");
+  const [planFilter, setPlanFilter] = useState("todos");
   const [page, setPage] = useState(1);
   const perPage = 10;
+
+  const planes = useMemo(
+    () => [...new Set(pagos.map((p) => p.plan))].sort(),
+    [pagos]
+  );
 
   const filtered = useMemo(() => {
     setPage(1);
@@ -71,18 +121,32 @@ export default function Payments() {
         .includes(q.toLowerCase());
       const okM = metodo === "todos" || p.metodo === metodo;
       const okE = estado === "todos" || p.estado === estado;
-      return okQ && okM && okE;
+      const okP = planFilter === "todos" || p.plan === planFilter;
+      return okQ && okM && okE && okP;
     });
-  }, [q, metodo, estado]);
+  }, [pagos, q, metodo, estado, planFilter]);
 
   const totalPages = Math.ceil(filtered.length / perPage);
   const paginated = filtered.slice((page - 1) * perPage, page * perPage);
 
-  const total = filtered
-    .filter((p) => p.estado === "confirmado")
+  // p.fecha viene como "YYYY-MM-DD HH:MM"; comparamos por prefijo de fecha
+  // en vez de parsear a Date para evitar líos de zona horaria.
+  const now = Date.now();
+  const todayStr = new Date(now).toISOString().slice(0, 10); // YYYY-MM-DD
+  const monthStr = todayStr.slice(0, 7); // YYYY-MM
+
+  const ingresosHoy = filtered
+    .filter((p) => p.estado === "confirmado" && p.fecha.slice(0, 10) === todayStr)
+    .reduce((s, p) => s + p.monto, 0);
+  const ingresosMes = filtered
+    .filter((p) => p.estado === "confirmado" && p.fecha.slice(0, 7) === monthStr)
     .reduce((s, p) => s + p.monto, 0);
   const pendientes = filtered.filter((p) => p.estado === "pendiente").length;
-  const fallidos = filtered.filter((p) => p.estado === "fallido").length;
+  const fallidos24h = filtered.filter(
+    (p) =>
+      p.estado === "fallido" &&
+      now - new Date(p.fecha.replace(" ", "T")).getTime() <= 24 * 60 * 60 * 1000
+  ).length;
 
   const Kpi = ({ icon: I, label, value, bg, fg }: KpiProps) => (
     <StatCard>
@@ -121,13 +185,20 @@ export default function Payments() {
       title="Pagos y suscripciones"
       subtitle="Transacciones procesadas vía Stripe y Yappy"
     >
-      <SimpleGrid columns={{ base: 1, sm: 3 }} spacing={4} mb={4}>
+      <SimpleGrid columns={{ base: 1, sm: 2, lg: 4 }} spacing={4} mb={4}>
         <Kpi
           icon={DollarSign}
           label="Ingresos hoy"
-          value={`$${total.toFixed(2)}`}
+          value={`$${ingresosHoy.toFixed(2)}`}
           bg="naranja.50"
           fg="naranja.500"
+        />
+        <Kpi
+          icon={DollarSign}
+          label="Ingresos del mes"
+          value={`$${ingresosMes.toFixed(2)}`}
+          bg="vino.50"
+          fg="vino.500"
         />
         <Kpi
           icon={Clock}
@@ -139,15 +210,15 @@ export default function Payments() {
         <Kpi
           icon={XCircle}
           label="Fallidos (24h)"
-          value={fallidos}
+          value={fallidos24h}
           bg="peligro.500"
           fg="white"
         />
       </SimpleGrid>
 
       <StatCard>
-        <Flex direction={{ base: "column", md: "row" }} gap={3} mb={4}>
-          <InputGroup flex={1}>
+        <Flex direction={{ base: "column", md: "row" }} gap={3} mb={4} wrap="wrap">
+          <InputGroup flex={1} minW={{ md: "220px" }}>
             <InputLeftElement pointerEvents="none">
               <Search size={16} />
             </InputLeftElement>
@@ -177,6 +248,21 @@ export default function Payments() {
             <option value="fallido">Fallido</option>
             <option value="reembolsado">Reembolsado</option>
           </Select>
+          <Select
+            w={{ base: "100%", md: "180px" }}
+            value={planFilter}
+            onChange={(e) => setPlanFilter(e.target.value)}
+          >
+            <option value="todos">Todos los planes</option>
+            {planes.map((p) => (
+              <option key={p} value={p}>
+                {p}
+              </option>
+            ))}
+          </Select>
+        </Flex>
+
+        <Flex gap={3} mb={4} wrap="wrap">
           <Button variant="solid" leftIcon={<Download size={16} />} isDisabled={!canExport} onClick={() => exportToExcel(
             filtered.map(p => ({ ID: p.id, Acudiente: p.acudiente, Plan: p.plan, Método: p.metodo, Monto: p.monto, Estado: p.estado, Fecha: p.fecha })),
             "pagos-lucera",
@@ -186,6 +272,10 @@ export default function Payments() {
           </Button>
         </Flex>
 
+        {paymentsLoading && !paymentsData ? (
+          <LoadingState label="Cargando pagos…" />
+        ) : (
+          <>
         <TableContainer
           borderWidth="1px"
           borderColor="lucera.border"
@@ -261,6 +351,8 @@ export default function Payments() {
           totalPages={totalPages}
           onPageChange={setPage}
         />
+          </>
+        )}
       </StatCard>
     </DashboardLayout>
   );

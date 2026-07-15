@@ -1,7 +1,16 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
-import { acudientes as seed, Acudiente, paisesCiudades, segurosMedicos } from "@/lib/mockData";
+import { Acudiente, NinoPaciente, Relacion, EstadoCuenta, paisesCiudades, segurosMedicos } from "@/lib/mockData";
 import { useAuth } from "@/lib/auth";
+import { useFetch } from "@/hooks/useFetch";
+import { apiFetch } from "@/lib/apiClient";
+import { relationToEs, relationToApi, statusToEs, statusToApi, planToEs, countryApiToEs } from "@/lib/apiMappings";
+import type {
+  GuardianApi,
+  GuardianPatchPayload,
+  PaginatedResponse,
+  DeleteResponse,
+} from "@/lib/apiTypes";
 import {
   Box,
   Button,
@@ -47,19 +56,71 @@ import {
 import { StatCard } from "@/components/StatCard";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { Pagination } from "@/components/Pagination";
+import { LoadingState } from "@/components/LoadingState";
 import { toast } from "@/lib/toast";
 import { exportToExcel } from "@/lib/exportToExcel";
 
 const estadoTone = (e: Acudiente["estado"]) =>
   e === "activa" ? "green" : e === "suspendida" ? "yellow" : "red";
 
+function guardianToAcudiente(g: GuardianApi): Acudiente {
+  return {
+    id: g.id,
+    telefono: g.phone,
+    email: g.email,
+    nombre: g.name,
+    relacion: relationToEs[g.relationship] ?? "Tutor",
+    pais: countryApiToEs[g.country] ?? g.country,
+    ciudad: g.city,
+    seguro: g.insurance?.name as Acudiente["seguro"],
+    seguroId: g.insurance ? String(g.insurance.id) : undefined,
+    estado: statusToEs[g.status] ?? "activa",
+    plan: planToEs[g.plan] ?? "Gratuito",
+    registrado: g.registeredAt,
+    ninos: g.children.map(
+      (c): NinoPaciente => ({
+        id: c.id,
+        nombre: c.name,
+        fechaNacimiento: c.birthDate,
+        tipoSangre: (c.bloodType ?? undefined) as NinoPaciente["tipoSangre"],
+        pesoKg: c.weightKg ?? undefined,
+        condiciones: c.conditions,
+        alergias: c.allergies,
+      })
+    ),
+  };
+}
+
 export default function Guardians() {
-  const { user } = useAuth();
+  const { user, token } = useAuth();
   const canEdit = user?.rol !== "Invitado";
   const canExport = user?.rol !== "Invitado" && user?.rol !== "Ventas";
-  const [data, setData] = useState<Acudiente[]>(seed);
+  const {
+    data: guardiansData,
+    loading: guardiansLoading,
+    error: guardiansError,
+    refetch: refetchGuardians,
+  } = useFetch<PaginatedResponse<GuardianApi>>(
+    token ? "/api/guardians?page=1&page_limit=500" : null
+  );
+  const data = useMemo(
+    () => (guardiansData?.items ?? []).map(guardianToAcudiente),
+    [guardiansData]
+  );
+
+  useEffect(() => {
+    if (guardiansError) {
+      toast.error("No se pudieron cargar los acudientes", {
+        description: guardiansError,
+      });
+    }
+  }, [guardiansError]);
+
   const [q, setQ] = useState("");
   const [estado, setEstado] = useState("todos");
+  const [paisFilter, setPaisFilter] = useState("todos");
+  const [planFilter, setPlanFilter] = useState("todos");
+  const [seguroFilter, setSeguroFilter] = useState("todos");
   const [page, setPage] = useState(1);
   const perPage = 10;
   const { isOpen, onOpen, onClose } = useDisclosure();
@@ -74,9 +135,14 @@ export default function Guardians() {
         .toLowerCase()
         .includes(q.toLowerCase());
       const okE = estado === "todos" || a.estado === estado;
-      return okQ && okE;
+      const okPais = paisFilter === "todos" || a.pais === paisFilter;
+      const okPlan = planFilter === "todos" || a.plan === planFilter;
+      const okSeguro =
+        seguroFilter === "todos" ||
+        (seguroFilter === "sin_seguro" ? !a.seguro : a.seguro === seguroFilter);
+      return okQ && okE && okPais && okPlan && okSeguro;
     });
-  }, [data, q, estado]);
+  }, [data, q, estado, paisFilter, planFilter, seguroFilter]);
 
   const totalPages = Math.ceil(filtered.length / perPage);
   const paginated = filtered.slice((page - 1) * perPage, page * perPage);
@@ -87,33 +153,43 @@ export default function Guardians() {
     onOpen();
   };
 
-  const handleSave = (form: HTMLFormElement) => {
+  const handleSave = async (form: HTMLFormElement) => {
     const fd = new FormData(form);
-    const next: Acudiente = {
-      ...(editing ?? {
-        id: `AC-${1100 + data.length}`,
-        registrado: new Date().toISOString().slice(0, 10),
-        ninos: [],
-      }),
-      nombre: String(fd.get("nombre")),
+
+    if (!editing) {
+      // No hay endpoint de creación en el backend (solo GET/PATCH/DELETE) —
+      // los acudientes se registran vía el chatbot de WhatsApp.
+      toast.error("Crear acudientes no está disponible todavía", {
+        description: "Los acudientes se registran a través del chatbot.",
+      });
+      onClose();
+      return;
+    }
+
+    // El backend solo acepta estos campos en el PATCH; el resto del form
+    // (teléfono, país, seguro, plan) no es editable vía API por ahora.
+    const payload: GuardianPatchPayload = {
+      name: String(fd.get("nombre")),
       email: String(fd.get("email")),
-      telefono: String(fd.get("telefono")),
-      relacion: fd.get("relacion") as Acudiente["relacion"],
-      pais: String(fd.get("pais")),
-      ciudad: String(fd.get("ciudad")),
-      seguro: (fd.get("seguro") as Acudiente["seguro"]) || undefined,
-      seguroId: String(fd.get("seguroId") || "") || undefined,
-      estado: fd.get("estado") as Acudiente["estado"],
-      plan: fd.get("plan") as Acudiente["plan"],
+      city: String(fd.get("ciudad")),
+      relationship: relationToApi[fd.get("relacion") as Relacion],
+      status: statusToApi[fd.get("estado") as EstadoCuenta],
     };
-    setData(
-      editing
-        ? data.map((a) => (a.id === editing.id ? next : a))
-        : [next, ...data]
-    );
-    toast.success(editing ? "Acudiente actualizado" : "Acudiente creado");
-    onClose();
-    setEditing(null);
+
+    try {
+      await apiFetch<GuardianApi>(`/api/guardians/${editing.id}`, token, {
+        method: "PATCH",
+        body: JSON.stringify(payload),
+      });
+      toast.success("Acudiente actualizado");
+      onClose();
+      setEditing(null);
+      refetchGuardians();
+    } catch (err) {
+      toast.error("No se pudo actualizar el acudiente", {
+        description: err instanceof Error ? err.message : undefined,
+      });
+    }
   };
 
   return (
@@ -124,8 +200,9 @@ export default function Guardians() {
           gap={3}
           mb={4}
           align={{ md: "center" }}
+          wrap="wrap"
         >
-          <InputGroup flex={1}>
+          <InputGroup flex={1} minW={{ md: "220px" }}>
             <InputLeftElement pointerEvents="none">
               <Search size={16} />
             </InputLeftElement>
@@ -136,15 +213,55 @@ export default function Guardians() {
             />
           </InputGroup>
           <Select
-            w={{ base: "100%", md: "180px" }}
+            w={{ base: "100%", md: "160px" }}
             value={estado}
             onChange={(e) => setEstado(e.target.value)}
           >
-            <option value="todos">Todos</option>
+            <option value="todos">Todos los estados</option>
             <option value="activa">Activos</option>
             <option value="suspendida">Suspendidos</option>
             <option value="baja">De baja</option>
           </Select>
+          <Select
+            w={{ base: "100%", md: "160px" }}
+            value={paisFilter}
+            onChange={(e) => setPaisFilter(e.target.value)}
+          >
+            <option value="todos">Todos los países</option>
+            {Object.keys(paisesCiudades).map((p) => (
+              <option key={p} value={p}>
+                {p}
+              </option>
+            ))}
+          </Select>
+          <Select
+            w={{ base: "100%", md: "170px" }}
+            value={planFilter}
+            onChange={(e) => setPlanFilter(e.target.value)}
+          >
+            <option value="todos">Todos los planes</option>
+            {["Gratuito", "Premium Mensual", "Premium Anual"].map((p) => (
+              <option key={p} value={p}>
+                {p}
+              </option>
+            ))}
+          </Select>
+          <Select
+            w={{ base: "100%", md: "180px" }}
+            value={seguroFilter}
+            onChange={(e) => setSeguroFilter(e.target.value)}
+          >
+            <option value="todos">Todos los seguros</option>
+            <option value="sin_seguro">Sin seguro</option>
+            {segurosMedicos.map((s) => (
+              <option key={s} value={s}>
+                {s}
+              </option>
+            ))}
+          </Select>
+        </Flex>
+
+        <Flex gap={3} mb={4} wrap="wrap">
           <Button
             variant="solid"
             leftIcon={<Download size={16} />}
@@ -185,6 +302,10 @@ export default function Guardians() {
           )}
         </Flex>
 
+        {guardiansLoading && !guardiansData ? (
+          <LoadingState label="Cargando acudientes…" />
+        ) : (
+          <>
         <TableContainer
           borderWidth="1px"
           borderColor="lucera.border"
@@ -193,7 +314,6 @@ export default function Guardians() {
           <Table size="sm">
             <Thead bg="crema.100">
               <Tr>
-                <Th>ID</Th>
                 <Th>Acudiente</Th>
                 <Th display={{ base: "none", md: "table-cell" }}>Contacto</Th>
                 <Th display={{ base: "none", lg: "table-cell" }}>País / Ciudad</Th>
@@ -207,9 +327,6 @@ export default function Guardians() {
             <Tbody>
               {paginated.map((a) => (
                 <Tr key={a.id} _hover={{ bg: "crema.50" }}>
-                  <Td fontFamily="mono" fontSize="xs" color="lucera.textMuted">
-                    {a.id}
-                  </Td>
                   <Td>
                     <HStack>
                       <Flex
@@ -310,6 +427,8 @@ export default function Guardians() {
           totalPages={totalPages}
           onPageChange={setPage}
         />
+          </>
+        )}
       </StatCard>
 
       <Modal isOpen={isOpen} onClose={onClose} size="xl">
@@ -444,14 +563,24 @@ export default function Guardians() {
         description={
           <>
             ¿Seguro que deseas eliminar a <strong>{toDelete?.nombre}</strong>?
-            Esta acción también desvincula a {toDelete?.ninos.length ?? 0}{" "}
-            niño(s) y no se puede deshacer.
+            Esta acción desactiva la cuenta: deja de aparecer en el listado,
+            pero conserva su historial de chats y pagos.
           </>
         }
-        onConfirm={() => {
-          if (toDelete) {
-            setData(data.filter((x) => x.id !== toDelete.id));
+        onConfirm={async () => {
+          if (!toDelete) return;
+          try {
+            await apiFetch<DeleteResponse>(
+              `/api/guardians/${toDelete.id}`,
+              token,
+              { method: "DELETE" }
+            );
             toast.success("Acudiente eliminado");
+            refetchGuardians();
+          } catch (err) {
+            toast.error("No se pudo eliminar el acudiente", {
+              description: err instanceof Error ? err.message : undefined,
+            });
           }
         }}
       />

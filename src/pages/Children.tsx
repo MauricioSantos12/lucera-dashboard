@@ -1,6 +1,18 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
-import { acudientes, NinoPaciente } from "@/lib/mockData";
+import { NinoPaciente } from "@/lib/mockData";
+import { useFetch } from "@/hooks/useFetch";
+import { apiFetch } from "@/lib/apiClient";
+import { relationToEs } from "@/lib/apiMappings";
+import type {
+  PatientApi,
+  PatientCreatePayload,
+  PatientPatchPayload,
+  GuardianApi,
+  PaginatedResponse,
+  DeleteResponse,
+  BloodType,
+} from "@/lib/apiTypes";
 import {
   Box,
   Button,
@@ -47,6 +59,7 @@ import {
 import { StatCard } from "@/components/StatCard";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { Pagination } from "@/components/Pagination";
+import { LoadingState } from "@/components/LoadingState";
 import { toast } from "@/lib/toast";
 import { exportToExcel } from "@/lib/exportToExcel";
 import { useAuth } from "@/lib/auth";
@@ -59,31 +72,78 @@ type Row = NinoPaciente & {
   telefono: string;
 };
 
-function buildRows(source: typeof acudientes): Row[] {
-  return source.flatMap((a) =>
-    a.ninos.map((n) => ({
-      ...n,
-      edad: Math.floor(
-        (Date.now() - new Date(n.fechaNacimiento).getTime()) /
-          (365.25 * 86400000)
-      ),
-      acudienteId: a.id,
-      acudienteNombre: a.nombre,
-      relacion: a.relacion,
-      telefono: a.telefono,
-    }))
-  );
+function patientToRow(
+  p: PatientApi,
+  relacionByGuardianId: Record<string, string>
+): Row {
+  return {
+    id: p.id,
+    nombre: p.name,
+    fechaNacimiento: p.birthDate,
+    tipoSangre: p.bloodType ?? undefined,
+    pesoKg: p.weightKg ?? undefined,
+    condiciones: p.conditions,
+    alergias: p.allergies,
+    edad: p.age,
+    acudienteId: p.guardianId,
+    acudienteNombre: p.guardian,
+    relacion: relacionByGuardianId[p.guardianId] ?? "",
+    telefono: p.phone,
+  };
 }
 
 export default function Children() {
-  const { user } = useAuth();
+  const { user, token } = useAuth();
   const canEdit = user?.rol !== "Invitado";
   const canExport = user?.rol !== "Invitado" && user?.rol !== "Ventas";
   const perPage = 10;
-  const [data, setData] = useState<Row[]>(buildRows(acudientes));
+
+  const {
+    data: patientsData,
+    loading: patientsLoading,
+    error: patientsError,
+    refetch: refetchPatients,
+  } = useFetch<PaginatedResponse<PatientApi>>(
+    token ? "/api/patients?page=1&page_limit=500" : null
+  );
+  const {
+    data: guardiansData,
+    loading: guardiansLoading,
+    error: guardiansError,
+  } = useFetch<PaginatedResponse<GuardianApi>>(
+    token ? "/api/guardians?page=1&page_limit=500" : null
+  );
+
+  const guardianes = useMemo(() => guardiansData?.items ?? [], [guardiansData]);
+  const relacionByGuardianId = useMemo(
+    () =>
+      Object.fromEntries(
+        guardianes.map((g) => [g.id, relationToEs[g.relationship] ?? ""])
+      ),
+    [guardianes]
+  );
+  const data = useMemo(
+    () =>
+      (patientsData?.items ?? []).map((p) =>
+        patientToRow(p, relacionByGuardianId)
+      ),
+    [patientsData, relacionByGuardianId]
+  );
+
+  useEffect(() => {
+    const err = patientsError || guardiansError;
+    if (err) {
+      toast.error("No se pudieron cargar los niños", { description: err });
+    }
+  }, [patientsError, guardiansError]);
+
   const [page, setPage] = useState(1);
   const [q, setQ] = useState("");
   const [filter, setFilter] = useState("todos");
+  const [tipoSangreFilter, setTipoSangreFilter] = useState("todos");
+  const [pesoFilter, setPesoFilter] = useState("todos");
+  const [alergiasFilter, setAlergiasFilter] = useState("todos");
+  const [condicionesFilter, setCondicionesFilter] = useState("todos");
   const { isOpen, onOpen, onClose } = useDisclosure();
   const [editing, setEditing] = useState<Row | null>(null);
   const [toDelete, setToDelete] = useState<Row | null>(null);
@@ -96,14 +156,41 @@ export default function Children() {
         .includes(q.toLowerCase());
       const okF =
         filter === "todos" ||
-        (filter === "alergias" && (r.alergias?.length ?? 0) > 0) ||
-        (filter === "condiciones" && (r.condiciones?.length ?? 0) > 0) ||
         (filter === "lactantes" && r.edad < 2) ||
         (filter === "preescolar" && r.edad >= 2 && r.edad < 6) ||
         (filter === "escolar" && r.edad >= 6);
-      return okQ && okF;
+      const okTipoSangre =
+        tipoSangreFilter === "todos" || r.tipoSangre === tipoSangreFilter;
+      const okPeso =
+        pesoFilter === "todos" ||
+        (r.pesoKg == null
+          ? false
+          : pesoFilter === "menos10"
+          ? r.pesoKg < 10
+          : pesoFilter === "10a20"
+          ? r.pesoKg >= 10 && r.pesoKg <= 20
+          : r.pesoKg > 20);
+      const okAlergias =
+        alergiasFilter === "todos" ||
+        (alergiasFilter === "con"
+          ? (r.alergias?.length ?? 0) > 0
+          : (r.alergias?.length ?? 0) === 0);
+      const okCondiciones =
+        condicionesFilter === "todos" ||
+        (condicionesFilter === "con"
+          ? (r.condiciones?.length ?? 0) > 0
+          : (r.condiciones?.length ?? 0) === 0);
+      return okQ && okF && okTipoSangre && okPeso && okAlergias && okCondiciones;
     });
-  }, [data, q, filter]);
+  }, [
+    data,
+    q,
+    filter,
+    tipoSangreFilter,
+    pesoFilter,
+    alergiasFilter,
+    condicionesFilter,
+  ]);
 
   const totalPages = Math.ceil(filtered.length / perPage);
   const paginated = filtered.slice((page - 1) * perPage, page * perPage);
@@ -113,7 +200,7 @@ export default function Children() {
     onOpen();
   };
 
-  const handleSave = (form: HTMLFormElement) => {
+  const handleSave = async (form: HTMLFormElement) => {
     const fd = new FormData(form);
     const alergias = String(fd.get("alergias") || "")
       .split(",")
@@ -124,46 +211,50 @@ export default function Children() {
       .map((s) => s.trim())
       .filter(Boolean);
     const fechaNacimiento = String(fd.get("fechaNacimiento"));
-    const edad = Math.floor(
-      (Date.now() - new Date(fechaNacimiento).getTime()) / (365.25 * 86400000)
-    );
+    const pesoKg = Number(fd.get("pesoKg")) || undefined;
+    const tipoSangre =
+      (fd.get("tipoSangre") as NinoPaciente["tipoSangre"]) || undefined;
 
-    const next: Row = {
-      id: editing?.id ?? `N-${Date.now()}`,
-      nombre: String(fd.get("nombre")),
-      fechaNacimiento,
-      pesoKg: Number(fd.get("pesoKg")) || undefined,
-      tipoSangre:
-        (fd.get("tipoSangre") as NinoPaciente["tipoSangre"]) || undefined,
-      alergias,
-      condiciones,
-      edad,
-      acudienteId: editing?.acudienteId ?? String(fd.get("acudienteId")),
-      acudienteNombre:
-        editing?.acudienteNombre ??
-        acudientes.find((a) => a.id === String(fd.get("acudienteId")))
-          ?.nombre ??
-        "",
-      relacion:
-        editing?.relacion ??
-        acudientes.find((a) => a.id === String(fd.get("acudienteId")))
-          ?.relacion ??
-        "",
-      telefono:
-        editing?.telefono ??
-        acudientes.find((a) => a.id === String(fd.get("acudienteId")))
-          ?.telefono ??
-        "",
-    };
-
-    setData(
-      editing
-        ? data.map((r) => (r.id === editing.id ? next : r))
-        : [next, ...data]
-    );
-    toast.success(editing ? "Niño actualizado" : "Niño registrado");
-    onClose();
-    setEditing(null);
+    try {
+      if (editing) {
+        const payload: PatientPatchPayload = {
+          name: String(fd.get("nombre")),
+          birthDate: fechaNacimiento,
+          weightKg: pesoKg,
+          bloodType: tipoSangre as BloodType | undefined,
+          conditions: condiciones,
+          allergies: alergias,
+        };
+        await apiFetch<PatientApi>(`/api/patients/${editing.id}`, token, {
+          method: "PATCH",
+          body: JSON.stringify(payload),
+        });
+        toast.success("Niño actualizado");
+      } else {
+        const payload: PatientCreatePayload = {
+          guardianId: String(fd.get("acudienteId")),
+          name: String(fd.get("nombre")),
+          birthDate: fechaNacimiento,
+          weightKg: pesoKg,
+          bloodType: tipoSangre as BloodType | undefined,
+          conditions: condiciones,
+          allergies: alergias,
+        };
+        await apiFetch<PatientApi>("/api/patients", token, {
+          method: "POST",
+          body: JSON.stringify(payload),
+        });
+        toast.success("Niño registrado");
+      }
+      onClose();
+      setEditing(null);
+      refetchPatients();
+    } catch (err) {
+      toast.error(
+        editing ? "No se pudo actualizar el niño" : "No se pudo registrar el niño",
+        { description: err instanceof Error ? err.message : undefined }
+      );
+    }
   };
 
   return (
@@ -177,8 +268,9 @@ export default function Children() {
           gap={3}
           mb={4}
           align={{ md: "center" }}
+          wrap="wrap"
         >
-          <InputGroup flex={1}>
+          <InputGroup flex={1} minW={{ md: "220px" }}>
             <InputLeftElement pointerEvents="none">
               <Search size={16} />
             </InputLeftElement>
@@ -189,7 +281,7 @@ export default function Children() {
             />
           </InputGroup>
           <Select
-            w={{ base: "100%", md: "240px" }}
+            w={{ base: "100%", md: "200px" }}
             value={filter}
             onChange={(e) => setFilter(e.target.value)}
           >
@@ -197,9 +289,50 @@ export default function Children() {
             <option value="lactantes">Lactantes (0-1)</option>
             <option value="preescolar">Preescolar (2-5)</option>
             <option value="escolar">Escolar (6+)</option>
-            <option value="alergias">Con alergias</option>
-            <option value="condiciones">Con condiciones</option>
           </Select>
+          <Select
+            w={{ base: "100%", md: "160px" }}
+            value={tipoSangreFilter}
+            onChange={(e) => setTipoSangreFilter(e.target.value)}
+          >
+            <option value="todos">Todos los tipos de sangre</option>
+            {["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"].map((t) => (
+              <option key={t} value={t}>
+                {t}
+              </option>
+            ))}
+          </Select>
+          <Select
+            w={{ base: "100%", md: "160px" }}
+            value={pesoFilter}
+            onChange={(e) => setPesoFilter(e.target.value)}
+          >
+            <option value="todos">Todos los pesos</option>
+            <option value="menos10">Menos de 10 kg</option>
+            <option value="10a20">10 - 20 kg</option>
+            <option value="mas20">Más de 20 kg</option>
+          </Select>
+          <Select
+            w={{ base: "100%", md: "160px" }}
+            value={alergiasFilter}
+            onChange={(e) => setAlergiasFilter(e.target.value)}
+          >
+            <option value="todos">Todos</option>
+            <option value="con">Con alergias</option>
+            <option value="sin">Sin alergias</option>
+          </Select>
+          <Select
+            w={{ base: "100%", md: "160px" }}
+            value={condicionesFilter}
+            onChange={(e) => setCondicionesFilter(e.target.value)}
+          >
+            <option value="todos">Todos</option>
+            <option value="con">Con condiciones</option>
+            <option value="sin">Sin condiciones</option>
+          </Select>
+        </Flex>
+
+        <Flex gap={3} mb={4} wrap="wrap">
           <Button
             variant="solid"
             leftIcon={<Download size={16} />}
@@ -237,6 +370,10 @@ export default function Children() {
           )}
         </Flex>
 
+        {(patientsLoading && !patientsData) || (guardiansLoading && !guardiansData) ? (
+          <LoadingState label="Cargando niños…" />
+        ) : (
+          <>
         <TableContainer
           borderWidth="1px"
           borderColor="lucera.border"
@@ -245,7 +382,6 @@ export default function Children() {
           <Table size="sm">
             <Thead bg="crema.100">
               <Tr>
-                <Th>ID</Th>
                 <Th>Niño/a</Th>
                 <Th display={{ base: "none", md: "table-cell" }}>
                   F. nacimiento
@@ -263,9 +399,6 @@ export default function Children() {
             <Tbody>
               {paginated.map((r) => (
                 <Tr key={r.id} _hover={{ bg: "crema.50" }}>
-                  <Td fontFamily="mono" fontSize="xs" color="lucera.textMuted">
-                    {r.id}
-                  </Td>
                   <Td>
                     <HStack>
                       <Flex
@@ -376,6 +509,8 @@ export default function Children() {
           totalPages={totalPages}
           onPageChange={setPage}
         />
+          </>
+        )}
       </StatCard>
 
       <Modal isOpen={isOpen} onClose={onClose} size="xl">
@@ -436,9 +571,9 @@ export default function Children() {
                       name="acudienteId"
                       placeholder="Seleccionar acudiente"
                     >
-                      {acudientes.map((a) => (
-                        <option key={a.id} value={a.id}>
-                          {a.nombre} ({a.id})
+                      {guardianes.map((g) => (
+                        <option key={g.id} value={g.id}>
+                          {g.name} ({g.id})
                         </option>
                       ))}
                     </Select>
@@ -486,10 +621,20 @@ export default function Children() {
             Se perderá su historial clínico vinculado y no se puede deshacer.
           </>
         }
-        onConfirm={() => {
-          if (toDelete) {
-            setData(data.filter((x) => x.id !== toDelete.id));
+        onConfirm={async () => {
+          if (!toDelete) return;
+          try {
+            await apiFetch<DeleteResponse>(
+              `/api/patients/${toDelete.id}`,
+              token,
+              { method: "DELETE" }
+            );
             toast.success("Niño eliminado");
+            refetchPatients();
+          } catch (err) {
+            toast.error("No se pudo eliminar el niño", {
+              description: err instanceof Error ? err.message : undefined,
+            });
           }
         }}
       />

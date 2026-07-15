@@ -9,11 +9,14 @@ import Register from "./pages/Register";
 import Statistics from "./pages/Statistics";
 import Guardians from "./pages/Guardians";
 import Children from "./pages/Children";
-import Specialists from "./pages/Specialists";
+// import Specialists from "./pages/Specialists"; // oculto temporalmente
 import Centers from "./pages/Centers";
 import Chats from "./pages/Chats";
-import Medications from "./pages/Medications";
+// import Medications from "./pages/Medications"; // oculto temporalmente
 import Payments from "./pages/Payments";
+import UsageLLM from "./pages/UsageLLM";
+import Insurances from "./pages/Insurances";
+import Specialties from "./pages/Specialties";
 import Profile from "./pages/Profile";
 import Schedule from "./pages/Schedule";
 import MyChildren from "./pages/MyChildren";
@@ -42,11 +45,12 @@ const App = () => (
 
           <Route path="/guardians" element={<ProtectedRoute><RoleRoute roles={["Admin","Invitado"]}><Guardians /></RoleRoute></ProtectedRoute>} />
           <Route path="/children" element={<ProtectedRoute><RoleRoute roles={["Admin","Invitado"]}><Children /></RoleRoute></ProtectedRoute>} />
-          <Route path="/specialists" element={<ProtectedRoute><RoleRoute roles={["Admin","Invitado"]}><Specialists /></RoleRoute></ProtectedRoute>} />
+          {/* <Route path="/specialists" element={<ProtectedRoute><RoleRoute roles={["Admin","Invitado"]}><Specialists /></RoleRoute></ProtectedRoute>} /> oculto temporalmente */}
           <Route path="/payments" element={<ProtectedRoute><RoleRoute roles={["Admin","Ventas","Invitado"]}><Payments /></RoleRoute></ProtectedRoute>} />
+          <Route path="/usage" element={<ProtectedRoute><RoleRoute roles={["Admin","Invitado"]}><UsageLLM /></RoleRoute></ProtectedRoute>} />
 
           <Route path="/chats" element={<ProtectedRoute><RoleRoute roles={["Admin","Médico","Invitado"]}><Chats /></RoleRoute></ProtectedRoute>} />
-          <Route path="/medications" element={<ProtectedRoute><RoleRoute roles={["Admin","Invitado"]}><Medications /></RoleRoute></ProtectedRoute>} />
+          {/* <Route path="/medications" element={<ProtectedRoute><RoleRoute roles={["Admin","Invitado"]}><Medications /></RoleRoute></ProtectedRoute>} /> oculto temporalmente */}
 
           <Route path="/schedule" element={<ProtectedRoute><RoleRoute roles={["Médico"]}><Schedule /></RoleRoute></ProtectedRoute>} />
 
@@ -55,16 +59,18 @@ const App = () => (
           <Route path="/my-subscription" element={<ProtectedRoute><RoleRoute roles={["Acudiente"]}><MySubscription /></RoleRoute></ProtectedRoute>} />
 
           <Route path="/centers" element={<ProtectedRoute><RoleRoute roles={["Admin","Médico","Invitado"]}><Centers /></RoleRoute></ProtectedRoute>} />
+          <Route path="/insurances" element={<ProtectedRoute><RoleRoute roles={["Admin","Invitado"]}><Insurances /></RoleRoute></ProtectedRoute>} />
+          <Route path="/specialties" element={<ProtectedRoute><RoleRoute roles={["Admin","Médico","Invitado"]}><Specialties /></RoleRoute></ProtectedRoute>} />
           <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
 
           {/* Legacy redirects */}
           <Route path="/estadisticas" element={<Navigate to="/statistics" replace />} />
           <Route path="/acudientes" element={<Navigate to="/guardians" replace />} />
           <Route path="/ninos" element={<Navigate to="/children" replace />} />
-          <Route path="/medicos" element={<Navigate to="/specialists" replace />} />
-          <Route path="/especialistas" element={<Navigate to="/specialists" replace />} />
+          {/* <Route path="/medicos" element={<Navigate to="/specialists" replace />} /> oculto temporalmente */}
+          {/* <Route path="/especialistas" element={<Navigate to="/specialists" replace />} /> oculto temporalmente */}
           <Route path="/centros" element={<Navigate to="/centers" replace />} />
-          <Route path="/medicamentos" element={<Navigate to="/medications" replace />} />
+          {/* <Route path="/medicamentos" element={<Navigate to="/medications" replace />} /> oculto temporalmente */}
           <Route path="/pagos" element={<Navigate to="/payments" replace />} />
           <Route path="/perfil" element={<Navigate to="/profile" replace />} />
           <Route path="/agenda" element={<Navigate to="/schedule" replace />} />

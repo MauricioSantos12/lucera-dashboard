@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { useAuth } from "@/lib/auth";
 import {
@@ -28,14 +28,21 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import {
-  triajeStats,
-  chats,
-  planesDistribucion,
-  kpisGenerales,
   acudientes,
   paisesCiudades,
   segurosMedicos,
 } from "@/lib/mockData";
+import { useFetch } from "@/hooks/useFetch";
+import { chatTriageToLevel, countryApiToEs } from "@/lib/apiMappings";
+import type {
+  KpisResponse,
+  TriageStatApi,
+  PlanStatApi,
+  ChatApi,
+  GuardianApi,
+  PatientApi,
+  PaginatedResponse,
+} from "@/lib/apiTypes";
 import {
   Box,
   Flex,
@@ -52,21 +59,32 @@ import {
 import { Navigate } from "react-router-dom";
 import { StatCard } from "@/components/StatCard";
 import { TriageBadge } from "@/components/TriageBadge";
+import { LoadingState } from "@/components/LoadingState";
 import { exportToExcel } from "@/lib/exportToExcel";
+import { toast } from "@/lib/toast";
 
-interface triajeColorsProps {
-  General: string;
-  Urgente: string;
-  Emergencia: string;
-}
-
-const triajeColors: triajeColorsProps = {
+const triajeColors: Record<TriageStatApi["level"], string> = {
   General: "#2f9e6b",
-  Urgente: "#f8cc37",
-  Emergencia: "#b91c1c",
+  Urgent: "#f8cc37",
+  Emergency: "#b91c1c",
 };
 
-const planColors = ["#6d122b", "#ef7d54", "#f8cc37"];
+const triajeLabels: Record<TriageStatApi["level"], string> = {
+  General: "General",
+  Urgent: "Urgente",
+  Emergency: "Emergencia",
+};
+
+const planLabels: Record<PlanStatApi["plan"], string> = {
+  free: "Gratuito",
+  premium_monthly: "Premium Mensual",
+  premium_annual: "Premium Anual",
+};
+
+// Ciclo de colores de marca (vino, naranja, amarillo) reutilizado en todas
+// las gráficas de barras para mantener consistencia visual.
+const brandColors = ["#6d122b", "#ef7d54", "#f8cc37"];
+const planColors = brandColors;
 
 interface StatProps {
   icon: LucideIcon;
@@ -121,38 +139,195 @@ function Stat({ icon, label, value, accent, sub }: StatProps) {
 }
 
 export default function Statistics() {
-  const { user } = useAuth();
-  if (!user) return null;
-  if (user.rol === "Ventas") return <Navigate to="/payments" replace />;
+  const { user, token } = useAuth();
+  const {
+    data: kpisData,
+    loading: kpisLoading,
+    error: kpisError,
+  } = useFetch<KpisResponse>(token ? "/api/stats/kpis" : null);
+  const {
+    data: triageData,
+    loading: triageLoading,
+    error: triageError,
+  } = useFetch<TriageStatApi[]>(token ? "/api/stats/triage" : null);
+  const {
+    data: plansData,
+    loading: plansLoading,
+    error: plansError,
+  } = useFetch<PlanStatApi[]>(token ? "/api/stats/plans" : null);
+  const {
+    data: chatsData,
+    loading: chatsLoading,
+    error: chatsError,
+  } = useFetch<PaginatedResponse<ChatApi>>(
+    token ? "/api/chats?page=1&page_limit=500" : null
+  );
+  const {
+    data: guardiansData,
+    loading: guardiansLoading,
+    error: guardiansError,
+  } = useFetch<PaginatedResponse<GuardianApi>>(
+    token ? "/api/guardians?page=1&page_limit=500" : null
+  );
+  const {
+    data: patientsData,
+    loading: patientsLoading,
+    error: patientsError,
+  } = useFetch<PaginatedResponse<PatientApi>>(
+    token ? "/api/patients?page=1&page_limit=500" : null
+  );
 
-  const canExport = user.rol !== "Invitado" && user.rol !== "Ventas";
+  const statsLoading =
+    kpisLoading ||
+    triageLoading ||
+    plansLoading ||
+    chatsLoading ||
+    guardiansLoading ||
+    patientsLoading;
 
-  const [fechaInicio, setFechaInicio] = useState("");
-  const [fechaFin, setFechaFin] = useState("");
+  useEffect(() => {
+    const err =
+      kpisError ||
+      triageError ||
+      plansError ||
+      chatsError ||
+      guardiansError ||
+      patientsError;
+    if (err) {
+      toast.error("No se pudieron cargar las estadísticas", {
+        description: err,
+      });
+    }
+  }, [kpisError, triageError, plansError, chatsError, guardiansError, patientsError]);
+  const triajeStats = triageData ?? [];
+  const chats = chatsData?.items ?? [];
+  const guardianesReales = useMemo(
+    () => guardiansData?.items ?? [],
+    [guardiansData]
+  );
+  const pacientesReales = useMemo(
+    () => patientsData?.items ?? [],
+    [patientsData]
+  );
+
+  const consultasStats = [
+    { name: "Atendidas", value: chats.filter((c) => c.status === "closed").length },
+    { name: "Total", value: chats.length },
+    { name: "Abiertas", value: chats.filter((c) => c.status !== "closed").length },
+  ];
+  const consultasColors = brandColors;
+
+  const aseguradoraStats = useMemo(() => {
+    const counts = new Map<string, number>();
+    guardianesReales.forEach((g) => {
+      const name = g.insurance?.name ?? "Sin seguro";
+      counts.set(name, (counts.get(name) ?? 0) + 1);
+    });
+    return [...counts.entries()]
+      .map(([name, value]) => ({ name, value }))
+      .sort((a, b) => b.value - a.value);
+  }, [guardianesReales]);
+
+  const paisStats = useMemo(() => {
+    const counts = new Map<string, number>();
+    guardianesReales.forEach((g) => {
+      const name = countryApiToEs[g.country] ?? g.country;
+      counts.set(name, (counts.get(name) ?? 0) + 1);
+    });
+    return [...counts.entries()]
+      .map(([name, value]) => ({ name, value }))
+      .sort((a, b) => b.value - a.value);
+  }, [guardianesReales]);
+
+  const edadStats = useMemo(() => {
+    const buckets = {
+      "Lactantes (0-1)": 0,
+      "Preescolar (2-5)": 0,
+      "Escolar (6+)": 0,
+    };
+    pacientesReales.forEach((p) => {
+      if (p.age < 2) buckets["Lactantes (0-1)"]++;
+      else if (p.age < 6) buckets["Preescolar (2-5)"]++;
+      else buckets["Escolar (6+)"]++;
+    });
+    return Object.entries(buckets).map(([name, value]) => ({ name, value }));
+  }, [pacientesReales]);
+
+  const planesDistribucion = (plansData ?? []).map((p) => ({
+    plan: planLabels[p.plan] ?? p.plan,
+    usuarios: p.users,
+  }));
+  // Por defecto: mes actual (desde el día 1 hasta hoy), calculado con Date.now().
+  const defaultFechaFin = useMemo(
+    () => new Date(Date.now()).toISOString().slice(0, 10),
+    []
+  );
+  const defaultFechaInicio = useMemo(() => {
+    const d = new Date(Date.now());
+    d.setDate(1);
+    return d.toISOString().slice(0, 10);
+  }, []);
+
+  const [fechaInicio, setFechaInicio] = useState(defaultFechaInicio);
+  const [fechaFin, setFechaFin] = useState(defaultFechaFin);
   const [pais, setPais] = useState("");
   const [seguro, setSeguro] = useState("");
   const [acudienteFilter, setAcudienteFilter] = useState("");
-  const [applied, setApplied] = useState(false);
-  const [snapshot, setSnapshot] = useState({ fechaInicio: "", fechaFin: "", pais: "", seguro: "", acudiente: "" });
-
-  const handleSearch = () => {
-    setSnapshot({ fechaInicio, fechaFin, pais, seguro, acudiente: acudienteFilter });
-    setApplied(true);
-  };
+  const [applied, setApplied] = useState(true);
+  const [snapshot, setSnapshot] = useState({
+    fechaInicio: defaultFechaInicio,
+    fechaFin: defaultFechaFin,
+    pais: "",
+    seguro: "",
+    acudiente: "",
+  });
 
   const filteredAcudientes = useMemo(() => {
     if (!applied) return [];
     return acudientes.filter((a) => {
-      const okPais = !snapshot.pais || snapshot.pais === "todos" || a.pais === snapshot.pais;
-      const okSeguro = !snapshot.seguro || snapshot.seguro === "todos" || a.seguro === snapshot.seguro;
-      const okAcudiente = !snapshot.acudiente || snapshot.acudiente === "todos" || a.id === snapshot.acudiente;
-      const okFechaInicio = !snapshot.fechaInicio || a.registrado >= snapshot.fechaInicio;
-      const okFechaFin = !snapshot.fechaFin || a.registrado <= snapshot.fechaFin;
+      const okPais =
+        !snapshot.pais || snapshot.pais === "todos" || a.pais === snapshot.pais;
+      const okSeguro =
+        !snapshot.seguro ||
+        snapshot.seguro === "todos" ||
+        a.seguro === snapshot.seguro;
+      const okAcudiente =
+        !snapshot.acudiente ||
+        snapshot.acudiente === "todos" ||
+        a.id === snapshot.acudiente;
+      const okFechaInicio =
+        !snapshot.fechaInicio || a.registrado >= snapshot.fechaInicio;
+      const okFechaFin =
+        !snapshot.fechaFin || a.registrado <= snapshot.fechaFin;
       return okPais && okSeguro && okAcudiente && okFechaInicio && okFechaFin;
     });
   }, [applied, snapshot]);
+  if (!user) return null;
+  if (user.rol === "Ventas") return <Navigate to="/payments" replace />;
 
-  const k = kpisGenerales;
+  const canExport = user.rol !== "Invitado";
+
+  const handleSearch = () => {
+    setSnapshot({
+      fechaInicio,
+      fechaFin,
+      pais,
+      seguro,
+      acudiente: acudienteFilter,
+    });
+    setApplied(true);
+  };
+
+  const k = {
+    acudientesActivos: kpisData?.activeGuardians ?? 0,
+    ninosRegistrados: kpisData?.registeredChildren ?? 0,
+    sesionesMes: kpisData?.sessionsThisMonth ?? 0,
+    conversionPremium: kpisData?.premiumConversion ?? 0,
+    csat: kpisData?.csat ?? 0,
+    emergenciasDetectadas: kpisData?.emergenciesDetected ?? 0,
+    derivacionesPresenciales: kpisData?.inPersonReferrals ?? 0,
+    ingresosMes: kpisData?.revenueThisMonth ?? 0,
+  };
 
   return (
     <DashboardLayout
@@ -248,7 +423,9 @@ export default function Statistics() {
             size="sm"
             leftIcon={<Search size={14} />}
             onClick={handleSearch}
-            isDisabled={!fechaInicio && !fechaFin && !pais && !seguro && !acudienteFilter}
+            isDisabled={
+              !fechaInicio && !fechaFin && !pais && !seguro && !acudienteFilter
+            }
           >
             Buscar
           </Button>
@@ -302,8 +479,11 @@ export default function Statistics() {
         </Flex>
       )}
 
+      {/* Cargando estadísticas */}
+      {applied && statsLoading && <LoadingState label="Cargando estadísticas…" />}
+
       {/* Con filtros aplicados */}
-      {applied && (
+      {applied && !statsLoading && (
         <>
           <SimpleGrid columns={{ base: 1, sm: 2, lg: 4 }} spacing={4} mb={4}>
             <Stat
@@ -375,64 +555,38 @@ export default function Statistics() {
           <SimpleGrid columns={{ base: 1, lg: 2 }} spacing={4} mb={6}>
             <StatCard>
               <Heading size="sm" fontFamily="heading" mb={4}>
-                Distribución por plan
-              </Heading>
-              <ResponsiveContainer width="100%" height={240}>
-                <BarChart
-                  data={planesDistribucion}
-                  layout="vertical"
-                  margin={{ left: 20 }}
-                >
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e9d2b1" />
-                  <XAxis
-                    type="number"
-                    tick={{ fontSize: 11, fill: "#7b5a48" }}
-                  />
-                  <YAxis
-                    type="category"
-                    dataKey="plan"
-                    tick={{ fontSize: 11, fill: "#7b5a48" }}
-                    width={120}
-                  />
-                  <Tooltip
-                    contentStyle={{
-                      background: "white",
-                      border: "1px solid #e9d2b1",
-                      borderRadius: 8,
-                      fontSize: 12,
-                    }}
-                  />
-                  <Bar dataKey="usuarios" radius={[0, 6, 6, 0]}>
-                    {planesDistribucion.map((_, i) => (
-                      <Cell key={i} fill={planColors[i % planColors.length]} />
-                    ))}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-            </StatCard>
-            <StatCard>
-              <Heading size="sm" fontFamily="heading" mb={4}>
                 Distribución por triaje
               </Heading>
               <ResponsiveContainer width="100%" height={220}>
                 <PieChart>
+                  <defs>
+                    {triajeStats.map((e, i) => (
+                      <linearGradient
+                        key={i}
+                        id={`triajeGrad${i}`}
+                        x1="0"
+                        y1="0"
+                        x2="1"
+                        y2="1"
+                      >
+                        <stop offset="0%" stopColor={triajeColors[e.level]} stopOpacity={1} />
+                        <stop offset="100%" stopColor={triajeColors[e.level]} stopOpacity={0.7} />
+                      </linearGradient>
+                    ))}
+                  </defs>
                   <Pie
                     data={triajeStats}
                     dataKey="value"
-                    nameKey="nivel"
+                    nameKey="level"
                     innerRadius={50}
                     outerRadius={80}
-                    paddingAngle={2}
+                    paddingAngle={3}
+                    cornerRadius={6}
+                    animationDuration={700}
+                    animationEasing="ease-out"
                   >
                     {triajeStats.map((e, i) => (
-                      <Cell
-                        key={i}
-                        fill={
-                          (triajeColors as triajeColorsProps)[
-                            e.nivel as keyof triajeColorsProps
-                          ]
-                        }
-                      />
+                      <Cell key={i} fill={`url(#triajeGrad${i})`} stroke="white" strokeWidth={2} />
                     ))}
                   </Pie>
                   <Tooltip
@@ -447,19 +601,15 @@ export default function Statistics() {
               </ResponsiveContainer>
               <VStack align="stretch" spacing={1.5} mt={2}>
                 {triajeStats.map((t) => (
-                  <HStack key={t.nivel} fontSize="xs">
+                  <HStack key={t.level} fontSize="xs">
                     <Box
                       h="10px"
                       w="10px"
                       borderRadius="full"
-                      bg={
-                        (triajeColors as triajeColorsProps)[
-                          t.nivel as keyof triajeColorsProps
-                        ]
-                      }
+                      bg={triajeColors[t.level]}
                     />
                     <Text color="lucera.textMuted" flex={1}>
-                      {t.nivel}
+                      {triajeLabels[t.level]}
                     </Text>
                     <Text
                       fontWeight={700}
@@ -470,6 +620,235 @@ export default function Statistics() {
                   </HStack>
                 ))}
               </VStack>
+            </StatCard>
+
+            <StatCard>
+              <Heading size="sm" fontFamily="heading" mb={4}>
+                Consultas: atendidas, total y abiertas
+              </Heading>
+              <ResponsiveContainer width="100%" height={240}>
+                <BarChart data={consultasStats} margin={{ left: 0 }}>
+                  <defs>
+                    {consultasColors.map((c, i) => (
+                      <linearGradient key={i} id={`consultasGrad${i}`} x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor={c} stopOpacity={0.95} />
+                        <stop offset="100%" stopColor={c} stopOpacity={0.55} />
+                      </linearGradient>
+                    ))}
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e9d2b1" />
+                  <XAxis
+                    dataKey="name"
+                    tick={{ fontSize: 11, fill: "#7b5a48" }}
+                  />
+                  <YAxis tick={{ fontSize: 11, fill: "#7b5a48" }} allowDecimals={false} />
+                  <Tooltip
+                    cursor={{ fill: "rgba(109,18,43,0.06)" }}
+                    contentStyle={{
+                      background: "white",
+                      border: "1px solid #e9d2b1",
+                      borderRadius: 8,
+                      fontSize: 12,
+                    }}
+                  />
+                  <Bar
+                    dataKey="value"
+                    stackId="a"
+                    radius={[6, 6, 0, 0]}
+                    maxBarSize={70}
+                    animationDuration={700}
+                    animationEasing="ease-out"
+                  >
+                    {consultasStats.map((_, i) => (
+                      <Cell key={i} fill={`url(#consultasGrad${i})`} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </StatCard>
+
+            <StatCard>
+              <Heading size="sm" fontFamily="heading" mb={4}>
+                Distribución por plan
+              </Heading>
+              <ResponsiveContainer width="100%" height={240}>
+                <BarChart data={planesDistribucion} margin={{ left: 0 }}>
+                  <defs>
+                    {planColors.map((c, i) => (
+                      <linearGradient key={i} id={`planGrad${i}`} x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor={c} stopOpacity={0.95} />
+                        <stop offset="100%" stopColor={c} stopOpacity={0.6} />
+                      </linearGradient>
+                    ))}
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e9d2b1" />
+                  <XAxis
+                    dataKey="plan"
+                    tick={{ fontSize: 11, fill: "#7b5a48" }}
+                  />
+                  <YAxis allowDecimals={false} tick={{ fontSize: 11, fill: "#7b5a48" }} />
+                  <Tooltip
+                    cursor={{ fill: "rgba(109,18,43,0.06)" }}
+                    contentStyle={{
+                      background: "white",
+                      border: "1px solid #e9d2b1",
+                      borderRadius: 8,
+                      fontSize: 12,
+                    }}
+                  />
+                  <Bar
+                    dataKey="usuarios"
+                    stackId="a"
+                    radius={[6, 6, 0, 0]}
+                    maxBarSize={70}
+                    animationDuration={700}
+                    animationEasing="ease-out"
+                  >
+                    {planesDistribucion.map((_, i) => (
+                      <Cell key={i} fill={`url(#planGrad${i % planColors.length})`} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </StatCard>
+
+            <StatCard>
+              <Heading size="sm" fontFamily="heading" mb={4}>
+                Acudientes por aseguradora
+              </Heading>
+              <ResponsiveContainer width="100%" height={240}>
+                <BarChart data={aseguradoraStats} margin={{ left: 0 }}>
+                  <defs>
+                    {brandColors.map((c, i) => (
+                      <linearGradient key={i} id={`aseguradoraGrad${i}`} x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor={c} stopOpacity={0.95} />
+                        <stop offset="100%" stopColor={c} stopOpacity={0.6} />
+                      </linearGradient>
+                    ))}
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e9d2b1" />
+                  <XAxis
+                    dataKey="name"
+                    interval={0}
+                    angle={-20}
+                    textAnchor="end"
+                    height={60}
+                    tick={{ fontSize: 10, fill: "#7b5a48" }}
+                  />
+                  <YAxis allowDecimals={false} tick={{ fontSize: 11, fill: "#7b5a48" }} />
+                  <Tooltip
+                    cursor={{ fill: "rgba(239,125,84,0.08)" }}
+                    contentStyle={{
+                      background: "white",
+                      border: "1px solid #e9d2b1",
+                      borderRadius: 8,
+                      fontSize: 12,
+                    }}
+                  />
+                  <Bar
+                    dataKey="value"
+                    stackId="a"
+                    radius={[6, 6, 0, 0]}
+                    maxBarSize={60}
+                    animationDuration={700}
+                    animationEasing="ease-out"
+                  >
+                    {aseguradoraStats.map((_, i) => (
+                      <Cell key={i} fill={`url(#aseguradoraGrad${i % brandColors.length})`} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </StatCard>
+
+            <StatCard>
+              <Heading size="sm" fontFamily="heading" mb={4}>
+                Acudientes por país
+              </Heading>
+              <ResponsiveContainer width="100%" height={240}>
+                <BarChart data={paisStats} margin={{ left: 0 }}>
+                  <defs>
+                    {brandColors.map((c, i) => (
+                      <linearGradient key={i} id={`paisGrad${i}`} x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor={c} stopOpacity={0.95} />
+                        <stop offset="100%" stopColor={c} stopOpacity={0.6} />
+                      </linearGradient>
+                    ))}
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e9d2b1" />
+                  <XAxis
+                    dataKey="name"
+                    tick={{ fontSize: 11, fill: "#7b5a48" }}
+                  />
+                  <YAxis allowDecimals={false} tick={{ fontSize: 11, fill: "#7b5a48" }} />
+                  <Tooltip
+                    cursor={{ fill: "rgba(109,18,43,0.06)" }}
+                    contentStyle={{
+                      background: "white",
+                      border: "1px solid #e9d2b1",
+                      borderRadius: 8,
+                      fontSize: 12,
+                    }}
+                  />
+                  <Bar
+                    dataKey="value"
+                    stackId="a"
+                    radius={[6, 6, 0, 0]}
+                    maxBarSize={70}
+                    animationDuration={700}
+                    animationEasing="ease-out"
+                  >
+                    {paisStats.map((_, i) => (
+                      <Cell key={i} fill={`url(#paisGrad${i % brandColors.length})`} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </StatCard>
+
+            <StatCard>
+              <Heading size="sm" fontFamily="heading" mb={4}>
+                Pacientes por edad
+              </Heading>
+              <ResponsiveContainer width="100%" height={240}>
+                <BarChart data={edadStats} margin={{ left: 0 }}>
+                  <defs>
+                    {brandColors.map((c, i) => (
+                      <linearGradient key={i} id={`edadGrad${i}`} x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor={c} stopOpacity={0.95} />
+                        <stop offset="100%" stopColor={c} stopOpacity={0.6} />
+                      </linearGradient>
+                    ))}
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e9d2b1" />
+                  <XAxis
+                    dataKey="name"
+                    tick={{ fontSize: 11, fill: "#7b5a48" }}
+                  />
+                  <YAxis allowDecimals={false} tick={{ fontSize: 11, fill: "#7b5a48" }} />
+                  <Tooltip
+                    cursor={{ fill: "rgba(248,204,55,0.12)" }}
+                    contentStyle={{
+                      background: "white",
+                      border: "1px solid #e9d2b1",
+                      borderRadius: 8,
+                      fontSize: 12,
+                    }}
+                  />
+                  <Bar
+                    dataKey="value"
+                    stackId="a"
+                    radius={[6, 6, 0, 0]}
+                    maxBarSize={70}
+                    animationDuration={700}
+                    animationEasing="ease-out"
+                  >
+                    {edadStats.map((_, i) => (
+                      <Cell key={i} fill={`url(#edadGrad${i % brandColors.length})`} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
             </StatCard>
           </SimpleGrid>
 
@@ -490,13 +869,13 @@ export default function Statistics() {
                   _last={{ borderBottom: 0 }}
                   spacing={3}
                 >
-                  <TriageBadge level={c.triaje} />
+                  <TriageBadge level={chatTriageToLevel[c.triage]} />
                   <Box flex={1} minW={0}>
                     <Text fontSize="sm" fontWeight={600} noOfLines={1}>
-                      {c.paciente}
+                      {c.patient}
                     </Text>
                     <Text fontSize="xs" color="lucera.textMuted" noOfLines={1}>
-                      {c.acudiente} · {c.ultimoMensaje}
+                      {c.guardian} · {c.lastMessage}
                     </Text>
                   </Box>
                   <Text
@@ -504,7 +883,7 @@ export default function Statistics() {
                     color="lucera.textMuted"
                     sx={{ fontVariantNumeric: "tabular-nums" }}
                   >
-                    {c.hora}
+                    {c.time}
                   </Text>
                 </HStack>
               ))}

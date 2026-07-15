@@ -13,7 +13,8 @@ export type AuthUser = {
 
 type AuthContextType = {
   user: AuthUser | null;
-  login: (user: AuthUser) => void;
+  token: string | null;
+  login: (user: AuthUser, token: string) => void;
   logout: () => void;
   updateProfile: (patch: Partial<AuthUser>) => void;
 };
@@ -31,11 +32,19 @@ export const demoAccounts: Record<UserRole, AuthUser> = {
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
+  const [token, setToken] = useState<string | null>(null);
   return (
     <AuthContext.Provider value={{
       user,
-      login: setUser,
-      logout: () => setUser(null),
+      token,
+      login: (u, t) => {
+        setUser(u);
+        setToken(t);
+      },
+      logout: () => {
+        setUser(null);
+        setToken(null);
+      },
       updateProfile: (patch) => setUser(u => u ? { ...u, ...patch } : u),
     }}>
       {children}

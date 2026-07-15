@@ -1,6 +1,10 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
-import { centros as seed, Centro } from "@/lib/mockData";
+import { Centro, paisesCiudades } from "@/lib/mockData";
+import { useFetch } from "@/hooks/useFetch";
+import { centerTypeToEs } from "@/lib/apiMappings";
+import type { CenterApi, PaginatedResponse } from "@/lib/apiTypes";
+import { LoadingState } from "@/components/LoadingState";
 import {
   Box,
   Button,
@@ -49,19 +53,76 @@ const tipoTone: Record<Centro["tipo"], string> = {
   Urgencias: "red",
 };
 
+// El backend no expone país por centro, solo ciudad. Lo derivamos de
+// paisesCiudades (mockData.ts) para poder filtrar por país.
+const cityToCountry: Record<string, string> = Object.entries(
+  paisesCiudades
+).reduce((acc, [pais, ciudades]) => {
+  ciudades.forEach((c) => {
+    acc[c] = pais;
+  });
+  return acc;
+}, {} as Record<string, string>);
+
+type CentroRow = Centro & { pais: string };
+
 export default function Centers() {
-  const { user } = useAuth();
+  const { user, token } = useAuth();
   const isAdmin = user?.rol === "Admin";
   const canEdit = user?.rol !== "Invitado" && isAdmin;
   const canExport = user?.rol !== "Invitado" && user?.rol !== "Ventas";
-  const [data, setData] = useState<Centro[]>(seed);
+
+  const {
+    data: centersData,
+    loading: centersLoading,
+    error: centersError,
+  } = useFetch<PaginatedResponse<CenterApi>>(
+    token ? "/api/centers?page=1&page_limit=500" : null
+  );
+  const data = useMemo(
+    () =>
+      (centersData?.items ?? []).map(
+        (c): CentroRow => ({
+          id: c.id,
+          nombre: c.name,
+          tipo: centerTypeToEs[c.type] ?? "Hospital",
+          ciudad: c.city,
+          pais: cityToCountry[c.city] ?? "Otro",
+          direccion: c.address,
+          telefono: c.phone,
+          horarios: c.hours,
+          recomendado: c.recommended,
+        })
+      ),
+    [centersData]
+  );
+
+  const paises = useMemo(
+    () => [...new Set(data.map((c) => c.pais))].sort(),
+    [data]
+  );
+  const ciudades = useMemo(
+    () => [...new Set(data.map((c) => c.ciudad))].sort(),
+    [data]
+  );
+
+  useEffect(() => {
+    if (centersError) {
+      toast.error("No se pudieron cargar los centros", {
+        description: centersError,
+      });
+    }
+  }, [centersError]);
+
   const [q, setQ] = useState("");
   const [tipo, setTipo] = useState("todos");
+  const [paisFilter, setPaisFilter] = useState("todos");
+  const [ciudadFilter, setCiudadFilter] = useState("todos");
   const [page, setPage] = useState(1);
   const perPage = 10;
   const { isOpen, onOpen, onClose } = useDisclosure();
-  const [editing, setEditing] = useState<Centro | null>(null);
-  const [toDelete, setToDelete] = useState<Centro | null>(null);
+  const [editing, setEditing] = useState<CentroRow | null>(null);
+  const [toDelete, setToDelete] = useState<CentroRow | null>(null);
   const [recomendado, setRecomendado] = useState(false);
 
   const filtered = useMemo(() => {
@@ -71,37 +132,27 @@ export default function Centers() {
         .toLowerCase()
         .includes(q.toLowerCase());
       const okT = tipo === "todos" || c.tipo === tipo;
-      return okQ && okT;
+      const okPais = paisFilter === "todos" || c.pais === paisFilter;
+      const okCiudad = ciudadFilter === "todos" || c.ciudad === ciudadFilter;
+      return okQ && okT && okPais && okCiudad;
     });
-  }, [data, q, tipo]);
+  }, [data, q, tipo, paisFilter, ciudadFilter]);
 
   const totalPages = Math.ceil(filtered.length / perPage);
   const paginated = filtered.slice((page - 1) * perPage, page * perPage);
 
-  const openEdit = (c: Centro | null) => {
+  const openEdit = (c: CentroRow | null) => {
     setEditing(c);
     setRecomendado(c?.recomendado ?? false);
     onOpen();
   };
 
   const onSave = (form: HTMLFormElement) => {
-    const fd = new FormData(form);
-    const next: Centro = {
-      id: editing?.id ?? `C-${10 + data.length}`,
-      nombre: String(fd.get("nombre")),
-      tipo: fd.get("tipo") as Centro["tipo"],
-      ciudad: String(fd.get("ciudad")),
-      direccion: String(fd.get("direccion")),
-      telefono: String(fd.get("telefono")),
-      horarios: String(fd.get("horarios")),
-      recomendado,
-    };
-    setData(
-      editing
-        ? data.map((x) => (x.id === editing.id ? next : x))
-        : [next, ...data]
-    );
-    toast.success(editing ? "Centro actualizado" : "Centro creado");
+    // El backend solo expone GET /api/centers — no hay creación/edición vía API.
+    void form;
+    toast.error("Esta acción no está disponible todavía", {
+      description: "El directorio de centros aún es de solo lectura.",
+    });
     onClose();
     setEditing(null);
   };
@@ -114,8 +165,9 @@ export default function Centers() {
           gap={3}
           mb={4}
           align={{ md: "center" }}
+          wrap="wrap"
         >
-          <InputGroup flex={1}>
+          <InputGroup flex={1} minW={{ md: "220px" }}>
             <InputLeftElement pointerEvents="none">
               <Search size={16} />
             </InputLeftElement>
@@ -126,7 +178,7 @@ export default function Centers() {
             />
           </InputGroup>
           <Select
-            w={{ base: "100%", md: "220px" }}
+            w={{ base: "100%", md: "180px" }}
             value={tipo}
             onChange={(e) => setTipo(e.target.value)}
           >
@@ -137,6 +189,33 @@ export default function Centers() {
               </option>
             ))}
           </Select>
+          <Select
+            w={{ base: "100%", md: "160px" }}
+            value={paisFilter}
+            onChange={(e) => setPaisFilter(e.target.value)}
+          >
+            <option value="todos">Todos los países</option>
+            {paises.map((p) => (
+              <option key={p} value={p}>
+                {p}
+              </option>
+            ))}
+          </Select>
+          <Select
+            w={{ base: "100%", md: "180px" }}
+            value={ciudadFilter}
+            onChange={(e) => setCiudadFilter(e.target.value)}
+          >
+            <option value="todos">Todas las ciudades</option>
+            {ciudades.map((c) => (
+              <option key={c} value={c}>
+                {c}
+              </option>
+            ))}
+          </Select>
+        </Flex>
+
+        <Flex gap={3} mb={4} wrap="wrap">
           <Button
             variant="solid"
             leftIcon={<Download size={16} />}
@@ -172,6 +251,10 @@ export default function Centers() {
           )}
         </Flex>
 
+        {centersLoading && !centersData ? (
+          <LoadingState label="Cargando centros…" />
+        ) : (
+          <>
         <TableContainer
           borderWidth="1px"
           borderColor="lucera.border"
@@ -180,7 +263,6 @@ export default function Centers() {
           <Table size="sm">
             <Thead bg="crema.100">
               <Tr>
-                <Th>ID</Th>
                 <Th>Nombre</Th>
                 <Th>Tipo</Th>
                 <Th display={{ base: "none", md: "table-cell" }}>Ciudad</Th>
@@ -194,9 +276,6 @@ export default function Centers() {
             <Tbody>
               {paginated.map((c) => (
                 <Tr key={c.id} _hover={{ bg: "crema.50" }}>
-                  <Td fontFamily="mono" fontSize="xs" color="lucera.textMuted">
-                    {c.id}
-                  </Td>
                   <Td>
                     <HStack>
                       <Flex
@@ -289,6 +368,8 @@ export default function Centers() {
           totalPages={totalPages}
           onPageChange={setPage}
         />
+          </>
+        )}
       </StatCard>
 
       <Modal isOpen={isOpen} onClose={onClose} size="xl">
@@ -386,10 +467,10 @@ export default function Centers() {
           </>
         }
         onConfirm={() => {
-          if (toDelete) {
-            setData(data.filter((x) => x.id !== toDelete.id));
-            toast.success("Centro eliminado");
-          }
+          // El backend solo expone GET /api/centers — no hay borrado vía API.
+          toast.error("Esta acción no está disponible todavía", {
+            description: "El directorio de centros aún es de solo lectura.",
+          });
         }}
       />
     </DashboardLayout>

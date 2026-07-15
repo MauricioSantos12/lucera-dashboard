@@ -6,12 +6,14 @@ import {
   MessageSquare,
   CreditCard,
   Building2,
-  Pill,
+  ShieldCheck,
+  // Pill, // oculto temporalmente (Medicamentos)
   Baby,
   CalendarDays,
   UserCog,
   Heart,
   BarChart3,
+  Cpu,
   type LucideIcon,
 } from "lucide-react";
 import {
@@ -50,16 +52,29 @@ const allItems: Item[] = [
   },
   { title: "Acudientes", url: "/guardians", icon: Users, roles: ["Admin", "Invitado"] },
   { title: "Niños", url: "/children", icon: Baby, roles: ["Admin", "Invitado"] },
-  {
-    title: "Médicos",
-    url: "/specialists",
-    icon: Stethoscope,
-    roles: ["Admin", "Invitado"],
-  },
+  // oculto temporalmente
+  // {
+  //   title: "Médicos",
+  //   url: "/specialists",
+  //   icon: Stethoscope,
+  //   roles: ["Admin", "Invitado"],
+  // },
   {
     title: "Centros de atención",
     url: "/centers",
     icon: Building2,
+    roles: ["Admin", "Médico", "Invitado"],
+  },
+  {
+    title: "Seguros médicos",
+    url: "/insurances",
+    icon: ShieldCheck,
+    roles: ["Admin", "Invitado"],
+  },
+  {
+    title: "Especialidades",
+    url: "/specialties",
+    icon: Stethoscope,
     roles: ["Admin", "Médico", "Invitado"],
   },
   {
@@ -68,12 +83,18 @@ const allItems: Item[] = [
     icon: MessageSquare,
     roles: ["Admin", "Médico", "Invitado"],
   },
-  { title: "Medicamentos", url: "/medications", icon: Pill, roles: ["Admin", "Invitado"] },
+  // { title: "Medicamentos", url: "/medications", icon: Pill, roles: ["Admin", "Invitado"] }, // oculto temporalmente
   {
     title: "Pagos",
     url: "/payments",
     icon: CreditCard,
     roles: ["Admin", "Ventas", "Invitado"],
+  },
+  {
+    title: "Consumo LLM",
+    url: "/usage",
+    icon: Cpu,
+    roles: ["Admin", "Invitado"],
   },
   {
     title: "Mi agenda",
