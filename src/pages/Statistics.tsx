@@ -75,6 +75,43 @@ const triajeLabels: Record<TriageStatApi["level"], string> = {
   Emergency: "Emergencia",
 };
 
+// Patrón "Pie Chart With Customized Label" de recharts: dibuja el % dentro
+// de cada porción, a mitad de camino entre el radio interno y el externo.
+const RADIAN = Math.PI / 180;
+function renderTriajeLabel({
+  cx,
+  cy,
+  midAngle,
+  innerRadius,
+  outerRadius,
+  percent,
+}: {
+  cx: number;
+  cy: number;
+  midAngle: number;
+  innerRadius: number;
+  outerRadius: number;
+  percent: number;
+}) {
+  const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
+  const x = cx + radius * Math.cos(-midAngle * RADIAN);
+  const y = cy + radius * Math.sin(-midAngle * RADIAN);
+  if (percent === 0) return null;
+  return (
+    <text
+      x={x}
+      y={y}
+      fill="white"
+      textAnchor={x > cx ? "start" : "end"}
+      dominantBaseline="central"
+      fontSize={12}
+      fontWeight={700}
+    >
+      {`${(percent * 100).toFixed(0)}%`}
+    </text>
+  );
+}
+
 const planLabels: Record<PlanStatApi["plan"], string> = {
   free: "Gratuito",
   premium_monthly: "Premium Mensual",
@@ -559,34 +596,21 @@ export default function Statistics() {
               </Heading>
               <ResponsiveContainer width="100%" height={220}>
                 <PieChart>
-                  <defs>
-                    {triajeStats.map((e, i) => (
-                      <linearGradient
-                        key={i}
-                        id={`triajeGrad${i}`}
-                        x1="0"
-                        y1="0"
-                        x2="1"
-                        y2="1"
-                      >
-                        <stop offset="0%" stopColor={triajeColors[e.level]} stopOpacity={1} />
-                        <stop offset="100%" stopColor={triajeColors[e.level]} stopOpacity={0.7} />
-                      </linearGradient>
-                    ))}
-                  </defs>
                   <Pie
                     data={triajeStats}
                     dataKey="value"
                     nameKey="level"
-                    innerRadius={50}
-                    outerRadius={80}
+                    innerRadius={35}
+                    outerRadius={95}
                     paddingAngle={3}
                     cornerRadius={6}
+                    label={renderTriajeLabel}
+                    labelLine={false}
                     animationDuration={700}
                     animationEasing="ease-out"
                   >
                     {triajeStats.map((e, i) => (
-                      <Cell key={i} fill={`url(#triajeGrad${i})`} stroke="white" strokeWidth={2} />
+                      <Cell key={i} fill={triajeColors[e.level]} stroke="white" strokeWidth={2} />
                     ))}
                   </Pie>
                   <Tooltip
@@ -628,14 +652,6 @@ export default function Statistics() {
               </Heading>
               <ResponsiveContainer width="100%" height={240}>
                 <BarChart data={consultasStats} margin={{ left: 0 }}>
-                  <defs>
-                    {consultasColors.map((c, i) => (
-                      <linearGradient key={i} id={`consultasGrad${i}`} x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor={c} stopOpacity={0.95} />
-                        <stop offset="100%" stopColor={c} stopOpacity={0.55} />
-                      </linearGradient>
-                    ))}
-                  </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke="#e9d2b1" />
                   <XAxis
                     dataKey="name"
@@ -660,7 +676,7 @@ export default function Statistics() {
                     animationEasing="ease-out"
                   >
                     {consultasStats.map((_, i) => (
-                      <Cell key={i} fill={`url(#consultasGrad${i})`} />
+                      <Cell key={i} fill={consultasColors[i % consultasColors.length]} />
                     ))}
                   </Bar>
                 </BarChart>
@@ -673,14 +689,6 @@ export default function Statistics() {
               </Heading>
               <ResponsiveContainer width="100%" height={240}>
                 <BarChart data={planesDistribucion} margin={{ left: 0 }}>
-                  <defs>
-                    {planColors.map((c, i) => (
-                      <linearGradient key={i} id={`planGrad${i}`} x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor={c} stopOpacity={0.95} />
-                        <stop offset="100%" stopColor={c} stopOpacity={0.6} />
-                      </linearGradient>
-                    ))}
-                  </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke="#e9d2b1" />
                   <XAxis
                     dataKey="plan"
@@ -705,7 +713,7 @@ export default function Statistics() {
                     animationEasing="ease-out"
                   >
                     {planesDistribucion.map((_, i) => (
-                      <Cell key={i} fill={`url(#planGrad${i % planColors.length})`} />
+                      <Cell key={i} fill={planColors[i % planColors.length]} />
                     ))}
                   </Bar>
                 </BarChart>
@@ -718,14 +726,6 @@ export default function Statistics() {
               </Heading>
               <ResponsiveContainer width="100%" height={240}>
                 <BarChart data={aseguradoraStats} margin={{ left: 0 }}>
-                  <defs>
-                    {brandColors.map((c, i) => (
-                      <linearGradient key={i} id={`aseguradoraGrad${i}`} x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor={c} stopOpacity={0.95} />
-                        <stop offset="100%" stopColor={c} stopOpacity={0.6} />
-                      </linearGradient>
-                    ))}
-                  </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke="#e9d2b1" />
                   <XAxis
                     dataKey="name"
@@ -754,7 +754,7 @@ export default function Statistics() {
                     animationEasing="ease-out"
                   >
                     {aseguradoraStats.map((_, i) => (
-                      <Cell key={i} fill={`url(#aseguradoraGrad${i % brandColors.length})`} />
+                      <Cell key={i} fill={brandColors[i % brandColors.length]} />
                     ))}
                   </Bar>
                 </BarChart>
@@ -767,14 +767,6 @@ export default function Statistics() {
               </Heading>
               <ResponsiveContainer width="100%" height={240}>
                 <BarChart data={paisStats} margin={{ left: 0 }}>
-                  <defs>
-                    {brandColors.map((c, i) => (
-                      <linearGradient key={i} id={`paisGrad${i}`} x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor={c} stopOpacity={0.95} />
-                        <stop offset="100%" stopColor={c} stopOpacity={0.6} />
-                      </linearGradient>
-                    ))}
-                  </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke="#e9d2b1" />
                   <XAxis
                     dataKey="name"
@@ -799,7 +791,7 @@ export default function Statistics() {
                     animationEasing="ease-out"
                   >
                     {paisStats.map((_, i) => (
-                      <Cell key={i} fill={`url(#paisGrad${i % brandColors.length})`} />
+                      <Cell key={i} fill={brandColors[i % brandColors.length]} />
                     ))}
                   </Bar>
                 </BarChart>
@@ -812,14 +804,6 @@ export default function Statistics() {
               </Heading>
               <ResponsiveContainer width="100%" height={240}>
                 <BarChart data={edadStats} margin={{ left: 0 }}>
-                  <defs>
-                    {brandColors.map((c, i) => (
-                      <linearGradient key={i} id={`edadGrad${i}`} x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor={c} stopOpacity={0.95} />
-                        <stop offset="100%" stopColor={c} stopOpacity={0.6} />
-                      </linearGradient>
-                    ))}
-                  </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke="#e9d2b1" />
                   <XAxis
                     dataKey="name"
@@ -844,7 +828,7 @@ export default function Statistics() {
                     animationEasing="ease-out"
                   >
                     {edadStats.map((_, i) => (
-                      <Cell key={i} fill={`url(#edadGrad${i % brandColors.length})`} />
+                      <Cell key={i} fill={brandColors[i % brandColors.length]} />
                     ))}
                   </Bar>
                 </BarChart>

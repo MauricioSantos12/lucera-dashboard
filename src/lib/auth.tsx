@@ -1,4 +1,6 @@
-import { createContext, useContext, useState, ReactNode } from "react";
+import { createContext, useContext, useRef, useState, ReactNode } from "react";
+import { BACKEND_URL } from "@/lib/config";
+import { saveSession, loadSession, clearSession } from "@/lib/authStorage";
 
 export type UserRole = "Admin" | "Médico" | "Acudiente" | "Ventas" | "Invitado";
 
@@ -11,12 +13,21 @@ export type AuthUser = {
   refId?: string;
 };
 
+// Refresca el access_token con un poco de margen antes de que expire de verdad.
+const EXPIRY_BUFFER_MS = 30_000;
+
 type AuthContextType = {
   user: AuthUser | null;
   token: string | null;
-  login: (user: AuthUser, token: string) => void;
+  login: (
+    user: AuthUser,
+    accessToken: string,
+    refreshToken: string,
+    expiresIn: number
+  ) => void;
   logout: () => void;
   updateProfile: (patch: Partial<AuthUser>) => void;
+  getValidToken: () => Promise<string | null>;
 };
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -31,21 +42,97 @@ export const demoAccounts: Record<UserRole, AuthUser> = {
 };
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<AuthUser | null>(null);
-  const [token, setToken] = useState<string | null>(null);
+  const initial = loadSession();
+  const [user, setUser] = useState<AuthUser | null>(initial?.user ?? null);
+  const [accessToken, setAccessToken] = useState<string | null>(initial?.accessToken ?? null);
+  const [refreshToken, setRefreshToken] = useState<string | null>(initial?.refreshToken ?? null);
+  const [expiresAt, setExpiresAt] = useState<number | null>(initial?.expiresAt ?? null);
+
+  // Evita disparar varios /auth/refresh en paralelo si varias requests
+  // detectan el token vencido casi al mismo tiempo.
+  const refreshingRef = useRef<Promise<string | null> | null>(null);
+
+  const login = (
+    u: AuthUser,
+    newAccessToken: string,
+    newRefreshToken: string,
+    expiresIn: number
+  ) => {
+    const newExpiresAt = Date.now() + expiresIn * 1000;
+    setUser(u);
+    setAccessToken(newAccessToken);
+    setRefreshToken(newRefreshToken);
+    setExpiresAt(newExpiresAt);
+    saveSession({
+      user: u,
+      accessToken: newAccessToken,
+      refreshToken: newRefreshToken,
+      expiresAt: newExpiresAt,
+    });
+  };
+
+  const logout = () => {
+    setUser(null);
+    setAccessToken(null);
+    setRefreshToken(null);
+    setExpiresAt(null);
+    clearSession();
+  };
+
+  const getValidToken = async (): Promise<string | null> => {
+    if (!accessToken || !refreshToken || !expiresAt) return null;
+    if (Date.now() < expiresAt - EXPIRY_BUFFER_MS) return accessToken;
+
+    if (!refreshingRef.current) {
+      refreshingRef.current = (async () => {
+        try {
+          const res = await fetch(`${BACKEND_URL}/auth/refresh`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ refresh_token: refreshToken }),
+          });
+          if (!res.ok) throw new Error("No se pudo renovar la sesión");
+          const data: { access_token: string; expires_in: number } = await res.json();
+          const newExpiresAt = Date.now() + data.expires_in * 1000;
+          setAccessToken(data.access_token);
+          setExpiresAt(newExpiresAt);
+          if (user) {
+            saveSession({
+              user,
+              accessToken: data.access_token,
+              refreshToken,
+              expiresAt: newExpiresAt,
+            });
+          }
+          return data.access_token;
+        } catch {
+          logout();
+          return null;
+        } finally {
+          refreshingRef.current = null;
+        }
+      })();
+    }
+    return refreshingRef.current;
+  };
+
   return (
     <AuthContext.Provider value={{
       user,
-      token,
-      login: (u, t) => {
-        setUser(u);
-        setToken(t);
+      token: accessToken,
+      login,
+      logout,
+      updateProfile: (patch) => {
+        setUser((u) => {
+          if (!u) return u;
+          const next = { ...u, ...patch };
+          if (accessToken && refreshToken && expiresAt) {
+            saveSession({ user: next, accessToken, refreshToken, expiresAt });
+          }
+          return next;
+        });
       },
-      logout: () => {
-        setUser(null);
-        setToken(null);
-      },
-      updateProfile: (patch) => setUser(u => u ? { ...u, ...patch } : u),
+      getValidToken,
     }}>
       {children}
     </AuthContext.Provider>

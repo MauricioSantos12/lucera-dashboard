@@ -10,8 +10,7 @@ type UseFetchState<T> = {
 
 // path === null salta el fetch (ej. mientras no hay filtros aplicados aún)
 export function useFetch<T>(path: string | null, options?: RequestInit) {
-  const { token } = useAuth();
-  console.log({ token });
+  const { getValidToken } = useAuth();
   const [state, setState] = useState<UseFetchState<T>>({
     data: null,
     loading: !!path,
@@ -24,10 +23,11 @@ export function useFetch<T>(path: string | null, options?: RequestInit) {
     if (!path) return;
     setState((s) => ({ ...s, loading: true, error: null }));
     try {
+      const freshToken = await getValidToken();
       const res = await fetch(`${BACKEND_URL}${path}`, {
         ...optionsRef.current,
         headers: {
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          ...(freshToken ? { Authorization: `Bearer ${freshToken}` } : {}),
           ...optionsRef.current?.headers,
         },
       });
@@ -43,7 +43,7 @@ export function useFetch<T>(path: string | null, options?: RequestInit) {
         error: err instanceof Error ? err.message : "Error desconocido",
       });
     }
-  }, [path, token]);
+  }, [path, getValidToken]);
 
   useEffect(() => {
     fetchData();

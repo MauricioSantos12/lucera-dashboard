@@ -37,7 +37,9 @@ export default function Login() {
   const [otp, setOtp] = useState("");
   const [pendingAuth, setPendingAuth] = useState<{
     user: AuthUser;
-    token: string;
+    accessToken: string;
+    refreshToken: string;
+    expiresIn: number;
   } | null>(null);
 
   const handleCreds = async (e: React.FormEvent) => {
@@ -60,11 +62,16 @@ export default function Login() {
       };
       setLoading(false);
       if (!REQUIRE_MFA_CODE) {
-        login(acc, data.access_token);
+        login(acc, data.access_token, data.refresh_token, data.expires_in);
         toast.success(`Bienvenido(a), ${acc.nombre}`);
         return;
       }
-      setPendingAuth({ user: acc, token: data.access_token });
+      setPendingAuth({
+        user: acc,
+        accessToken: data.access_token,
+        refreshToken: data.refresh_token,
+        expiresIn: data.expires_in,
+      });
       setStep("mfa");
       toast.success("Código de verificación enviado por mail", {
         description: `Revisa tu correo ${acc.email}`,
@@ -85,7 +92,12 @@ export default function Login() {
     if (!pendingAuth) return;
     setLoading(true);
     setTimeout(() => {
-      login(pendingAuth.user, pendingAuth.token);
+      login(
+        pendingAuth.user,
+        pendingAuth.accessToken,
+        pendingAuth.refreshToken,
+        pendingAuth.expiresIn
+      );
       toast.success(`Bienvenido(a), ${pendingAuth.user.nombre}`);
     }, 500);
   };

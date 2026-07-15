@@ -93,7 +93,7 @@ function patientToRow(
 }
 
 export default function Children() {
-  const { user, token } = useAuth();
+  const { user, token, getValidToken } = useAuth();
   const canEdit = user?.rol !== "Invitado";
   const canExport = user?.rol !== "Invitado" && user?.rol !== "Ventas";
   const perPage = 10;
@@ -216,6 +216,7 @@ export default function Children() {
       (fd.get("tipoSangre") as NinoPaciente["tipoSangre"]) || undefined;
 
     try {
+      const freshToken = await getValidToken();
       if (editing) {
         const payload: PatientPatchPayload = {
           name: String(fd.get("nombre")),
@@ -225,7 +226,7 @@ export default function Children() {
           conditions: condiciones,
           allergies: alergias,
         };
-        await apiFetch<PatientApi>(`/api/patients/${editing.id}`, token, {
+        await apiFetch<PatientApi>(`/api/patients/${editing.id}`, freshToken, {
           method: "PATCH",
           body: JSON.stringify(payload),
         });
@@ -240,7 +241,7 @@ export default function Children() {
           conditions: condiciones,
           allergies: alergias,
         };
-        await apiFetch<PatientApi>("/api/patients", token, {
+        await apiFetch<PatientApi>("/api/patients", freshToken, {
           method: "POST",
           body: JSON.stringify(payload),
         });
@@ -624,9 +625,10 @@ export default function Children() {
         onConfirm={async () => {
           if (!toDelete) return;
           try {
+            const freshToken = await getValidToken();
             await apiFetch<DeleteResponse>(
               `/api/patients/${toDelete.id}`,
-              token,
+              freshToken,
               { method: "DELETE" }
             );
             toast.success("Niño eliminado");

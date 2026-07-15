@@ -92,7 +92,7 @@ function guardianToAcudiente(g: GuardianApi): Acudiente {
 }
 
 export default function Guardians() {
-  const { user, token } = useAuth();
+  const { user, token, getValidToken } = useAuth();
   const canEdit = user?.rol !== "Invitado";
   const canExport = user?.rol !== "Invitado" && user?.rol !== "Ventas";
   const {
@@ -177,7 +177,8 @@ export default function Guardians() {
     };
 
     try {
-      await apiFetch<GuardianApi>(`/api/guardians/${editing.id}`, token, {
+      const freshToken = await getValidToken();
+      await apiFetch<GuardianApi>(`/api/guardians/${editing.id}`, freshToken, {
         method: "PATCH",
         body: JSON.stringify(payload),
       });
@@ -570,9 +571,10 @@ export default function Guardians() {
         onConfirm={async () => {
           if (!toDelete) return;
           try {
+            const freshToken = await getValidToken();
             await apiFetch<DeleteResponse>(
               `/api/guardians/${toDelete.id}`,
-              token,
+              freshToken,
               { method: "DELETE" }
             );
             toast.success("Acudiente eliminado");
