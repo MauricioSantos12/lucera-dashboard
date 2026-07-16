@@ -144,15 +144,21 @@ export interface GuardianPatchPayload {
 }
 
 // name, phone y email son obligatorios; crea el acudiente y su cuenta de
-// usuario. email o phone duplicado responde 409.
+// usuario. email o phone duplicado responde 409. Si "plan" es un plan pago,
+// el backend registra el pago correspondiente.
 export interface GuardianCreatePayload {
   name: string;
   phone: string;
   email: string;
   relationship?: GuardianRelationship;
+  country?: string;
   city?: string;
   province?: string;
   address?: string;
+  status?: GuardianStatus;
+  plan?: PlanApi;
+  insuranceId?: number;
+  policyNumber?: string;
 }
 
 export interface DeleteResponse {

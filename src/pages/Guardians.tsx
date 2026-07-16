@@ -173,16 +173,24 @@ export default function Guardians() {
     const fd = new FormData(form);
 
     if (!editing) {
-      // El API de creación solo acepta name/phone/email (obligatorios) y
-      // relationship/city/province/address (opcionales) — sin seguro, plan
-      // ni estado, esos se asignan por defecto en el backend.
+      // name/phone/email son obligatorios; el resto es opcional. Si "plan"
+      // es un plan pago, el backend registra el pago correspondiente.
+      const seguroIdNew = String(fd.get("seguro") || "");
+      const policyNumberNew = String(fd.get("policyNumber") || "");
       const payload: GuardianCreatePayload = {
         name: String(fd.get("nombre")),
         phone: String(fd.get("telefono")),
         email: String(fd.get("email")),
         relationship: relationToApi[fd.get("relacion") as Relacion],
+        country: pais || undefined,
         city: String(fd.get("ciudad") || "") || undefined,
-        province: String(fd.get("pais") || "") || undefined,
+        province: pais || undefined,
+        status: statusToApi[fd.get("estado") as EstadoCuenta],
+        plan: (String(fd.get("plan") || "") || undefined) as
+          | PlanApi
+          | undefined,
+        insuranceId: seguroIdNew ? Number(seguroIdNew) : undefined,
+        policyNumber: policyNumberNew || undefined,
       };
 
       setSaving(true);
@@ -585,52 +593,53 @@ export default function Guardians() {
                     ))}
                   </Select>
                 </FormControl>
-                {editing && (
-                  <>
-                    <FormControl>
-                      <FormLabel>Seguro médico</FormLabel>
-                      <Select
-                        name="seguro"
-                        defaultValue={editing?.seguroId ?? ""}
-                        placeholder="Sin seguro"
-                      >
-                        {seguros.map((s) => (
-                          <option key={s.id} value={s.id}>{s.name}</option>
-                        ))}
-                      </Select>
-                    </FormControl>
-                    <FormControl>
-                      <FormLabel>Número de póliza</FormLabel>
-                      <Input name="policyNumber" placeholder="Opcional" />
-                    </FormControl>
-                    <FormControl>
-                      <FormLabel>Plan</FormLabel>
-                      <Select
-                        name="plan"
-                        defaultValue={planToApi[editing?.plan ?? "Gratuito"]}
-                      >
-                        {(["free", "premium_monthly", "premium_annual"] as const).map(
-                          (p) => (
-                            <option key={p} value={p}>
-                              {planToEs[p]}
-                            </option>
-                          )
-                        )}
-                      </Select>
-                    </FormControl>
-                    <FormControl>
-                      <FormLabel>Estado</FormLabel>
-                      <Select
-                        name="estado"
-                        defaultValue={editing?.estado ?? "activa"}
-                      >
-                        <option value="activa">Activa</option>
-                        <option value="suspendida">Suspendida</option>
-                        <option value="baja">Baja</option>
-                      </Select>
-                    </FormControl>
-                  </>
-                )}
+                <FormControl>
+                  <FormLabel>Seguro médico</FormLabel>
+                  <Select
+                    name="seguro"
+                    defaultValue={editing?.seguroId ?? ""}
+                    placeholder="Sin seguro"
+                  >
+                    {seguros.map((s) => (
+                      <option key={s.id} value={s.id}>{s.name}</option>
+                    ))}
+                  </Select>
+                </FormControl>
+                <FormControl>
+                  <FormLabel>Número de póliza</FormLabel>
+                  <Input name="policyNumber" placeholder="Opcional" defaultValue={editing ? undefined : ""} />
+                </FormControl>
+                <FormControl>
+                  <FormLabel>Plan</FormLabel>
+                  <Select
+                    name="plan"
+                    defaultValue={
+                      editing ? planToApi[editing.plan] : "free"
+                    }
+                  >
+                    {(["free", "premium_monthly", "premium_annual"] as const).map(
+                      (p) => (
+                        <option key={p} value={p}>
+                          {planToEs[p]}
+                        </option>
+                      )
+                    )}
+                  </Select>
+                  <Text fontSize="xs" color="lucera.textMuted" mt={1}>
+                    Un plan pago registra el pago correspondiente.
+                  </Text>
+                </FormControl>
+                <FormControl>
+                  <FormLabel>Estado</FormLabel>
+                  <Select
+                    name="estado"
+                    defaultValue={editing?.estado ?? "activa"}
+                  >
+                    <option value="activa">Activa</option>
+                    <option value="suspendida">Suspendida</option>
+                    <option value="baja">Baja</option>
+                  </Select>
+                </FormControl>
               </SimpleGrid>
             </ModalBody>
             <ModalFooter>
