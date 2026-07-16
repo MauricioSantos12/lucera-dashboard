@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Acudiente, NinoPaciente, Relacion, EstadoCuenta, paisesCiudades } from "@/lib/mockData";
 import { useAuth } from "@/lib/auth";
-import { useFetch } from "@/hooks/useFetch";
+import { useFetchAll } from "@/hooks/useFetchAll";
 import { apiFetch } from "@/lib/apiClient";
 import {
   relationToEs,
@@ -20,7 +20,6 @@ import type {
   GuardianCreatePayload,
   InsuranceRef,
   PlanApi,
-  PaginatedResponse,
   DeleteResponse,
 } from "@/lib/apiTypes";
 import {
@@ -104,18 +103,17 @@ function guardianToAcudiente(g: GuardianApi): Acudiente {
 
 export default function Guardians() {
   const { user, token, getValidToken } = useAuth();
-  const canEdit = user?.rol !== "Invitado";
-  const canExport = user?.rol !== "Invitado" && user?.rol !== "Ventas";
+  // Solo Admin crea/edita/elimina; el resto (Ventas, Médico) es solo lectura.
+  const canEdit = user?.rol === "Admin";
+  const canExport = user?.rol !== "Invitado";
   const {
     data: guardiansData,
     loading: guardiansLoading,
     error: guardiansError,
     refetch: refetchGuardians,
-  } = useFetch<PaginatedResponse<GuardianApi>>(
-    token ? "/api/guardians?page=1&page_limit=500" : null
-  );
-  const { data: insurancesData } = useFetch<PaginatedResponse<InsuranceRef>>(
-    token ? "/api/insurances?page=1&page_limit=100" : null
+  } = useFetchAll<GuardianApi>(token ? "/api/guardians" : null);
+  const { data: insurancesData } = useFetchAll<InsuranceRef>(
+    token ? "/api/insurances" : null
   );
   const seguros = useMemo(() => insurancesData?.items ?? [], [insurancesData]);
   const data = useMemo(

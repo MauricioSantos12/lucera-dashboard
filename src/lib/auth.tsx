@@ -4,6 +4,25 @@ import { saveSession, loadSession, clearSession } from "@/lib/authStorage";
 
 export type UserRole = "Admin" | "Médico" | "Acudiente" | "Ventas" | "Invitado";
 
+// El backend (operadores del tablero) envía el rol en inglés:
+// "Admin" | "Sales" | "Doctor". El frontend usa etiquetas en español —
+// este mapa homologa ambos lados. Rol desconocido → "Invitado" (más acotado).
+export function roleFromApi(role: string): UserRole {
+  switch (role) {
+    case "Admin":
+      return "Admin";
+    case "Sales":
+      return "Ventas";
+    case "Doctor":
+      return "Médico";
+    case "Guardian":
+    case "Acudiente":
+      return "Acudiente";
+    default:
+      return "Invitado";
+  }
+}
+
 export type AuthUser = {
   email: string;
   nombre: string;

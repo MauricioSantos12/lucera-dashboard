@@ -18,7 +18,7 @@ import UsageLLM from "./pages/UsageLLM";
 import Insurances from "./pages/Insurances";
 import Specialties from "./pages/Specialties";
 import Profile from "./pages/Profile";
-import Schedule from "./pages/Schedule";
+// import Schedule from "./pages/Schedule"; // oculto temporalmente
 import MyChildren from "./pages/MyChildren";
 import MyAppointments from "./pages/MyAppointments";
 import MySubscription from "./pages/MySubscription";
@@ -41,26 +41,26 @@ const App = () => (
           <Route path="/" element={<LandingPage />} />
           <Route path="/register" element={<Register />} />
           <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-          <Route path="/statistics" element={<ProtectedRoute><RoleRoute roles={["Admin","Médico","Acudiente","Invitado"]}><Statistics /></RoleRoute></ProtectedRoute>} />
+          <Route path="/statistics" element={<ProtectedRoute><RoleRoute roles={["Admin","Ventas","Invitado"]}><Statistics /></RoleRoute></ProtectedRoute>} />
 
-          <Route path="/guardians" element={<ProtectedRoute><RoleRoute roles={["Admin","Invitado"]}><Guardians /></RoleRoute></ProtectedRoute>} />
-          <Route path="/children" element={<ProtectedRoute><RoleRoute roles={["Admin","Invitado"]}><Children /></RoleRoute></ProtectedRoute>} />
+          <Route path="/guardians" element={<ProtectedRoute><RoleRoute roles={["Admin","Ventas","Médico","Invitado"]}><Guardians /></RoleRoute></ProtectedRoute>} />
+          <Route path="/children" element={<ProtectedRoute><RoleRoute roles={["Admin","Ventas","Médico","Invitado"]}><Children /></RoleRoute></ProtectedRoute>} />
           {/* <Route path="/specialists" element={<ProtectedRoute><RoleRoute roles={["Admin","Invitado"]}><Specialists /></RoleRoute></ProtectedRoute>} /> oculto temporalmente */}
           <Route path="/payments" element={<ProtectedRoute><RoleRoute roles={["Admin","Ventas","Invitado"]}><Payments /></RoleRoute></ProtectedRoute>} />
-          <Route path="/usage" element={<ProtectedRoute><RoleRoute roles={["Admin","Invitado"]}><UsageLLM /></RoleRoute></ProtectedRoute>} />
+          <Route path="/usage" element={<ProtectedRoute><RoleRoute roles={["Admin","Ventas","Invitado"]}><UsageLLM /></RoleRoute></ProtectedRoute>} />
 
-          <Route path="/chats" element={<ProtectedRoute><RoleRoute roles={["Admin","Médico","Invitado"]}><Chats /></RoleRoute></ProtectedRoute>} />
+          <Route path="/chats" element={<ProtectedRoute><RoleRoute roles={["Admin","Ventas","Médico","Invitado"]}><Chats /></RoleRoute></ProtectedRoute>} />
           {/* <Route path="/medications" element={<ProtectedRoute><RoleRoute roles={["Admin","Invitado"]}><Medications /></RoleRoute></ProtectedRoute>} /> oculto temporalmente */}
 
-          <Route path="/schedule" element={<ProtectedRoute><RoleRoute roles={["Médico"]}><Schedule /></RoleRoute></ProtectedRoute>} />
+          {/* <Route path="/schedule" element={<ProtectedRoute><RoleRoute roles={["Médico"]}><Schedule /></RoleRoute></ProtectedRoute>} /> oculto temporalmente */}
 
           <Route path="/my-children" element={<ProtectedRoute><RoleRoute roles={["Acudiente"]}><MyChildren /></RoleRoute></ProtectedRoute>} />
           <Route path="/my-appointments" element={<ProtectedRoute><RoleRoute roles={["Acudiente"]}><MyAppointments /></RoleRoute></ProtectedRoute>} />
           <Route path="/my-subscription" element={<ProtectedRoute><RoleRoute roles={["Acudiente"]}><MySubscription /></RoleRoute></ProtectedRoute>} />
 
-          <Route path="/centers" element={<ProtectedRoute><RoleRoute roles={["Admin","Médico","Invitado"]}><Centers /></RoleRoute></ProtectedRoute>} />
-          <Route path="/insurances" element={<ProtectedRoute><RoleRoute roles={["Admin","Invitado"]}><Insurances /></RoleRoute></ProtectedRoute>} />
-          <Route path="/specialties" element={<ProtectedRoute><RoleRoute roles={["Admin","Médico","Invitado"]}><Specialties /></RoleRoute></ProtectedRoute>} />
+          <Route path="/centers" element={<ProtectedRoute><RoleRoute roles={["Admin","Ventas","Médico","Invitado"]}><Centers /></RoleRoute></ProtectedRoute>} />
+          <Route path="/insurances" element={<ProtectedRoute><RoleRoute roles={["Admin","Ventas","Médico","Invitado"]}><Insurances /></RoleRoute></ProtectedRoute>} />
+          <Route path="/specialties" element={<ProtectedRoute><RoleRoute roles={["Admin","Ventas","Médico","Invitado"]}><Specialties /></RoleRoute></ProtectedRoute>} />
           <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
 
           {/* Legacy redirects */}

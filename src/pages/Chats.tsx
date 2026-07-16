@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { ChatSesion } from "@/lib/mockData";
 import { useAuth } from "@/lib/auth";
-import { useFetch } from "@/hooks/useFetch";
+import { useFetchAll } from "@/hooks/useFetchAll";
 import {
   chatTriageToLevel,
   chatAttentionToEs,
@@ -10,12 +10,7 @@ import {
   chatRoleToEs,
   relationToEs,
 } from "@/lib/apiMappings";
-import type {
-  ChatApi,
-  GuardianApi,
-  PatientApi,
-  PaginatedResponse,
-} from "@/lib/apiTypes";
+import type { ChatApi, GuardianApi, PatientApi } from "@/lib/apiTypes";
 import { toast } from "@/lib/toast";
 import {
   Box,
@@ -129,14 +124,12 @@ export default function Chats() {
     data: chatsData,
     loading: chatsLoading,
     error: chatsError,
-  } = useFetch<PaginatedResponse<ChatApi>>(
-    token ? "/api/chats?page=1&page_limit=500" : null
+  } = useFetchAll<ChatApi>(token ? "/api/chats" : null);
+  const { data: guardiansData } = useFetchAll<GuardianApi>(
+    token ? "/api/guardians" : null
   );
-  const { data: guardiansData } = useFetch<PaginatedResponse<GuardianApi>>(
-    token ? "/api/guardians?page=1&page_limit=500" : null
-  );
-  const { data: patientsData } = useFetch<PaginatedResponse<PatientApi>>(
-    token ? "/api/patients?page=1&page_limit=500" : null
+  const { data: patientsData } = useFetchAll<PatientApi>(
+    token ? "/api/patients" : null
   );
 
   const rawChats = useMemo(() => chatsData?.items ?? [], [chatsData]);

@@ -208,7 +208,11 @@ export default function LandingPage() {
   const { isOpen, onOpen, onClose } = useDisclosure();
   const toast = useToast();
   const [selectedPlan, setSelectedPlan] = useState<string | null>(null);
-  const [planForm, setPlanForm] = useState({ nombre: "", correo: "", telefono: "" });
+  const [planForm, setPlanForm] = useState({
+    nombre: "",
+    correo: "",
+    telefono: "",
+  });
 
   const handleSelectPlan = (planName: string) => {
     setSelectedPlan(planName);
@@ -659,11 +663,15 @@ export default function LandingPage() {
                   lineHeight={1.15}
                   fontWeight={800}
                 >
-                  No queremos que{" "}
-                  <Text as="span" color="whiteAlpha.800">
+                  <Text as="span" color="gray.200">
+                    No queremos que
+                  </Text>{" "}
+                  <Text as="span" color="naranja.300">
                     LATAM consuma IA.
                   </Text>{" "}
-                  Queremos que la{" "}
+                  <Text as="span" color="gray.200">
+                    Queremos que la
+                  </Text>{" "}
                   <Text as="span" color="amarillo.300">
                     construya.
                   </Text>
@@ -684,6 +692,7 @@ export default function LandingPage() {
                     align="flex-start"
                     spacing={5}
                     bg="white"
+                    color="lucera.text"
                     borderWidth="1px"
                     borderColor="lucera.border"
                     borderRadius="xl"
@@ -697,15 +706,20 @@ export default function LandingPage() {
                     <Text
                       fontFamily="heading"
                       fontSize="3xl"
-                      fontWeight={700}
-                      color="vino.100"
+                      fontWeight={800}
+                      color="naranja.400"
                       lineHeight={1}
                       flexShrink={0}
                     >
                       {p.number}
                     </Text>
                     <Box>
-                      <Heading size="sm" fontFamily="heading" mb={2}>
+                      <Heading
+                        size="sm"
+                        fontFamily="heading"
+                        color="lucera.text"
+                        mb={2}
+                      >
                         {p.title}
                       </Heading>
                       <Text fontSize="sm" color="lucera.textMuted">

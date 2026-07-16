@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useAuth, UserRole, type AuthUser } from "@/lib/auth";
+import { useAuth, roleFromApi, type AuthUser } from "@/lib/auth";
 import {
   Box,
   Button,
@@ -58,7 +58,7 @@ export default function Login() {
       const acc: AuthUser = {
         email: data.user.email,
         nombre: data.user.name,
-        rol: data.user.role as UserRole,
+        rol: roleFromApi(data.user.role),
       };
       setLoading(false);
       if (!REQUIRE_MFA_CODE) {

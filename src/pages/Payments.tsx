@@ -1,18 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Pago } from "@/lib/mockData";
-import { useFetch } from "@/hooks/useFetch";
+import { useFetchAll } from "@/hooks/useFetchAll";
 import {
   paymentMethodToEs,
   paymentStatusToEs,
   paymentPlanToEs,
 } from "@/lib/apiMappings";
-import type {
-  PaymentApi,
-  GuardianApi,
-  InsuranceRef,
-  PaginatedResponse,
-} from "@/lib/apiTypes";
+import type { PaymentApi, GuardianApi, InsuranceRef } from "@/lib/apiTypes";
 import { toast } from "@/lib/toast";
 import {
   Box,
@@ -93,29 +88,23 @@ function paymentApiToPago(
 
 export default function Payments() {
   const { user, token } = useAuth();
-  const canExport = user?.rol !== "Invitado" && user?.rol !== "Ventas";
+  const canExport = user?.rol !== "Invitado";
 
   const {
     data: paymentsData,
     loading: paymentsLoading,
     error: paymentsError,
-  } = useFetch<PaginatedResponse<PaymentApi>>(
-    token ? "/api/payments?page=1&page_limit=500" : null
-  );
+  } = useFetchAll<PaymentApi>(token ? "/api/payments" : null);
   const {
     data: guardiansData,
     loading: guardiansLoading,
     error: guardiansError,
-  } = useFetch<PaginatedResponse<GuardianApi>>(
-    token ? "/api/guardians?page=1&page_limit=500" : null
-  );
+  } = useFetchAll<GuardianApi>(token ? "/api/guardians" : null);
   const {
     data: insurancesData,
     loading: insurancesLoading,
     error: insurancesError,
-  } = useFetch<PaginatedResponse<InsuranceRef>>(
-    token ? "/api/insurances?page=1&page_limit=100" : null
-  );
+  } = useFetchAll<InsuranceRef>(token ? "/api/insurances" : null);
 
   const seguroByGuardianName = useMemo(
     () =>

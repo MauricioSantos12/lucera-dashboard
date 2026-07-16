@@ -30,6 +30,7 @@ import {
   LabelList,
 } from "recharts";
 import { useFetch } from "@/hooks/useFetch";
+import { useFetchAll } from "@/hooks/useFetchAll";
 import { chatTriageToLevel } from "@/lib/apiMappings";
 import type {
   KpisResponse,
@@ -38,7 +39,6 @@ import type {
   GuardianApi,
   PatientApi,
   InsuranceRef,
-  PaginatedResponse,
 } from "@/lib/apiTypes";
 import {
   Box,
@@ -53,7 +53,6 @@ import {
   Button,
   Icon,
 } from "@chakra-ui/react";
-import { Navigate } from "react-router-dom";
 import { StatCard } from "@/components/StatCard";
 import { TriageBadge } from "@/components/TriageBadge";
 import { LoadingState } from "@/components/LoadingState";
@@ -75,8 +74,8 @@ const chatTriageLevelMap: Record<ChatApi["triage"], TriageStatApi["level"]> = {
   emergency: "Emergency",
 };
 
-// Patrón "Pie Chart With Customized Label" de recharts: dibuja el nombre del
-// nivel y el % dentro de cada porción, a mitad de camino entre el radio
+// Patrón "Pie Chart With Customized Label" de recharts: dibuja solo el valor
+// (número) centrado dentro de cada porción, a mitad de camino entre el radio
 // interno y el externo.
 const RADIAN = Math.PI / 180;
 function renderTriajeLabel({
@@ -85,38 +84,30 @@ function renderTriajeLabel({
   midAngle,
   innerRadius,
   outerRadius,
-  percent,
-  name,
+  value,
 }: {
   cx: number;
   cy: number;
   midAngle: number;
   innerRadius: number;
   outerRadius: number;
-  percent: number;
-  name: string;
+  value: number;
 }) {
+  if (!value) return null;
   const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
   const x = cx + radius * Math.cos(-midAngle * RADIAN);
   const y = cy + radius * Math.sin(-midAngle * RADIAN);
-  if (percent === 0) return null;
-  const anchor = x > cx ? "start" : "end";
   return (
     <text
       x={x}
       y={y}
       fill="white"
-      textAnchor={anchor}
+      textAnchor="middle"
       dominantBaseline="central"
-      fontSize={11}
+      fontSize={13}
       fontWeight={700}
     >
-      <tspan x={x} dy="-0.3em">
-        {name}
-      </tspan>
-      <tspan x={x} dy="1.1em">
-        {`${(percent * 100).toFixed(0)}%`}
-      </tspan>
+      {formatNumber(value)}
     </text>
   );
 }
@@ -125,6 +116,13 @@ function renderTriajeLabel({
 // las gráficas de barras para mantener consistencia visual.
 const brandColors = ["#6d122b", "#ef7d54", "#f8cc37"];
 const planColors = brandColors;
+
+// Deja ~18% de espacio arriba de la barra más alta para que la etiqueta
+// (número sobre cada barra) nunca se recorte contra el borde superior.
+const yAxisDomain: [number, (dataMax: number) => number] = [
+  0,
+  (dataMax) => Math.ceil((dataMax || 1) * 1.18),
+];
 
 interface StatProps {
   icon: LucideIcon;
@@ -189,30 +187,22 @@ export default function Statistics() {
     data: chatsData,
     loading: chatsLoading,
     error: chatsError,
-  } = useFetch<PaginatedResponse<ChatApi>>(
-    token ? "/api/chats?page=1&page_limit=500" : null
-  );
+  } = useFetchAll<ChatApi>(token ? "/api/chats" : null);
   const {
     data: guardiansData,
     loading: guardiansLoading,
     error: guardiansError,
-  } = useFetch<PaginatedResponse<GuardianApi>>(
-    token ? "/api/guardians?page=1&page_limit=500" : null
-  );
+  } = useFetchAll<GuardianApi>(token ? "/api/guardians" : null);
   const {
     data: patientsData,
     loading: patientsLoading,
     error: patientsError,
-  } = useFetch<PaginatedResponse<PatientApi>>(
-    token ? "/api/patients?page=1&page_limit=500" : null
-  );
+  } = useFetchAll<PatientApi>(token ? "/api/patients" : null);
   const {
     data: insurancesData,
     loading: insurancesLoading,
     error: insurancesError,
-  } = useFetch<PaginatedResponse<InsuranceRef>>(
-    token ? "/api/insurances?page=1&page_limit=100" : null
-  );
+  } = useFetchAll<InsuranceRef>(token ? "/api/insurances" : null);
 
   const statsLoading =
     kpisLoading ||
@@ -405,7 +395,6 @@ export default function Statistics() {
   }, [filteredGuardianes]);
 
   if (!user) return null;
-  if (user.rol === "Ventas") return <Navigate to="/payments" replace />;
 
   const canExport = user.rol !== "Invitado";
 
@@ -743,7 +732,7 @@ export default function Statistics() {
                 Consultas: atendidas, total y abiertas
               </Heading>
               <ResponsiveContainer width="100%" height={240}>
-                <BarChart data={consultasStats} margin={{ left: 0 }}>
+                <BarChart data={consultasStats} margin={{ top: 20, left: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#e9d2b1" />
                   <XAxis
                     dataKey="name"
@@ -752,6 +741,7 @@ export default function Statistics() {
                   <YAxis
                     tick={{ fontSize: 11, fill: "#7b5a48" }}
                     allowDecimals={false}
+                    domain={yAxisDomain}
                   />
                   <Tooltip
                     cursor={{ fill: "rgba(109,18,43,0.06)" }}
@@ -794,7 +784,7 @@ export default function Statistics() {
                 Distribución por plan
               </Heading>
               <ResponsiveContainer width="100%" height={240}>
-                <BarChart data={planesDistribucion} margin={{ left: 0 }}>
+                <BarChart data={planesDistribucion} margin={{ top: 20, left: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#e9d2b1" />
                   <XAxis
                     dataKey="plan"
@@ -802,6 +792,7 @@ export default function Statistics() {
                   />
                   <YAxis
                     allowDecimals={false}
+                    domain={yAxisDomain}
                     tick={{ fontSize: 11, fill: "#7b5a48" }}
                   />
                   <Tooltip
@@ -842,7 +833,7 @@ export default function Statistics() {
                 Acudientes por aseguradora
               </Heading>
               <ResponsiveContainer width="100%" height={240}>
-                <BarChart data={aseguradoraStats} margin={{ left: 0 }}>
+                <BarChart data={aseguradoraStats} margin={{ top: 20, left: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#e9d2b1" />
                   <XAxis
                     dataKey="name"
@@ -854,6 +845,7 @@ export default function Statistics() {
                   />
                   <YAxis
                     allowDecimals={false}
+                    domain={yAxisDomain}
                     tick={{ fontSize: 11, fill: "#7b5a48" }}
                   />
                   <Tooltip
@@ -897,7 +889,7 @@ export default function Statistics() {
                 Acudientes por país
               </Heading>
               <ResponsiveContainer width="100%" height={240}>
-                <BarChart data={paisStats} margin={{ left: 0 }}>
+                <BarChart data={paisStats} margin={{ top: 20, left: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#e9d2b1" />
                   <XAxis
                     dataKey="name"
@@ -905,6 +897,7 @@ export default function Statistics() {
                   />
                   <YAxis
                     allowDecimals={false}
+                    domain={yAxisDomain}
                     tick={{ fontSize: 11, fill: "#7b5a48" }}
                   />
                   <Tooltip
@@ -948,7 +941,7 @@ export default function Statistics() {
                 Pacientes por edad
               </Heading>
               <ResponsiveContainer width="100%" height={240}>
-                <ComposedChart data={edadDistribucion} margin={{ left: 0 }}>
+                <ComposedChart data={edadDistribucion} margin={{ top: 20, left: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#e9d2b1" />
                   <XAxis
                     dataKey="age"
@@ -957,6 +950,7 @@ export default function Statistics() {
                   />
                   <YAxis
                     allowDecimals={false}
+                    domain={yAxisDomain}
                     tick={{ fontSize: 11, fill: "#7b5a48" }}
                   />
                   <Tooltip

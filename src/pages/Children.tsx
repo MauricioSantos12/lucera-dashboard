@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { NinoPaciente } from "@/lib/mockData";
-import { useFetch } from "@/hooks/useFetch";
+import { useFetchAll } from "@/hooks/useFetchAll";
 import { apiFetch } from "@/lib/apiClient";
 import { relationToEs } from "@/lib/apiMappings";
 import type {
@@ -10,7 +10,6 @@ import type {
   PatientPatchPayload,
   GuardianApi,
   InsuranceRef,
-  PaginatedResponse,
   DeleteResponse,
   BloodType,
 } from "@/lib/apiTypes";
@@ -99,8 +98,9 @@ function patientToRow(
 
 export default function Children() {
   const { user, token, getValidToken } = useAuth();
-  const canEdit = user?.rol !== "Invitado";
-  const canExport = user?.rol !== "Invitado" && user?.rol !== "Ventas";
+  // Solo Admin crea/edita/elimina; el resto (Ventas, Médico) es solo lectura.
+  const canEdit = user?.rol === "Admin";
+  const canExport = user?.rol !== "Invitado";
   const perPage = 10;
 
   const {
@@ -108,23 +108,17 @@ export default function Children() {
     loading: patientsLoading,
     error: patientsError,
     refetch: refetchPatients,
-  } = useFetch<PaginatedResponse<PatientApi>>(
-    token ? "/api/patients?page=1&page_limit=500" : null
-  );
+  } = useFetchAll<PatientApi>(token ? "/api/patients" : null);
   const {
     data: guardiansData,
     loading: guardiansLoading,
     error: guardiansError,
-  } = useFetch<PaginatedResponse<GuardianApi>>(
-    token ? "/api/guardians?page=1&page_limit=500" : null
-  );
+  } = useFetchAll<GuardianApi>(token ? "/api/guardians" : null);
   const {
     data: insurancesData,
     loading: insurancesLoading,
     error: insurancesError,
-  } = useFetch<PaginatedResponse<InsuranceRef>>(
-    token ? "/api/insurances?page=1&page_limit=100" : null
-  );
+  } = useFetchAll<InsuranceRef>(token ? "/api/insurances" : null);
 
   const guardianes = useMemo(() => guardiansData?.items ?? [], [guardiansData]);
   const relacionByGuardianId = useMemo(

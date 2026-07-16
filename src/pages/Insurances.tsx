@@ -1,17 +1,17 @@
 import { useEffect, useMemo, useState } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { useAuth } from "@/lib/auth";
-import { useFetch } from "@/hooks/useFetch";
+import { useFetchAll } from "@/hooks/useFetchAll";
 import { apiFetch } from "@/lib/apiClient";
 import { toast } from "@/lib/toast";
 import { LoadingState } from "@/components/LoadingState";
 import { StatCard } from "@/components/StatCard";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { Pagination } from "@/components/Pagination";
 import type {
   InsuranceRef,
   NameInPayload,
   DeleteResponse,
-  PaginatedResponse,
 } from "@/lib/apiTypes";
 import {
   Box,
@@ -47,9 +47,7 @@ export default function Insurances() {
     loading,
     error,
     refetch,
-  } = useFetch<PaginatedResponse<InsuranceRef>>(
-    token ? "/api/insurances?page=1&page_limit=100" : null
-  );
+  } = useFetchAll<InsuranceRef>(token ? "/api/insurances" : null);
   const insurances = useMemo(
     () => insurancesData?.items ?? [],
     [insurancesData]
@@ -64,13 +62,16 @@ export default function Insurances() {
   }, [error]);
 
   const [q, setQ] = useState("");
-  const filtered = useMemo(
-    () =>
-      insurances.filter((i) =>
-        `${i.id} ${i.name}`.toLowerCase().includes(q.toLowerCase())
-      ),
-    [insurances, q]
-  );
+  const [page, setPage] = useState(1);
+  const perPage = 10;
+  const filtered = useMemo(() => {
+    setPage(1);
+    return insurances.filter((i) =>
+      `${i.id} ${i.name}`.toLowerCase().includes(q.toLowerCase())
+    );
+  }, [insurances, q]);
+  const totalPages = Math.ceil(filtered.length / perPage);
+  const paginated = filtered.slice((page - 1) * perPage, page * perPage);
 
   const { isOpen, onOpen, onClose } = useDisclosure();
   const [editing, setEditing] = useState<InsuranceRef | null>(null);
@@ -163,7 +164,7 @@ export default function Insurances() {
       ) : (
         <>
           <SimpleGrid columns={{ base: 1, sm: 2, md: 3, lg: 4 }} spacing={3}>
-            {filtered.map((i) => (
+            {paginated.map((i) => (
               <StatCard key={i.id} p={3}>
                 <Flex align="center" gap={3}>
                   <Flex
@@ -219,6 +220,11 @@ export default function Insurances() {
           <Text mt={4} fontSize="xs" color="lucera.textMuted">
             {filtered.length} de {insurances.length} seguros médicos
           </Text>
+          <Pagination
+            page={page}
+            totalPages={totalPages}
+            onPageChange={setPage}
+          />
         </>
       )}
 

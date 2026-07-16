@@ -9,7 +9,7 @@ import {
   ShieldCheck,
   // Pill, // oculto temporalmente (Medicamentos)
   Baby,
-  CalendarDays,
+  // CalendarDays, // oculto temporalmente (Mi agenda)
   UserCog,
   Heart,
   BarChart3,
@@ -48,10 +48,20 @@ const allItems: Item[] = [
     title: "Estadísticas",
     url: "/statistics",
     icon: BarChart3,
-    roles: ["Admin", "Médico", "Acudiente", "Invitado"],
+    roles: ["Admin", "Ventas", "Invitado"],
   },
-  { title: "Acudientes", url: "/guardians", icon: Users, roles: ["Admin", "Invitado"] },
-  { title: "Niños", url: "/children", icon: Baby, roles: ["Admin", "Invitado"] },
+  {
+    title: "Acudientes",
+    url: "/guardians",
+    icon: Users,
+    roles: ["Admin", "Ventas", "Médico", "Invitado"],
+  },
+  {
+    title: "Niños",
+    url: "/children",
+    icon: Baby,
+    roles: ["Admin", "Ventas", "Médico", "Invitado"],
+  },
   // oculto temporalmente
   // {
   //   title: "Médicos",
@@ -63,25 +73,25 @@ const allItems: Item[] = [
     title: "Centros de atención",
     url: "/centers",
     icon: Building2,
-    roles: ["Admin", "Médico", "Invitado"],
+    roles: ["Admin", "Ventas", "Médico", "Invitado"],
   },
   {
     title: "Seguros médicos",
     url: "/insurances",
     icon: ShieldCheck,
-    roles: ["Admin", "Invitado"],
+    roles: ["Admin", "Ventas", "Médico", "Invitado"],
   },
   {
     title: "Especialidades",
     url: "/specialties",
     icon: Stethoscope,
-    roles: ["Admin", "Médico", "Invitado"],
+    roles: ["Admin", "Ventas", "Médico", "Invitado"],
   },
   {
     title: "Sesiones (Chats)",
     url: "/chats",
     icon: MessageSquare,
-    roles: ["Admin", "Médico", "Invitado"],
+    roles: ["Admin", "Ventas", "Médico", "Invitado"],
   },
   // { title: "Medicamentos", url: "/medications", icon: Pill, roles: ["Admin", "Invitado"] }, // oculto temporalmente
   {
@@ -94,14 +104,9 @@ const allItems: Item[] = [
     title: "Consumo LLM",
     url: "/usage",
     icon: Cpu,
-    roles: ["Admin", "Invitado"],
+    roles: ["Admin", "Ventas", "Invitado"],
   },
-  {
-    title: "Mi agenda",
-    url: "/schedule",
-    icon: CalendarDays,
-    roles: ["Médico"],
-  },
+  // { title: "Mi agenda", url: "/schedule", icon: CalendarDays, roles: ["Médico"] }, // oculto temporalmente
   {
     title: "Mis hijos",
     url: "/my-children",

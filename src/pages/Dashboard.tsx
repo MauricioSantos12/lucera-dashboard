@@ -9,7 +9,7 @@ import {
   VStack,
   Button,
 } from "@chakra-ui/react";
-import { Link as RouterLink, Navigate } from "react-router-dom";
+import { Link as RouterLink } from "react-router-dom";
 import { motion } from "framer-motion";
 import logoVertical from "@/assets/lucera-vertical.jpg";
 
@@ -18,7 +18,14 @@ const MotionBox = motion(Box);
 export default function Dashboard() {
   const { user } = useAuth();
   if (!user) return null;
-  // if (user.rol === "Ventas") return <Navigate to="/payments" replace />;
+
+  // CTA según lo que cada rol puede ver: Médico no accede a estadísticas.
+  const cta =
+    user.rol === "Médico"
+      ? { to: "/chats", label: "Ver chats" }
+      : user.rol === "Ventas"
+      ? { to: "/payments", label: "Ver pagos" }
+      : { to: "/statistics", label: "Ver estadísticas" };
 
   return (
     <DashboardLayout
@@ -61,13 +68,8 @@ export default function Dashboard() {
           </MotionBox>
 
           {user.rol !== "Acudiente" && (
-            <Button
-              as={RouterLink}
-              to={user.rol === "Ventas" ? "/payments" : "/statistics"}
-              colorScheme="vino"
-              variant="solid"
-            >
-              {user.rol === "Ventas" ? "Ver Pagos" : "Ver estadísticas"}
+            <Button as={RouterLink} to={cta.to} colorScheme="vino" variant="solid">
+              {cta.label}
             </Button>
           )}
         </VStack>

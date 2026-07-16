@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Centro, paisesCiudades } from "@/lib/mockData";
-import { useFetch } from "@/hooks/useFetch";
+import { useFetchAll } from "@/hooks/useFetchAll";
 import { apiFetch } from "@/lib/apiClient";
 import { centerTypeToEs, countryEsToApi } from "@/lib/apiMappings";
 import type {
@@ -9,7 +9,6 @@ import type {
   CenterCreatePayload,
   CenterUpdatePayload,
   DeleteResponse,
-  PaginatedResponse,
 } from "@/lib/apiTypes";
 import { LoadingState } from "@/components/LoadingState";
 import {
@@ -76,17 +75,15 @@ type CentroRow = Centro & { pais: string };
 export default function Centers() {
   const { user, token, getValidToken } = useAuth();
   const isAdmin = user?.rol === "Admin";
-  const canEdit = user?.rol !== "Invitado" && isAdmin;
-  const canExport = user?.rol !== "Invitado" && user?.rol !== "Ventas";
+  const canEdit = isAdmin;
+  const canExport = user?.rol !== "Invitado";
 
   const {
     data: centersData,
     loading: centersLoading,
     error: centersError,
     refetch: refetchCenters,
-  } = useFetch<PaginatedResponse<CenterApi>>(
-    token ? "/api/centers?page=1&page_limit=500" : null
-  );
+  } = useFetchAll<CenterApi>(token ? "/api/centers" : null);
   const data = useMemo(
     () =>
       (centersData?.items ?? []).map(

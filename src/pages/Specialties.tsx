@@ -1,17 +1,17 @@
 import { useEffect, useMemo, useState } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { useAuth } from "@/lib/auth";
-import { useFetch } from "@/hooks/useFetch";
+import { useFetchAll } from "@/hooks/useFetchAll";
 import { apiFetch } from "@/lib/apiClient";
 import { toast } from "@/lib/toast";
 import { LoadingState } from "@/components/LoadingState";
 import { StatCard } from "@/components/StatCard";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { Pagination } from "@/components/Pagination";
 import type {
   SpecialtyApi,
   NameInPayload,
   DeleteResponse,
-  PaginatedResponse,
 } from "@/lib/apiTypes";
 import {
   Box,
@@ -49,9 +49,7 @@ export default function Specialties() {
     loading,
     error,
     refetch,
-  } = useFetch<PaginatedResponse<SpecialtyApi>>(
-    token ? "/api/specialties/all?page=1&page_limit=100" : null
-  );
+  } = useFetchAll<SpecialtyApi>(token ? "/api/specialties/all" : null);
   const specialties = useMemo(
     () => specialtiesData?.items ?? [],
     [specialtiesData]
@@ -66,13 +64,16 @@ export default function Specialties() {
   }, [error]);
 
   const [q, setQ] = useState("");
-  const filtered = useMemo(
-    () =>
-      specialties.filter((s) =>
-        `${s.id} ${s.name}`.toLowerCase().includes(q.toLowerCase())
-      ),
-    [specialties, q]
-  );
+  const [page, setPage] = useState(1);
+  const perPage = 10;
+  const filtered = useMemo(() => {
+    setPage(1);
+    return specialties.filter((s) =>
+      `${s.id} ${s.name}`.toLowerCase().includes(q.toLowerCase())
+    );
+  }, [specialties, q]);
+  const totalPages = Math.ceil(filtered.length / perPage);
+  const paginated = filtered.slice((page - 1) * perPage, page * perPage);
 
   const { isOpen, onOpen, onClose } = useDisclosure();
   const [editing, setEditing] = useState<SpecialtyApi | null>(null);
@@ -165,7 +166,7 @@ export default function Specialties() {
       ) : (
         <>
           <SimpleGrid columns={{ base: 1, sm: 2, md: 3, lg: 4 }} spacing={3}>
-            {filtered.map((s) => (
+            {paginated.map((s) => (
               <StatCard key={s.id} p={3}>
                 <Flex align="center" gap={3}>
                   <Flex
@@ -221,6 +222,11 @@ export default function Specialties() {
           <Text mt={4} fontSize="xs" color="lucera.textMuted">
             {filtered.length} de {specialties.length} especialidades
           </Text>
+          <Pagination
+            page={page}
+            totalPages={totalPages}
+            onPageChange={setPage}
+          />
         </>
       )}
 
