@@ -213,12 +213,15 @@ export default function Chats() {
           maxH={{ base: "360px", lg: "none" }}
         >
           <Box p={3} borderBottomWidth="1px" borderColor="lucera.border">
+            <Text fontSize="xs" fontWeight={600} mb={1}>
+              Buscar
+            </Text>
             <InputGroup size="sm">
               <InputLeftElement pointerEvents="none">
                 <Search size={14} />
               </InputLeftElement>
               <Input
-                placeholder="Buscar en los chats…"
+                placeholder="Acudiente, paciente o teléfono…"
                 value={q}
                 onChange={(e) => setQ(e.target.value)}
               />

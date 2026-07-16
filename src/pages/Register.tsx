@@ -18,17 +18,61 @@ import {
 import { Link as RouterLink, useNavigate } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
 import logoSymbol from "@/assets/lucera-symbol.jpg";
-import { paisesCiudades, segurosMedicos } from "@/lib/mockData";
+import { paisesCiudades } from "@/lib/mockData";
 import { toast } from "@/lib/toast";
+import { apiFetch } from "@/lib/apiClient";
+import { relationToApi } from "@/lib/apiMappings";
+import type { Relacion } from "@/lib/mockData";
+import type { GuardianApi, GuardianCreatePayload } from "@/lib/apiTypes";
 
 export default function Register() {
   const navigate = useNavigate();
   const [pais, setPais] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    toast.success("Registro exitoso. Ya puedes iniciar sesión.");
-    navigate("/dashboard");
+    const fd = new FormData(e.currentTarget);
+
+    const password = String(fd.get("password") || "");
+    const confirmPassword = String(fd.get("confirmPassword") || "");
+    if (password !== confirmPassword) {
+      toast.error("Las contraseñas no coinciden");
+      return;
+    }
+
+    // El endpoint de creación no acepta contraseña ni seguro médico — solo
+    // name/phone/email (obligatorios) y relationship/city/province.
+    const payload: GuardianCreatePayload = {
+      name: String(fd.get("nombre")),
+      phone: String(fd.get("telefono")),
+      email: String(fd.get("email")),
+      relationship: relationToApi[fd.get("relacion") as Relacion],
+      city: String(fd.get("ciudad") || "") || undefined,
+      province: String(fd.get("pais") || "") || undefined,
+    };
+
+    setLoading(true);
+    try {
+      await apiFetch<GuardianApi>("/api/guardians", null, {
+        method: "POST",
+        body: JSON.stringify(payload),
+      });
+      toast.success("Registro exitoso. Ya puedes iniciar sesión.");
+      navigate("/dashboard");
+    } catch (err) {
+      const isDuplicate =
+        err instanceof Error && err.message.startsWith("Error 409");
+      toast.error("No se pudo completar el registro", {
+        description: isDuplicate
+          ? "Ya existe una cuenta con ese correo o teléfono."
+          : err instanceof Error
+          ? err.message
+          : undefined,
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -137,18 +181,6 @@ export default function Register() {
                   ))}
                 </Select>
               </FormControl>
-              <FormControl>
-                <FormLabel>Seguro médico</FormLabel>
-                <Select name="seguro" placeholder="Sin seguro">
-                  {segurosMedicos.map((s) => (
-                    <option key={s} value={s}>{s}</option>
-                  ))}
-                </Select>
-              </FormControl>
-              <FormControl>
-                <FormLabel>ID del seguro</FormLabel>
-                <Input name="seguroId" placeholder="Número de póliza" />
-              </FormControl>
               <FormControl isRequired>
                 <FormLabel>Contraseña</FormLabel>
                 <Input name="password" type="password" placeholder="Mínimo 6 caracteres" />
@@ -181,6 +213,8 @@ export default function Register() {
               w="100%"
               mt={4}
               size="lg"
+              isLoading={loading}
+              loadingText="Creando cuenta…"
             >
               Crear cuenta
             </Button>

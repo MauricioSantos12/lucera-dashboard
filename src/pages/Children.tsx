@@ -9,6 +9,7 @@ import type {
   PatientCreatePayload,
   PatientPatchPayload,
   GuardianApi,
+  InsuranceRef,
   PaginatedResponse,
   DeleteResponse,
   BloodType,
@@ -54,14 +55,13 @@ import {
   Plus,
   Pencil,
   Trash2,
-  Download,
 } from "lucide-react";
 import { StatCard } from "@/components/StatCard";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { Pagination } from "@/components/Pagination";
 import { LoadingState } from "@/components/LoadingState";
+import { ExportButton } from "@/components/ExportButton";
 import { toast } from "@/lib/toast";
-import { exportToExcel } from "@/lib/exportToExcel";
 import { useAuth } from "@/lib/auth";
 
 type Row = NinoPaciente & {
@@ -70,11 +70,14 @@ type Row = NinoPaciente & {
   acudienteNombre: string;
   relacion: string;
   telefono: string;
+  pais: string;
+  seguro: string;
 };
 
 function patientToRow(
   p: PatientApi,
-  relacionByGuardianId: Record<string, string>
+  relacionByGuardianId: Record<string, string>,
+  paisByGuardianId: Record<string, string>
 ): Row {
   return {
     id: p.id,
@@ -89,6 +92,8 @@ function patientToRow(
     acudienteNombre: p.guardian,
     relacion: relacionByGuardianId[p.guardianId] ?? "",
     telefono: p.phone,
+    pais: paisByGuardianId[p.guardianId] ?? "",
+    seguro: p.insurance?.name ?? "",
   };
 }
 
@@ -113,6 +118,13 @@ export default function Children() {
   } = useFetch<PaginatedResponse<GuardianApi>>(
     token ? "/api/guardians?page=1&page_limit=500" : null
   );
+  const {
+    data: insurancesData,
+    loading: insurancesLoading,
+    error: insurancesError,
+  } = useFetch<PaginatedResponse<InsuranceRef>>(
+    token ? "/api/insurances?page=1&page_limit=100" : null
+  );
 
   const guardianes = useMemo(() => guardiansData?.items ?? [], [guardiansData]);
   const relacionByGuardianId = useMemo(
@@ -122,20 +134,29 @@ export default function Children() {
       ),
     [guardianes]
   );
+  const paisByGuardianId = useMemo(
+    () => Object.fromEntries(guardianes.map((g) => [g.id, g.country])),
+    [guardianes]
+  );
   const data = useMemo(
     () =>
       (patientsData?.items ?? []).map((p) =>
-        patientToRow(p, relacionByGuardianId)
+        patientToRow(p, relacionByGuardianId, paisByGuardianId)
       ),
-    [patientsData, relacionByGuardianId]
+    [patientsData, relacionByGuardianId, paisByGuardianId]
+  );
+  const seguros = useMemo(() => insurancesData?.items ?? [], [insurancesData]);
+  const paisOptions = useMemo(
+    () => [...new Set(guardianes.map((g) => g.country))].sort(),
+    [guardianes]
   );
 
   useEffect(() => {
-    const err = patientsError || guardiansError;
+    const err = patientsError || guardiansError || insurancesError;
     if (err) {
       toast.error("No se pudieron cargar los niños", { description: err });
     }
-  }, [patientsError, guardiansError]);
+  }, [patientsError, guardiansError, insurancesError]);
 
   const [page, setPage] = useState(1);
   const [q, setQ] = useState("");
@@ -144,9 +165,12 @@ export default function Children() {
   const [pesoFilter, setPesoFilter] = useState("todos");
   const [alergiasFilter, setAlergiasFilter] = useState("todos");
   const [condicionesFilter, setCondicionesFilter] = useState("todos");
+  const [paisFilter, setPaisFilter] = useState("todos");
+  const [seguroFilter, setSeguroFilter] = useState("todos");
   const { isOpen, onOpen, onClose } = useDisclosure();
   const [editing, setEditing] = useState<Row | null>(null);
   const [toDelete, setToDelete] = useState<Row | null>(null);
+  const [saving, setSaving] = useState(false);
 
   const filtered = useMemo(() => {
     setPage(1);
@@ -180,7 +204,20 @@ export default function Children() {
         (condicionesFilter === "con"
           ? (r.condiciones?.length ?? 0) > 0
           : (r.condiciones?.length ?? 0) === 0);
-      return okQ && okF && okTipoSangre && okPeso && okAlergias && okCondiciones;
+      const okPais = paisFilter === "todos" || r.pais === paisFilter;
+      const okSeguro =
+        seguroFilter === "todos" ||
+        (seguroFilter === "sin_seguro" ? !r.seguro : r.seguro === seguroFilter);
+      return (
+        okQ &&
+        okF &&
+        okTipoSangre &&
+        okPeso &&
+        okAlergias &&
+        okCondiciones &&
+        okPais &&
+        okSeguro
+      );
     });
   }, [
     data,
@@ -190,6 +227,8 @@ export default function Children() {
     pesoFilter,
     alergiasFilter,
     condicionesFilter,
+    paisFilter,
+    seguroFilter,
   ]);
 
   const totalPages = Math.ceil(filtered.length / perPage);
@@ -215,6 +254,7 @@ export default function Children() {
     const tipoSangre =
       (fd.get("tipoSangre") as NinoPaciente["tipoSangre"]) || undefined;
 
+    setSaving(true);
     try {
       const freshToken = await getValidToken();
       if (editing) {
@@ -255,6 +295,8 @@ export default function Children() {
         editing ? "No se pudo actualizar el niño" : "No se pudo registrar el niño",
         { description: err instanceof Error ? err.message : undefined }
       );
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -268,97 +310,156 @@ export default function Children() {
           direction={{ base: "column", md: "row" }}
           gap={3}
           mb={4}
-          align={{ md: "center" }}
+          align={{ md: "end" }}
           wrap="wrap"
         >
-          <InputGroup flex={1} minW={{ md: "220px" }}>
-            <InputLeftElement pointerEvents="none">
-              <Search size={16} />
-            </InputLeftElement>
-            <Input
-              placeholder="Buscar por nombre del niño o acudiente…"
-              value={q}
-              onChange={(e) => setQ(e.target.value)}
-            />
-          </InputGroup>
-          <Select
-            w={{ base: "100%", md: "200px" }}
-            value={filter}
-            onChange={(e) => setFilter(e.target.value)}
-          >
-            <option value="todos">Todos los niños</option>
-            <option value="lactantes">Lactantes (0-1)</option>
-            <option value="preescolar">Preescolar (2-5)</option>
-            <option value="escolar">Escolar (6+)</option>
-          </Select>
-          <Select
-            w={{ base: "100%", md: "160px" }}
-            value={tipoSangreFilter}
-            onChange={(e) => setTipoSangreFilter(e.target.value)}
-          >
-            <option value="todos">Todos los tipos de sangre</option>
-            {["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"].map((t) => (
-              <option key={t} value={t}>
-                {t}
-              </option>
-            ))}
-          </Select>
-          <Select
-            w={{ base: "100%", md: "160px" }}
-            value={pesoFilter}
-            onChange={(e) => setPesoFilter(e.target.value)}
-          >
-            <option value="todos">Todos los pesos</option>
-            <option value="menos10">Menos de 10 kg</option>
-            <option value="10a20">10 - 20 kg</option>
-            <option value="mas20">Más de 20 kg</option>
-          </Select>
-          <Select
-            w={{ base: "100%", md: "160px" }}
-            value={alergiasFilter}
-            onChange={(e) => setAlergiasFilter(e.target.value)}
-          >
-            <option value="todos">Todos</option>
-            <option value="con">Con alergias</option>
-            <option value="sin">Sin alergias</option>
-          </Select>
-          <Select
-            w={{ base: "100%", md: "160px" }}
-            value={condicionesFilter}
-            onChange={(e) => setCondicionesFilter(e.target.value)}
-          >
-            <option value="todos">Todos</option>
-            <option value="con">Con condiciones</option>
-            <option value="sin">Sin condiciones</option>
-          </Select>
+          <Box flex={1} minW={{ md: "220px" }}>
+            <Text fontSize="xs" fontWeight={600} mb={1}>
+              Buscar
+            </Text>
+            <InputGroup>
+              <InputLeftElement pointerEvents="none">
+                <Search size={16} />
+              </InputLeftElement>
+              <Input
+                placeholder="Nombre del niño o acudiente…"
+                value={q}
+                onChange={(e) => setQ(e.target.value)}
+              />
+            </InputGroup>
+          </Box>
+          <Box>
+            <Text fontSize="xs" fontWeight={600} mb={1}>
+              Edad
+            </Text>
+            <Select
+              w={{ base: "100%", md: "200px" }}
+              value={filter}
+              onChange={(e) => setFilter(e.target.value)}
+            >
+              <option value="todos">Todos los niños</option>
+              <option value="lactantes">Lactantes (0-1)</option>
+              <option value="preescolar">Preescolar (2-5)</option>
+              <option value="escolar">Escolar (6+)</option>
+            </Select>
+          </Box>
+          <Box>
+            <Text fontSize="xs" fontWeight={600} mb={1}>
+              Tipo de sangre
+            </Text>
+            <Select
+              w={{ base: "100%", md: "160px" }}
+              value={tipoSangreFilter}
+              onChange={(e) => setTipoSangreFilter(e.target.value)}
+            >
+              <option value="todos">Todos los tipos de sangre</option>
+              {["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"].map((t) => (
+                <option key={t} value={t}>
+                  {t}
+                </option>
+              ))}
+            </Select>
+          </Box>
+          <Box>
+            <Text fontSize="xs" fontWeight={600} mb={1}>
+              Peso
+            </Text>
+            <Select
+              w={{ base: "100%", md: "160px" }}
+              value={pesoFilter}
+              onChange={(e) => setPesoFilter(e.target.value)}
+            >
+              <option value="todos">Todos los pesos</option>
+              <option value="menos10">Menos de 10 kg</option>
+              <option value="10a20">10 - 20 kg</option>
+              <option value="mas20">Más de 20 kg</option>
+            </Select>
+          </Box>
+          <Box>
+            <Text fontSize="xs" fontWeight={600} mb={1}>
+              Alergias
+            </Text>
+            <Select
+              w={{ base: "100%", md: "160px" }}
+              value={alergiasFilter}
+              onChange={(e) => setAlergiasFilter(e.target.value)}
+            >
+              <option value="todos">Todos</option>
+              <option value="con">Con alergias</option>
+              <option value="sin">Sin alergias</option>
+            </Select>
+          </Box>
+          <Box>
+            <Text fontSize="xs" fontWeight={600} mb={1}>
+              Condiciones
+            </Text>
+            <Select
+              w={{ base: "100%", md: "160px" }}
+              value={condicionesFilter}
+              onChange={(e) => setCondicionesFilter(e.target.value)}
+            >
+              <option value="todos">Todos</option>
+              <option value="con">Con condiciones</option>
+              <option value="sin">Sin condiciones</option>
+            </Select>
+          </Box>
+          <Box>
+            <Text fontSize="xs" fontWeight={600} mb={1}>
+              País
+            </Text>
+            <Select
+              w={{ base: "100%", md: "160px" }}
+              value={paisFilter}
+              onChange={(e) => setPaisFilter(e.target.value)}
+            >
+              <option value="todos">Todos los países</option>
+              {paisOptions.map((p) => (
+                <option key={p} value={p}>
+                  {p}
+                </option>
+              ))}
+            </Select>
+          </Box>
+          <Box>
+            <Text fontSize="xs" fontWeight={600} mb={1}>
+              Aseguradora
+            </Text>
+            <Select
+              w={{ base: "100%", md: "180px" }}
+              value={seguroFilter}
+              onChange={(e) => setSeguroFilter(e.target.value)}
+            >
+              <option value="todos">Todos los seguros</option>
+              <option value="sin_seguro">Sin seguro</option>
+              {seguros.map((s) => (
+                <option key={s.id} value={s.name}>
+                  {s.name}
+                </option>
+              ))}
+            </Select>
+          </Box>
         </Flex>
 
-        <Flex gap={3} mb={4} wrap="wrap">
-          <Button
-            variant="solid"
-            leftIcon={<Download size={16} />}
+        <Flex gap={3} mb={4} justify="flex-end" wrap="wrap">
+          <ExportButton
             isDisabled={!canExport}
-            onClick={() =>
-              exportToExcel(
-                filtered.map((r) => ({
-                  ID: r.id,
-                  Nombre: r.nombre,
-                  "F. Nacimiento": r.fechaNacimiento,
-                  Edad: r.edad,
-                  "Peso (kg)": r.pesoKg ?? "",
-                  "Tipo Sangre": r.tipoSangre ?? "",
-                  Alergias: (r.alergias ?? []).join(", "),
-                  Condiciones: (r.condiciones ?? []).join(", "),
-                  Acudiente: r.acudienteNombre,
-                  Teléfono: r.telefono,
-                })),
-                "ninos-lucera",
-                "Niños"
-              )
-            }
-          >
-            Exportar
-          </Button>
+            filename="ninos-lucera"
+            sheetName="Niños"
+            data={filtered.map((r) => ({
+              ID: r.id,
+              Nombre: r.nombre,
+              "F. Nacimiento": r.fechaNacimiento,
+              Edad: r.edad,
+              "Peso (kg)": r.pesoKg ?? "",
+              "Tipo Sangre": r.tipoSangre ?? "",
+              Alergias: (r.alergias ?? []).join(", "),
+              Condiciones: (r.condiciones ?? []).join(", "),
+              País: r.pais,
+              Seguro: r.seguro,
+              Acudiente: r.acudienteNombre,
+              Teléfono: r.telefono,
+            }))}
+          />
           {canEdit && (
             <Button
               colorScheme="vino"
@@ -574,7 +675,7 @@ export default function Children() {
                     >
                       {guardianes.map((g) => (
                         <option key={g.id} value={g.id}>
-                          {g.name} ({g.id})
+                          {g.name}
                         </option>
                       ))}
                     </Select>
@@ -601,11 +702,11 @@ export default function Children() {
               </SimpleGrid>
             </ModalBody>
             <ModalFooter>
-              <Button variant="outline" onClick={onClose} mr={2}>
+              <Button variant="outline" onClick={onClose} mr={2} isDisabled={saving}>
                 Cancelar
               </Button>
-              <Button type="submit" colorScheme="vino">
-                Guardar
+              <Button type="submit" colorScheme="vino" isLoading={saving}>
+                {editing ? "Actualizar" : "Crear"}
               </Button>
             </ModalFooter>
           </form>

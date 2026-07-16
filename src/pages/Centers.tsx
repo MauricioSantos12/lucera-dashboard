@@ -2,8 +2,15 @@ import { useEffect, useMemo, useState } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Centro, paisesCiudades } from "@/lib/mockData";
 import { useFetch } from "@/hooks/useFetch";
-import { centerTypeToEs } from "@/lib/apiMappings";
-import type { CenterApi, PaginatedResponse } from "@/lib/apiTypes";
+import { apiFetch } from "@/lib/apiClient";
+import { centerTypeToEs, countryEsToApi } from "@/lib/apiMappings";
+import type {
+  CenterApi,
+  CenterCreatePayload,
+  CenterUpdatePayload,
+  DeleteResponse,
+  PaginatedResponse,
+} from "@/lib/apiTypes";
 import { LoadingState } from "@/components/LoadingState";
 import {
   Box,
@@ -37,13 +44,13 @@ import {
   Td,
   TableContainer,
 } from "@chakra-ui/react";
-import { Search, Plus, Building2, Pencil, Trash2, Star, Download } from "lucide-react";
+import { Search, Plus, Building2, Pencil, Trash2, Star } from "lucide-react";
 import { StatCard } from "@/components/StatCard";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { Pagination } from "@/components/Pagination";
+import { ExportButton } from "@/components/ExportButton";
 import { useAuth } from "@/lib/auth";
 import { toast } from "@/lib/toast";
-import { exportToExcel } from "@/lib/exportToExcel";
 
 const tipoTone: Record<Centro["tipo"], string> = {
   Hospital: "vino",
@@ -53,7 +60,7 @@ const tipoTone: Record<Centro["tipo"], string> = {
   Urgencias: "red",
 };
 
-// El backend no expone país por centro, solo ciudad. Lo derivamos de
+// El GET no expone país por centro, solo ciudad. Lo derivamos de
 // paisesCiudades (mockData.ts) para poder filtrar por país.
 const cityToCountry: Record<string, string> = Object.entries(
   paisesCiudades
@@ -67,7 +74,7 @@ const cityToCountry: Record<string, string> = Object.entries(
 type CentroRow = Centro & { pais: string };
 
 export default function Centers() {
-  const { user, token } = useAuth();
+  const { user, token, getValidToken } = useAuth();
   const isAdmin = user?.rol === "Admin";
   const canEdit = user?.rol !== "Invitado" && isAdmin;
   const canExport = user?.rol !== "Invitado" && user?.rol !== "Ventas";
@@ -76,6 +83,7 @@ export default function Centers() {
     data: centersData,
     loading: centersLoading,
     error: centersError,
+    refetch: refetchCenters,
   } = useFetch<PaginatedResponse<CenterApi>>(
     token ? "/api/centers?page=1&page_limit=500" : null
   );
@@ -124,6 +132,8 @@ export default function Centers() {
   const [editing, setEditing] = useState<CentroRow | null>(null);
   const [toDelete, setToDelete] = useState<CentroRow | null>(null);
   const [recomendado, setRecomendado] = useState(false);
+  const [pais, setPais] = useState("");
+  const [saving, setSaving] = useState(false);
 
   const filtered = useMemo(() => {
     setPage(1);
@@ -144,17 +154,53 @@ export default function Centers() {
   const openEdit = (c: CentroRow | null) => {
     setEditing(c);
     setRecomendado(c?.recomendado ?? false);
+    setPais(c?.pais ?? "");
     onOpen();
   };
 
-  const onSave = (form: HTMLFormElement) => {
-    // El backend solo expone GET /api/centers — no hay creación/edición vía API.
-    void form;
-    toast.error("Esta acción no está disponible todavía", {
-      description: "El directorio de centros aún es de solo lectura.",
-    });
-    onClose();
-    setEditing(null);
+  const onSave = async (form: HTMLFormElement) => {
+    const fd = new FormData(form);
+    const common = {
+      name: String(fd.get("nombre")),
+      city: String(fd.get("ciudad")),
+      address: String(fd.get("direccion") || "") || undefined,
+      phone: String(fd.get("telefono") || "") || undefined,
+      tier: String(fd.get("tier") || "") || undefined,
+      recommended: recomendado,
+    };
+
+    setSaving(true);
+    try {
+      const freshToken = await getValidToken();
+      if (editing) {
+        const payload: CenterUpdatePayload = common;
+        await apiFetch<CenterApi>(`/api/centers/${editing.id}`, freshToken, {
+          method: "PATCH",
+          body: JSON.stringify(payload),
+        });
+        toast.success("Centro actualizado");
+      } else {
+        const payload: CenterCreatePayload = {
+          ...common,
+          country: countryEsToApi[pais] ?? (pais || undefined),
+        };
+        await apiFetch<CenterApi>("/api/centers", freshToken, {
+          method: "POST",
+          body: JSON.stringify(payload),
+        });
+        toast.success("Centro creado");
+      }
+      onClose();
+      setEditing(null);
+      refetchCenters();
+    } catch (err) {
+      toast.error(
+        editing ? "No se pudo actualizar el centro" : "No se pudo crear el centro",
+        { description: err instanceof Error ? err.message : undefined }
+      );
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -164,81 +210,93 @@ export default function Centers() {
           direction={{ base: "column", md: "row" }}
           gap={3}
           mb={4}
-          align={{ md: "center" }}
+          align={{ md: "end" }}
           wrap="wrap"
         >
-          <InputGroup flex={1} minW={{ md: "220px" }}>
-            <InputLeftElement pointerEvents="none">
-              <Search size={16} />
-            </InputLeftElement>
-            <Input
-              placeholder="Buscar por nombre, ciudad o dirección…"
-              value={q}
-              onChange={(e) => setQ(e.target.value)}
-            />
-          </InputGroup>
-          <Select
-            w={{ base: "100%", md: "180px" }}
-            value={tipo}
-            onChange={(e) => setTipo(e.target.value)}
-          >
-            <option value="todos">Todos los tipos</option>
-            {(Object.keys(tipoTone) as Centro["tipo"][]).map((t) => (
-              <option key={t} value={t}>
-                {t}
-              </option>
-            ))}
-          </Select>
-          <Select
-            w={{ base: "100%", md: "160px" }}
-            value={paisFilter}
-            onChange={(e) => setPaisFilter(e.target.value)}
-          >
-            <option value="todos">Todos los países</option>
-            {paises.map((p) => (
-              <option key={p} value={p}>
-                {p}
-              </option>
-            ))}
-          </Select>
-          <Select
-            w={{ base: "100%", md: "180px" }}
-            value={ciudadFilter}
-            onChange={(e) => setCiudadFilter(e.target.value)}
-          >
-            <option value="todos">Todas las ciudades</option>
-            {ciudades.map((c) => (
-              <option key={c} value={c}>
-                {c}
-              </option>
-            ))}
-          </Select>
+          <Box flex={1} minW={{ md: "220px" }}>
+            <Text fontSize="xs" fontWeight={600} mb={1}>
+              Buscar
+            </Text>
+            <InputGroup>
+              <InputLeftElement pointerEvents="none">
+                <Search size={16} />
+              </InputLeftElement>
+              <Input
+                placeholder="Nombre, ciudad o dirección…"
+                value={q}
+                onChange={(e) => setQ(e.target.value)}
+              />
+            </InputGroup>
+          </Box>
+          <Box>
+            <Text fontSize="xs" fontWeight={600} mb={1}>
+              Tipo
+            </Text>
+            <Select
+              w={{ base: "100%", md: "180px" }}
+              value={tipo}
+              onChange={(e) => setTipo(e.target.value)}
+            >
+              <option value="todos">Todos los tipos</option>
+              {(Object.keys(tipoTone) as Centro["tipo"][]).map((t) => (
+                <option key={t} value={t}>
+                  {t}
+                </option>
+              ))}
+            </Select>
+          </Box>
+          <Box>
+            <Text fontSize="xs" fontWeight={600} mb={1}>
+              País
+            </Text>
+            <Select
+              w={{ base: "100%", md: "160px" }}
+              value={paisFilter}
+              onChange={(e) => setPaisFilter(e.target.value)}
+            >
+              <option value="todos">Todos los países</option>
+              {paises.map((p) => (
+                <option key={p} value={p}>
+                  {p}
+                </option>
+              ))}
+            </Select>
+          </Box>
+          <Box>
+            <Text fontSize="xs" fontWeight={600} mb={1}>
+              Ciudad
+            </Text>
+            <Select
+              w={{ base: "100%", md: "180px" }}
+              value={ciudadFilter}
+              onChange={(e) => setCiudadFilter(e.target.value)}
+            >
+              <option value="todos">Todas las ciudades</option>
+              {ciudades.map((c) => (
+                <option key={c} value={c}>
+                  {c}
+                </option>
+              ))}
+            </Select>
+          </Box>
         </Flex>
 
-        <Flex gap={3} mb={4} wrap="wrap">
-          <Button
-            variant="solid"
-            leftIcon={<Download size={16} />}
+        <Flex gap={3} mb={4} justify="flex-end" wrap="wrap">
+          <ExportButton
             isDisabled={!canExport}
-            onClick={() =>
-              exportToExcel(
-                filtered.map((c) => ({
-                  ID: c.id,
-                  Nombre: c.nombre,
-                  Tipo: c.tipo,
-                  Ciudad: c.ciudad,
-                  Dirección: c.direccion,
-                  Teléfono: c.telefono,
-                  Horarios: c.horarios,
-                  Recomendado: c.recomendado ? "Sí" : "No",
-                })),
-                "centros-lucera",
-                "Centros"
-              )
-            }
-          >
-            Exportar
-          </Button>
+            filename="centros-lucera"
+            sheetName="Centros"
+            data={filtered.map((c) => ({
+              ID: c.id,
+              Nombre: c.nombre,
+              Tipo: c.tipo,
+              Ciudad: c.ciudad,
+              Dirección: c.direccion,
+              Teléfono: c.telefono,
+              Horarios: c.horarios,
+              Recomendado: c.recomendado ? "Sí" : "No",
+            }))}
+          />
           {canEdit && (
             <Button
               colorScheme="vino"
@@ -386,39 +444,49 @@ export default function Centers() {
             }}
           >
             <ModalBody>
+              {editing && (
+                <Text fontSize="xs" color="lucera.textMuted" mb={3}>
+                  Tipo ({editing.tipo}) y horarios ({editing.horarios}) no son
+                  editables desde el API todavía.
+                </Text>
+              )}
               <SimpleGrid columns={2} spacing={3}>
                 <FormControl gridColumn="span 2" isRequired>
                   <FormLabel>Nombre</FormLabel>
                   <Input name="nombre" defaultValue={editing?.nombre} />
                 </FormControl>
-                <FormControl>
-                  <FormLabel>Tipo</FormLabel>
-                  <Select name="tipo" defaultValue={editing?.tipo ?? "Clínica"}>
-                    {(Object.keys(tipoTone) as Centro["tipo"][]).map((t) => (
-                      <option key={t} value={t}>
-                        {t}
-                      </option>
-                    ))}
-                  </Select>
-                </FormControl>
+                {!editing && (
+                  <FormControl isRequired>
+                    <FormLabel>País</FormLabel>
+                    <Select
+                      name="pais"
+                      value={pais}
+                      onChange={(e) => setPais(e.target.value)}
+                      placeholder="Seleccionar país"
+                    >
+                      {Object.keys(paisesCiudades).map((p) => (
+                        <option key={p} value={p}>
+                          {p}
+                        </option>
+                      ))}
+                    </Select>
+                  </FormControl>
+                )}
                 <FormControl isRequired>
                   <FormLabel>Ciudad</FormLabel>
                   <Input name="ciudad" defaultValue={editing?.ciudad} />
                 </FormControl>
-                <FormControl gridColumn="span 2" isRequired>
+                <FormControl gridColumn="span 2">
                   <FormLabel>Dirección</FormLabel>
                   <Input name="direccion" defaultValue={editing?.direccion} />
                 </FormControl>
-                <FormControl isRequired>
+                <FormControl>
                   <FormLabel>Teléfono</FormLabel>
                   <Input name="telefono" defaultValue={editing?.telefono} />
                 </FormControl>
                 <FormControl>
-                  <FormLabel>Horarios</FormLabel>
-                  <Input
-                    name="horarios"
-                    defaultValue={editing?.horarios ?? "24/7"}
-                  />
+                  <FormLabel>Nivel</FormLabel>
+                  <Input name="tier" placeholder="Ej: Nivel 1" />
                 </FormControl>
                 <FormControl
                   gridColumn="span 2"
@@ -445,11 +513,11 @@ export default function Centers() {
               </SimpleGrid>
             </ModalBody>
             <ModalFooter>
-              <Button variant="outline" mr={2} onClick={onClose}>
+              <Button variant="outline" mr={2} onClick={onClose} isDisabled={saving}>
                 Cancelar
               </Button>
-              <Button type="submit" colorScheme="vino">
-                Guardar
+              <Button type="submit" colorScheme="vino" isLoading={saving}>
+                {editing ? "Actualizar" : "Crear"}
               </Button>
             </ModalFooter>
           </form>
@@ -466,11 +534,22 @@ export default function Centers() {
             dejará de derivar pacientes ahí.
           </>
         }
-        onConfirm={() => {
-          // El backend solo expone GET /api/centers — no hay borrado vía API.
-          toast.error("Esta acción no está disponible todavía", {
-            description: "El directorio de centros aún es de solo lectura.",
-          });
+        onConfirm={async () => {
+          if (!toDelete) return;
+          try {
+            const freshToken = await getValidToken();
+            await apiFetch<DeleteResponse>(
+              `/api/centers/${toDelete.id}`,
+              freshToken,
+              { method: "DELETE" }
+            );
+            toast.success("Centro eliminado");
+            refetchCenters();
+          } catch (err) {
+            toast.error("No se pudo eliminar el centro", {
+              description: err instanceof Error ? err.message : undefined,
+            });
+          }
         }}
       />
     </DashboardLayout>

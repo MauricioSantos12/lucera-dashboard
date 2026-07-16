@@ -12,12 +12,13 @@ import {
   Building2,
   Baby,
   Search,
-  Download,
   type LucideIcon,
 } from "lucide-react";
 import {
   BarChart,
   Bar,
+  ComposedChart,
+  Area,
   PieChart,
   Pie,
   Cell,
@@ -26,21 +27,17 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
+  LabelList,
 } from "recharts";
-import {
-  acudientes,
-  paisesCiudades,
-  segurosMedicos,
-} from "@/lib/mockData";
 import { useFetch } from "@/hooks/useFetch";
-import { chatTriageToLevel, countryApiToEs } from "@/lib/apiMappings";
+import { chatTriageToLevel } from "@/lib/apiMappings";
 import type {
   KpisResponse,
   TriageStatApi,
-  PlanStatApi,
   ChatApi,
   GuardianApi,
   PatientApi,
+  InsuranceRef,
   PaginatedResponse,
 } from "@/lib/apiTypes";
 import {
@@ -60,7 +57,8 @@ import { Navigate } from "react-router-dom";
 import { StatCard } from "@/components/StatCard";
 import { TriageBadge } from "@/components/TriageBadge";
 import { LoadingState } from "@/components/LoadingState";
-import { exportToExcel } from "@/lib/exportToExcel";
+import { ExportButton } from "@/components/ExportButton";
+import { formatNumber, formatCurrency } from "@/lib/format";
 import { toast } from "@/lib/toast";
 
 const triajeColors: Record<TriageStatApi["level"], string> = {
@@ -69,14 +67,17 @@ const triajeColors: Record<TriageStatApi["level"], string> = {
   Emergency: "#b91c1c",
 };
 
-const triajeLabels: Record<TriageStatApi["level"], string> = {
-  General: "General",
-  Urgent: "Urgente",
-  Emergency: "Emergencia",
+// Mapea el triage (minúscula) de cada chat al nivel (capitalizado) que usa
+// el resto de la gráfica de triaje.
+const chatTriageLevelMap: Record<ChatApi["triage"], TriageStatApi["level"]> = {
+  general: "General",
+  urgent: "Urgent",
+  emergency: "Emergency",
 };
 
-// Patrón "Pie Chart With Customized Label" de recharts: dibuja el % dentro
-// de cada porción, a mitad de camino entre el radio interno y el externo.
+// Patrón "Pie Chart With Customized Label" de recharts: dibuja el nombre del
+// nivel y el % dentro de cada porción, a mitad de camino entre el radio
+// interno y el externo.
 const RADIAN = Math.PI / 180;
 function renderTriajeLabel({
   cx,
@@ -85,6 +86,7 @@ function renderTriajeLabel({
   innerRadius,
   outerRadius,
   percent,
+  name,
 }: {
   cx: number;
   cy: number;
@@ -92,31 +94,32 @@ function renderTriajeLabel({
   innerRadius: number;
   outerRadius: number;
   percent: number;
+  name: string;
 }) {
   const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
   const x = cx + radius * Math.cos(-midAngle * RADIAN);
   const y = cy + radius * Math.sin(-midAngle * RADIAN);
   if (percent === 0) return null;
+  const anchor = x > cx ? "start" : "end";
   return (
     <text
       x={x}
       y={y}
       fill="white"
-      textAnchor={x > cx ? "start" : "end"}
+      textAnchor={anchor}
       dominantBaseline="central"
-      fontSize={12}
+      fontSize={11}
       fontWeight={700}
     >
-      {`${(percent * 100).toFixed(0)}%`}
+      <tspan x={x} dy="-0.3em">
+        {name}
+      </tspan>
+      <tspan x={x} dy="1.1em">
+        {`${(percent * 100).toFixed(0)}%`}
+      </tspan>
     </text>
   );
 }
-
-const planLabels: Record<PlanStatApi["plan"], string> = {
-  free: "Gratuito",
-  premium_monthly: "Premium Mensual",
-  premium_annual: "Premium Anual",
-};
 
 // Ciclo de colores de marca (vino, naranja, amarillo) reutilizado en todas
 // las gráficas de barras para mantener consistencia visual.
@@ -183,16 +186,6 @@ export default function Statistics() {
     error: kpisError,
   } = useFetch<KpisResponse>(token ? "/api/stats/kpis" : null);
   const {
-    data: triageData,
-    loading: triageLoading,
-    error: triageError,
-  } = useFetch<TriageStatApi[]>(token ? "/api/stats/triage" : null);
-  const {
-    data: plansData,
-    loading: plansLoading,
-    error: plansError,
-  } = useFetch<PlanStatApi[]>(token ? "/api/stats/plans" : null);
-  const {
     data: chatsData,
     loading: chatsLoading,
     error: chatsError,
@@ -213,31 +206,31 @@ export default function Statistics() {
   } = useFetch<PaginatedResponse<PatientApi>>(
     token ? "/api/patients?page=1&page_limit=500" : null
   );
+  const {
+    data: insurancesData,
+    loading: insurancesLoading,
+    error: insurancesError,
+  } = useFetch<PaginatedResponse<InsuranceRef>>(
+    token ? "/api/insurances?page=1&page_limit=100" : null
+  );
 
   const statsLoading =
     kpisLoading ||
-    triageLoading ||
-    plansLoading ||
     chatsLoading ||
     guardiansLoading ||
-    patientsLoading;
+    patientsLoading ||
+    insurancesLoading;
 
   useEffect(() => {
     const err =
-      kpisError ||
-      triageError ||
-      plansError ||
-      chatsError ||
-      guardiansError ||
-      patientsError;
+      kpisError || chatsError || guardiansError || patientsError || insurancesError;
     if (err) {
       toast.error("No se pudieron cargar las estadísticas", {
         description: err,
       });
     }
-  }, [kpisError, triageError, plansError, chatsError, guardiansError, patientsError]);
-  const triajeStats = triageData ?? [];
-  const chats = chatsData?.items ?? [];
+  }, [kpisError, chatsError, guardiansError, patientsError, insurancesError]);
+  const chats = useMemo(() => chatsData?.items ?? [], [chatsData]);
   const guardianesReales = useMemo(
     () => guardiansData?.items ?? [],
     [guardiansData]
@@ -247,53 +240,6 @@ export default function Statistics() {
     [patientsData]
   );
 
-  const consultasStats = [
-    { name: "Atendidas", value: chats.filter((c) => c.status === "closed").length },
-    { name: "Total", value: chats.length },
-    { name: "Abiertas", value: chats.filter((c) => c.status !== "closed").length },
-  ];
-  const consultasColors = brandColors;
-
-  const aseguradoraStats = useMemo(() => {
-    const counts = new Map<string, number>();
-    guardianesReales.forEach((g) => {
-      const name = g.insurance?.name ?? "Sin seguro";
-      counts.set(name, (counts.get(name) ?? 0) + 1);
-    });
-    return [...counts.entries()]
-      .map(([name, value]) => ({ name, value }))
-      .sort((a, b) => b.value - a.value);
-  }, [guardianesReales]);
-
-  const paisStats = useMemo(() => {
-    const counts = new Map<string, number>();
-    guardianesReales.forEach((g) => {
-      const name = countryApiToEs[g.country] ?? g.country;
-      counts.set(name, (counts.get(name) ?? 0) + 1);
-    });
-    return [...counts.entries()]
-      .map(([name, value]) => ({ name, value }))
-      .sort((a, b) => b.value - a.value);
-  }, [guardianesReales]);
-
-  const edadStats = useMemo(() => {
-    const buckets = {
-      "Lactantes (0-1)": 0,
-      "Preescolar (2-5)": 0,
-      "Escolar (6+)": 0,
-    };
-    pacientesReales.forEach((p) => {
-      if (p.age < 2) buckets["Lactantes (0-1)"]++;
-      else if (p.age < 6) buckets["Preescolar (2-5)"]++;
-      else buckets["Escolar (6+)"]++;
-    });
-    return Object.entries(buckets).map(([name, value]) => ({ name, value }));
-  }, [pacientesReales]);
-
-  const planesDistribucion = (plansData ?? []).map((p) => ({
-    plan: planLabels[p.plan] ?? p.plan,
-    usuarios: p.users,
-  }));
   // Por defecto: mes actual (desde el día 1 hasta hoy), calculado con Date.now().
   const defaultFechaFin = useMemo(
     () => new Date(Date.now()).toISOString().slice(0, 10),
@@ -319,26 +265,145 @@ export default function Statistics() {
     acudiente: "",
   });
 
-  const filteredAcudientes = useMemo(() => {
+  // Opciones de los selects, derivadas de la data real (no de listas mock),
+  // para que siempre coincidan con lo que llega del API. El de seguro médico
+  // sale de /api/insurances, la fuente oficial del catálogo de aseguradoras.
+  const paisOptions = useMemo(
+    () => [...new Set(guardianesReales.map((g) => g.country))].sort(),
+    [guardianesReales]
+  );
+  const seguros = useMemo(() => insurancesData?.items ?? [], [insurancesData]);
+  const seguroOptions = useMemo(
+    () => [...seguros].sort((a, b) => a.name.localeCompare(b.name)),
+    [seguros]
+  );
+  const acudienteOptions = useMemo(
+    () => [...guardianesReales].sort((a, b) => a.name.localeCompare(b.name)),
+    [guardianesReales]
+  );
+
+  // Acudientes reales que pasan los filtros de país/seguro/acudiente. El
+  // rango de fechas NO filtra aquí (sería la fecha de registro del
+  // acudiente, casi siempre fuera del mes en curso) — filtra las CHATS más
+  // abajo, para que "mes en curso" describa la actividad del período y no
+  // esconda acudientes ya registrados de antes.
+  const filteredGuardianes = useMemo(() => {
     if (!applied) return [];
-    return acudientes.filter((a) => {
+    return guardianesReales.filter((g) => {
       const okPais =
-        !snapshot.pais || snapshot.pais === "todos" || a.pais === snapshot.pais;
+        !snapshot.pais || snapshot.pais === "todos" || g.country === snapshot.pais;
       const okSeguro =
         !snapshot.seguro ||
         snapshot.seguro === "todos" ||
-        a.seguro === snapshot.seguro;
+        g.insurance?.name === snapshot.seguro;
       const okAcudiente =
         !snapshot.acudiente ||
         snapshot.acudiente === "todos" ||
-        a.id === snapshot.acudiente;
-      const okFechaInicio =
-        !snapshot.fechaInicio || a.registrado >= snapshot.fechaInicio;
-      const okFechaFin =
-        !snapshot.fechaFin || a.registrado <= snapshot.fechaFin;
-      return okPais && okSeguro && okAcudiente && okFechaInicio && okFechaFin;
+        g.id === snapshot.acudiente;
+      return okPais && okSeguro && okAcudiente;
     });
-  }, [applied, snapshot]);
+  }, [applied, snapshot, guardianesReales]);
+
+  const filteredGuardianIds = useMemo(
+    () => new Set(filteredGuardianes.map((g) => g.id)),
+    [filteredGuardianes]
+  );
+  const filteredGuardianPhones = useMemo(
+    () => new Set(filteredGuardianes.map((g) => g.phone)),
+    [filteredGuardianes]
+  );
+
+  const filteredPacientes = useMemo(
+    () => pacientesReales.filter((p) => filteredGuardianIds.has(p.guardianId)),
+    [pacientesReales, filteredGuardianIds]
+  );
+  // Actividad (chats) del período seleccionado — por defecto, el mes en
+  // curso (snapshot.fechaInicio/fechaFin arrancan en defaultFechaInicio/Fin).
+  const filteredChats = useMemo(() => {
+    return chats.filter((c) => {
+      if (!filteredGuardianPhones.has(c.phone)) return false;
+      const fecha = c.startedAt.slice(0, 10);
+      const okFechaInicio = !snapshot.fechaInicio || fecha >= snapshot.fechaInicio;
+      const okFechaFin = !snapshot.fechaFin || fecha <= snapshot.fechaFin;
+      return okFechaInicio && okFechaFin;
+    });
+  }, [chats, filteredGuardianPhones, snapshot]);
+
+  const consultasStats = [
+    {
+      name: "Cerradas",
+      value: filteredChats.filter((c) => c.status === "closed").length,
+    },
+    { name: "Total", value: filteredChats.length },
+    {
+      name: "Abiertas",
+      value: filteredChats.filter((c) => c.status !== "closed").length,
+    },
+  ];
+  const consultasColors = brandColors;
+
+  const triajeStats = useMemo(() => {
+    const counts: Record<TriageStatApi["level"], number> = {
+      General: 0,
+      Urgent: 0,
+      Emergency: 0,
+    };
+    filteredChats.forEach((c) => {
+      counts[chatTriageLevelMap[c.triage]]++;
+    });
+    return (Object.keys(counts) as TriageStatApi["level"][]).map((level) => ({
+      level,
+      value: counts[level],
+    }));
+  }, [filteredChats]);
+
+  const aseguradoraStats = useMemo(() => {
+    const counts = new Map<string, number>();
+    filteredGuardianes.forEach((g) => {
+      const name = g.insurance?.name ?? "Sin seguro";
+      counts.set(name, (counts.get(name) ?? 0) + 1);
+    });
+    return [...counts.entries()]
+      .map(([name, value]) => ({ name, value }))
+      .sort((a, b) => b.value - a.value);
+  }, [filteredGuardianes]);
+
+  const paisStats = useMemo(() => {
+    const counts = new Map<string, number>();
+    filteredGuardianes.forEach((g) => {
+      counts.set(g.country, (counts.get(g.country) ?? 0) + 1);
+    });
+    return [...counts.entries()]
+      .map(([name, value]) => ({ name, value }))
+      .sort((a, b) => b.value - a.value);
+  }, [filteredGuardianes]);
+
+  // Distribución de pacientes por cada edad exacta: curva de densidad
+  // (área suavizada de un solo lado) en vez de un violin plot espejado.
+  const edadDistribucion = useMemo(() => {
+    const counts = new Map<number, number>();
+    filteredPacientes.forEach((p) => {
+      counts.set(p.age, (counts.get(p.age) ?? 0) + 1);
+    });
+    const maxAge = counts.size > 0 ? Math.max(...counts.keys()) : 0;
+    const rows: { age: number; count: number }[] = [];
+    for (let age = 0; age <= maxAge; age++) {
+      rows.push({ age, count: counts.get(age) ?? 0 });
+    }
+    return rows;
+  }, [filteredPacientes]);
+
+  const planesDistribucion = useMemo(() => {
+    const counts = new Map<string, number>();
+    filteredGuardianes.forEach((g) => {
+      counts.set(g.plan, (counts.get(g.plan) ?? 0) + 1);
+    });
+    return [...counts.entries()].map(([plan, usuarios]) => ({
+      plan,
+      usuarios,
+    }));
+  }, [filteredGuardianes]);
+
   if (!user) return null;
   if (user.rol === "Ventas") return <Navigate to="/payments" replace />;
 
@@ -355,14 +420,45 @@ export default function Statistics() {
     setApplied(true);
   };
 
+  // Todos los KPIs se derivan de las queries de acudientes/pacientes/chats
+  // ya filtradas, para que respondan a los filtros aplicados con "Buscar".
+  // Solo "ingresos del mes" se queda con kpisData: no hay ninguna otra
+  // query en esta página que traiga pagos/facturación por acudiente.
+  // filteredChats ya está acotado por el rango de fechas seleccionado
+  // (mes en curso por defecto), así que "sesiones" es directamente su total.
+  const sesionesMes = filteredChats.length;
+
+  const ratedChats = filteredChats.filter((c) => c.rating != null);
+  const csatCalculado =
+    ratedChats.length > 0
+      ? Math.round(
+          (ratedChats.filter((c) => (c.rating ?? 0) >= 4).length /
+            ratedChats.length) *
+            100
+        )
+      : 0;
+
+  const totalUsuariosPlan = filteredGuardianes.length;
+  const usuariosPremium = filteredGuardianes.filter(
+    (g) => g.plan !== "free"
+  ).length;
+  const conversionPremiumCalculada =
+    totalUsuariosPlan > 0
+      ? Math.round((usuariosPremium / totalUsuariosPlan) * 100)
+      : 0;
+
   const k = {
-    acudientesActivos: kpisData?.activeGuardians ?? 0,
-    ninosRegistrados: kpisData?.registeredChildren ?? 0,
-    sesionesMes: kpisData?.sessionsThisMonth ?? 0,
-    conversionPremium: kpisData?.premiumConversion ?? 0,
-    csat: kpisData?.csat ?? 0,
-    emergenciasDetectadas: kpisData?.emergenciesDetected ?? 0,
-    derivacionesPresenciales: kpisData?.inPersonReferrals ?? 0,
+    acudientesActivos: filteredGuardianes.filter((g) => g.status === "active")
+      .length,
+    ninosRegistrados: filteredPacientes.length,
+    sesionesMes,
+    conversionPremium: conversionPremiumCalculada,
+    csat: csatCalculado,
+    emergenciasDetectadas:
+      triajeStats.find((t) => t.level === "Emergency")?.value ?? 0,
+    derivacionesPresenciales: filteredChats.filter(
+      (c) => c.attentionType === "in_person"
+    ).length,
     ingresosMes: kpisData?.revenueThisMonth ?? 0,
   };
 
@@ -412,7 +508,7 @@ export default function Statistics() {
               onChange={(e) => setPais(e.target.value)}
             >
               <option value="todos">Todos</option>
-              {Object.keys(paisesCiudades).map((p) => (
+              {paisOptions.map((p) => (
                 <option key={p} value={p}>
                   {p}
                 </option>
@@ -430,9 +526,9 @@ export default function Statistics() {
               onChange={(e) => setSeguro(e.target.value)}
             >
               <option value="todos">Todos</option>
-              {segurosMedicos.map((s) => (
-                <option key={s} value={s}>
-                  {s}
+              {seguroOptions.map((s) => (
+                <option key={s.id} value={s.name}>
+                  {s.name}
                 </option>
               ))}
             </Select>
@@ -448,13 +544,16 @@ export default function Statistics() {
               onChange={(e) => setAcudienteFilter(e.target.value)}
             >
               <option value="todos">Todos</option>
-              {acudientes.map((a) => (
-                <option key={a.id} value={a.id}>
-                  {a.nombre}
+              {acudienteOptions.map((g) => (
+                <option key={g.id} value={g.id}>
+                  {g.name}
                 </option>
               ))}
             </Select>
           </Box>
+        </Flex>
+
+        <Flex gap={3} mt={4} justify="flex-end" wrap="wrap">
           <Button
             colorScheme="vino"
             size="sm"
@@ -467,34 +566,25 @@ export default function Statistics() {
             Buscar
           </Button>
           {applied && (
-            <Button
+            <ExportButton
               size="sm"
-              variant="solid"
-              leftIcon={<Download size={14} />}
               isDisabled={!canExport}
-              onClick={() =>
-                exportToExcel(
-                  filteredAcudientes.map((a) => ({
-                    ID: a.id,
-                    Nombre: a.nombre,
-                    Email: a.email,
-                    Teléfono: a.telefono,
-                    País: a.pais,
-                    Ciudad: a.ciudad,
-                    Seguro: a.seguro ?? "",
-                    "ID Seguro": a.seguroId ?? "",
-                    Plan: a.plan,
-                    Estado: a.estado,
-                    Niños: a.ninos.length,
-                    Registrado: a.registrado,
-                  })),
-                  "estadisticas-lucera",
-                  "Estadísticas"
-                )
-              }
-            >
-              Exportar
-            </Button>
+              filename="estadisticas-lucera"
+              sheetName="Estadísticas"
+              data={filteredGuardianes.map((g) => ({
+                ID: g.id,
+                Nombre: g.name,
+                Email: g.email,
+                Teléfono: g.phone,
+                País: g.country,
+                Ciudad: g.city,
+                Seguro: g.insurance?.name ?? "",
+                Plan: g.plan,
+                Estado: g.status,
+                Niños: g.children.length,
+                Registrado: g.registeredAt,
+              }))}
+            />
           )}
         </Flex>
       </StatCard>
@@ -517,7 +607,9 @@ export default function Statistics() {
       )}
 
       {/* Cargando estadísticas */}
-      {applied && statsLoading && <LoadingState label="Cargando estadísticas…" />}
+      {applied && statsLoading && (
+        <LoadingState label="Cargando estadísticas…" />
+      )}
 
       {/* Con filtros aplicados */}
       {applied && !statsLoading && (
@@ -525,34 +617,29 @@ export default function Statistics() {
           <SimpleGrid columns={{ base: 1, sm: 2, lg: 4 }} spacing={4} mb={4}>
             <Stat
               icon={Users}
-              label="Acudientes"
-              value={filteredAcudientes.length}
+              label="Acudientes activos"
+              value={formatNumber(k.acudientesActivos)}
               accent={{ bg: "vino.50", fg: "vino.500" }}
-              sub="Coinciden con filtros"
+              sub="Total en la plataforma"
             />
             <Stat
               icon={Baby}
               label="Niños registrados"
-              value={filteredAcudientes.reduce(
-                (sum, a) => sum + a.ninos.length,
-                0
-              )}
+              value={formatNumber(k.ninosRegistrados)}
               accent={{ bg: "naranja.50", fg: "naranja.500" }}
               sub="Pacientes pediátricos"
             />
             <Stat
               icon={MessageSquare}
               label="Sesiones del mes"
-              value={k.sesionesMes.toLocaleString()}
+              value={formatNumber(k.sesionesMes)}
               accent={{ bg: "amarillo.50", fg: "amarillo.700" }}
               sub="Conversaciones completas"
             />
             <Stat
               icon={DollarSign}
               label="Ingresos del mes"
-              value={`$${k.ingresosMes.toLocaleString("en-US", {
-                minimumFractionDigits: 2,
-              })}`}
+              value={formatCurrency(k.ingresosMes)}
               accent={{ bg: "exito.500", fg: "white" }}
               sub="Stripe + Yappy"
             />
@@ -562,14 +649,14 @@ export default function Statistics() {
             <Stat
               icon={AlertTriangle}
               label="Emergencias detectadas"
-              value={k.emergenciasDetectadas}
+              value={formatNumber(k.emergenciasDetectadas)}
               accent={{ bg: "peligro.500", fg: "white" }}
               sub="Triaje rojo (mes)"
             />
             <Stat
               icon={Building2}
               label="Derivaciones presenciales"
-              value={k.derivacionesPresenciales}
+              value={formatNumber(k.derivacionesPresenciales)}
               accent={{ bg: "naranja.50", fg: "naranja.500" }}
               sub="Sesiones → cita"
             />
@@ -610,7 +697,12 @@ export default function Statistics() {
                     animationEasing="ease-out"
                   >
                     {triajeStats.map((e, i) => (
-                      <Cell key={i} fill={triajeColors[e.level]} stroke="white" strokeWidth={2} />
+                      <Cell
+                        key={i}
+                        fill={triajeColors[e.level]}
+                        stroke="white"
+                        strokeWidth={2}
+                      />
                     ))}
                   </Pie>
                   <Tooltip
@@ -633,7 +725,7 @@ export default function Statistics() {
                       bg={triajeColors[t.level]}
                     />
                     <Text color="lucera.textMuted" flex={1}>
-                      {triajeLabels[t.level]}
+                      {t.level}
                     </Text>
                     <Text
                       fontWeight={700}
@@ -657,7 +749,10 @@ export default function Statistics() {
                     dataKey="name"
                     tick={{ fontSize: 11, fill: "#7b5a48" }}
                   />
-                  <YAxis tick={{ fontSize: 11, fill: "#7b5a48" }} allowDecimals={false} />
+                  <YAxis
+                    tick={{ fontSize: 11, fill: "#7b5a48" }}
+                    allowDecimals={false}
+                  />
                   <Tooltip
                     cursor={{ fill: "rgba(109,18,43,0.06)" }}
                     contentStyle={{
@@ -676,8 +771,19 @@ export default function Statistics() {
                     animationEasing="ease-out"
                   >
                     {consultasStats.map((_, i) => (
-                      <Cell key={i} fill={consultasColors[i % consultasColors.length]} />
+                      <Cell
+                        key={i}
+                        fill={consultasColors[i % consultasColors.length]}
+                      />
                     ))}
+                    <LabelList
+                      dataKey="value"
+                      position="top"
+                      formatter={(v: number) => formatNumber(v)}
+                      fontSize={11}
+                      fontWeight={700}
+                      fill="#3a2a1f"
+                    />
                   </Bar>
                 </BarChart>
               </ResponsiveContainer>
@@ -694,7 +800,10 @@ export default function Statistics() {
                     dataKey="plan"
                     tick={{ fontSize: 11, fill: "#7b5a48" }}
                   />
-                  <YAxis allowDecimals={false} tick={{ fontSize: 11, fill: "#7b5a48" }} />
+                  <YAxis
+                    allowDecimals={false}
+                    tick={{ fontSize: 11, fill: "#7b5a48" }}
+                  />
                   <Tooltip
                     cursor={{ fill: "rgba(109,18,43,0.06)" }}
                     contentStyle={{
@@ -715,6 +824,14 @@ export default function Statistics() {
                     {planesDistribucion.map((_, i) => (
                       <Cell key={i} fill={planColors[i % planColors.length]} />
                     ))}
+                    <LabelList
+                      dataKey="usuarios"
+                      position="top"
+                      formatter={(v: number) => formatNumber(v)}
+                      fontSize={11}
+                      fontWeight={700}
+                      fill="#3a2a1f"
+                    />
                   </Bar>
                 </BarChart>
               </ResponsiveContainer>
@@ -735,7 +852,10 @@ export default function Statistics() {
                     height={60}
                     tick={{ fontSize: 10, fill: "#7b5a48" }}
                   />
-                  <YAxis allowDecimals={false} tick={{ fontSize: 11, fill: "#7b5a48" }} />
+                  <YAxis
+                    allowDecimals={false}
+                    tick={{ fontSize: 11, fill: "#7b5a48" }}
+                  />
                   <Tooltip
                     cursor={{ fill: "rgba(239,125,84,0.08)" }}
                     contentStyle={{
@@ -754,8 +874,19 @@ export default function Statistics() {
                     animationEasing="ease-out"
                   >
                     {aseguradoraStats.map((_, i) => (
-                      <Cell key={i} fill={brandColors[i % brandColors.length]} />
+                      <Cell
+                        key={i}
+                        fill={brandColors[i % brandColors.length]}
+                      />
                     ))}
+                    <LabelList
+                      dataKey="value"
+                      position="top"
+                      formatter={(v: number) => formatNumber(v)}
+                      fontSize={11}
+                      fontWeight={700}
+                      fill="#3a2a1f"
+                    />
                   </Bar>
                 </BarChart>
               </ResponsiveContainer>
@@ -772,7 +903,10 @@ export default function Statistics() {
                     dataKey="name"
                     tick={{ fontSize: 11, fill: "#7b5a48" }}
                   />
-                  <YAxis allowDecimals={false} tick={{ fontSize: 11, fill: "#7b5a48" }} />
+                  <YAxis
+                    allowDecimals={false}
+                    tick={{ fontSize: 11, fill: "#7b5a48" }}
+                  />
                   <Tooltip
                     cursor={{ fill: "rgba(109,18,43,0.06)" }}
                     contentStyle={{
@@ -791,8 +925,19 @@ export default function Statistics() {
                     animationEasing="ease-out"
                   >
                     {paisStats.map((_, i) => (
-                      <Cell key={i} fill={brandColors[i % brandColors.length]} />
+                      <Cell
+                        key={i}
+                        fill={brandColors[i % brandColors.length]}
+                      />
                     ))}
+                    <LabelList
+                      dataKey="value"
+                      position="top"
+                      formatter={(v: number) => formatNumber(v)}
+                      fontSize={11}
+                      fontWeight={700}
+                      fill="#3a2a1f"
+                    />
                   </Bar>
                 </BarChart>
               </ResponsiveContainer>
@@ -803,35 +948,49 @@ export default function Statistics() {
                 Pacientes por edad
               </Heading>
               <ResponsiveContainer width="100%" height={240}>
-                <BarChart data={edadStats} margin={{ left: 0 }}>
+                <ComposedChart data={edadDistribucion} margin={{ left: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#e9d2b1" />
                   <XAxis
-                    dataKey="name"
+                    dataKey="age"
+                    tick={{ fontSize: 11, fill: "#7b5a48" }}
+                    tickFormatter={(age: number) => `${age}a`}
+                  />
+                  <YAxis
+                    allowDecimals={false}
                     tick={{ fontSize: 11, fill: "#7b5a48" }}
                   />
-                  <YAxis allowDecimals={false} tick={{ fontSize: 11, fill: "#7b5a48" }} />
                   <Tooltip
                     cursor={{ fill: "rgba(248,204,55,0.12)" }}
-                    contentStyle={{
-                      background: "white",
-                      border: "1px solid #e9d2b1",
-                      borderRadius: 8,
-                      fontSize: 12,
+                    content={({ active, payload, label }) => {
+                      if (!active || !payload?.length) return null;
+                      const entry = payload.find((p) => p.dataKey === "count");
+                      if (!entry) return null;
+                      return (
+                        <Box
+                          bg="white"
+                          borderWidth="1px"
+                          borderColor="#e9d2b1"
+                          borderRadius="md"
+                          px={3}
+                          py={2}
+                          fontSize="xs"
+                        >
+                          <Text fontWeight={700}>{label} años</Text>
+                          <Text>{entry.value} pacientes</Text>
+                        </Box>
+                      );
                     }}
                   />
-                  <Bar
-                    dataKey="value"
-                    stackId="a"
-                    radius={[6, 6, 0, 0]}
-                    maxBarSize={70}
+                  <Area
+                    dataKey="count"
+                    type="monotone"
+                    stroke={brandColors[2]}
+                    fill={brandColors[2]}
+                    fillOpacity={0.75}
                     animationDuration={700}
                     animationEasing="ease-out"
-                  >
-                    {edadStats.map((_, i) => (
-                      <Cell key={i} fill={brandColors[i % brandColors.length]} />
-                    ))}
-                  </Bar>
-                </BarChart>
+                  />
+                </ComposedChart>
               </ResponsiveContainer>
             </StatCard>
           </SimpleGrid>
@@ -844,7 +1003,7 @@ export default function Statistics() {
               <Icon as={Activity} boxSize={4} color="naranja.500" />
             </Flex>
             <VStack align="stretch" spacing={0}>
-              {chats.slice(0, 4).map((c) => (
+              {filteredChats.slice(0, 4).map((c) => (
                 <HStack
                   key={c.id}
                   py={2}

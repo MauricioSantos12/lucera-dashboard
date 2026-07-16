@@ -1,4 +1,4 @@
-import { ReactNode, useRef } from "react";
+import { ReactNode, useRef, useState } from "react";
 import {
   AlertDialog, AlertDialogBody, AlertDialogContent, AlertDialogFooter,
   AlertDialogHeader, AlertDialogOverlay, Button, HStack, Box, Text,
@@ -13,7 +13,7 @@ type Props = {
   confirmLabel?: string;
   cancelLabel?: string;
   destructive?: boolean;
-  onConfirm: () => void;
+  onConfirm: () => void | Promise<void>;
 };
 
 export function ConfirmDialog({
@@ -22,10 +22,22 @@ export function ConfirmDialog({
   destructive = true, onConfirm,
 }: Props) {
   const cancelRef = useRef<HTMLButtonElement>(null);
+  const [loading, setLoading] = useState(false);
+
+  const handleConfirm = async () => {
+    setLoading(true);
+    try {
+      await onConfirm();
+    } finally {
+      setLoading(false);
+      onOpenChange(false);
+    }
+  };
+
   return (
     <AlertDialog
       isOpen={open}
-      onClose={() => onOpenChange(false)}
+      onClose={() => !loading && onOpenChange(false)}
       leastDestructiveRef={cancelRef}
       isCentered
       motionPreset="slideInBottom"
@@ -50,13 +62,20 @@ export function ConfirmDialog({
             </AlertDialogBody>
           )}
           <AlertDialogFooter>
-            <Button ref={cancelRef} variant="outline" size="sm" onClick={() => onOpenChange(false)}>
+            <Button
+              ref={cancelRef}
+              variant="outline"
+              size="sm"
+              isDisabled={loading}
+              onClick={() => onOpenChange(false)}
+            >
               {cancelLabel}
             </Button>
             <Button
               ml={2} size="sm"
               colorScheme={destructive ? "vino" : "naranja"}
-              onClick={() => { onConfirm(); onOpenChange(false); }}
+              isLoading={loading}
+              onClick={handleConfirm}
             >
               {confirmLabel}
             </Button>

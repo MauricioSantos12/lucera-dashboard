@@ -47,6 +47,7 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from "recharts";
+import { formatNumber, formatCurrency } from "@/lib/format";
 
 function toISODate(d: Date) {
   return d.toISOString().slice(0, 10);
@@ -167,21 +168,21 @@ export default function UsageLLM() {
             <Stat
               icon={MessageSquare}
               label="Llamadas"
-              value={(summary?.calls ?? 0).toLocaleString()}
+              value={formatNumber(summary?.calls ?? 0)}
               accent={{ bg: "vino.50", fg: "vino.500" }}
               sub="Total de invocaciones al LLM"
             />
             <Stat
               icon={DollarSign}
               label="Costo total"
-              value={`$${(summary?.costUsd ?? 0).toFixed(4)}`}
+              value={formatCurrency(summary?.costUsd ?? 0, 4)}
               accent={{ bg: "exito.500", fg: "white" }}
               sub="USD acumulado"
             />
             <Stat
               icon={Clock}
               label="Latencia promedio"
-              value={`${(summary?.avgLatencyMs ?? 0).toLocaleString()} ms`}
+              value={`${formatNumber(summary?.avgLatencyMs ?? 0)} ms`}
               accent={{ bg: "amarillo.50", fg: "amarillo.700" }}
               sub="Por llamada"
             />
@@ -191,19 +192,19 @@ export default function UsageLLM() {
             <Stat
               icon={LogIn}
               label="Tokens de entrada"
-              value={(summary?.inputTokens ?? 0).toLocaleString()}
+              value={formatNumber(summary?.inputTokens ?? 0)}
               accent={{ bg: "naranja.50", fg: "naranja.500" }}
             />
             <Stat
               icon={LogOut}
               label="Tokens de salida"
-              value={(summary?.outputTokens ?? 0).toLocaleString()}
+              value={formatNumber(summary?.outputTokens ?? 0)}
               accent={{ bg: "naranja.50", fg: "naranja.500" }}
             />
             <Stat
               icon={Cpu}
               label="Tokens totales"
-              value={(summary?.totalTokens ?? 0).toLocaleString()}
+              value={formatNumber(summary?.totalTokens ?? 0)}
               accent={{ bg: "vino.50", fg: "vino.500" }}
             />
           </SimpleGrid>
@@ -253,11 +254,13 @@ export default function UsageLLM() {
                 <YAxis
                   yAxisId="left"
                   tick={{ fontSize: 11, fill: "#7b5a48" }}
+                  tickFormatter={(v: number) => formatNumber(v)}
                 />
                 <YAxis
                   yAxisId="right"
                   orientation="right"
                   tick={{ fontSize: 11, fill: "#7b5a48" }}
+                  tickFormatter={(v: number) => formatCurrency(v)}
                 />
                 <Tooltip
                   contentStyle={{
@@ -266,6 +269,11 @@ export default function UsageLLM() {
                     borderRadius: 8,
                     fontSize: 12,
                   }}
+                  formatter={(value: number, name: string) =>
+                    name === "Costo (USD)"
+                      ? formatCurrency(value, 4)
+                      : formatNumber(value)
+                  }
                 />
                 <Bar
                   yAxisId="left"
@@ -343,17 +351,17 @@ export default function UsageLLM() {
                         {u.phone}
                       </Td>
                       <Td isNumeric sx={{ fontVariantNumeric: "tabular-nums" }}>
-                        {u.calls.toLocaleString()}
+                        {formatNumber(u.calls)}
                       </Td>
                       <Td isNumeric sx={{ fontVariantNumeric: "tabular-nums" }}>
-                        {u.tokens.toLocaleString()}
+                        {formatNumber(u.tokens)}
                       </Td>
                       <Td
                         isNumeric
                         fontWeight={700}
                         sx={{ fontVariantNumeric: "tabular-nums" }}
                       >
-                        ${u.costUsd.toFixed(4)}
+                        {formatCurrency(u.costUsd, 4)}
                       </Td>
                     </Tr>
                   ))}

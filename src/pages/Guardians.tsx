@@ -1,13 +1,25 @@
 import { useEffect, useMemo, useState } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
-import { Acudiente, NinoPaciente, Relacion, EstadoCuenta, paisesCiudades, segurosMedicos } from "@/lib/mockData";
+import { Acudiente, NinoPaciente, Relacion, EstadoCuenta, paisesCiudades } from "@/lib/mockData";
 import { useAuth } from "@/lib/auth";
 import { useFetch } from "@/hooks/useFetch";
 import { apiFetch } from "@/lib/apiClient";
-import { relationToEs, relationToApi, statusToEs, statusToApi, planToEs, countryApiToEs } from "@/lib/apiMappings";
+import {
+  relationToEs,
+  relationToApi,
+  statusToEs,
+  statusToApi,
+  planToEs,
+  planToApi,
+  countryApiToEs,
+  countryEsToApi,
+} from "@/lib/apiMappings";
 import type {
   GuardianApi,
   GuardianPatchPayload,
+  GuardianCreatePayload,
+  InsuranceRef,
+  PlanApi,
   PaginatedResponse,
   DeleteResponse,
 } from "@/lib/apiTypes";
@@ -51,14 +63,13 @@ import {
   Phone,
   Mail,
   Baby,
-  Download,
 } from "lucide-react";
 import { StatCard } from "@/components/StatCard";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { Pagination } from "@/components/Pagination";
 import { LoadingState } from "@/components/LoadingState";
+import { ExportButton } from "@/components/ExportButton";
 import { toast } from "@/lib/toast";
-import { exportToExcel } from "@/lib/exportToExcel";
 
 const estadoTone = (e: Acudiente["estado"]) =>
   e === "activa" ? "green" : e === "suspendida" ? "yellow" : "red";
@@ -103,6 +114,10 @@ export default function Guardians() {
   } = useFetch<PaginatedResponse<GuardianApi>>(
     token ? "/api/guardians?page=1&page_limit=500" : null
   );
+  const { data: insurancesData } = useFetch<PaginatedResponse<InsuranceRef>>(
+    token ? "/api/insurances?page=1&page_limit=100" : null
+  );
+  const seguros = useMemo(() => insurancesData?.items ?? [], [insurancesData]);
   const data = useMemo(
     () => (guardiansData?.items ?? []).map(guardianToAcudiente),
     [guardiansData]
@@ -127,6 +142,7 @@ export default function Guardians() {
   const [editing, setEditing] = useState<Acudiente | null>(null);
   const [toDelete, setToDelete] = useState<Acudiente | null>(null);
   const [pais, setPais] = useState("");
+  const [saving, setSaving] = useState(false);
 
   const filtered = useMemo(() => {
     setPage(1);
@@ -157,25 +173,64 @@ export default function Guardians() {
     const fd = new FormData(form);
 
     if (!editing) {
-      // No hay endpoint de creación en el backend (solo GET/PATCH/DELETE) —
-      // los acudientes se registran vía el chatbot de WhatsApp.
-      toast.error("Crear acudientes no está disponible todavía", {
-        description: "Los acudientes se registran a través del chatbot.",
-      });
-      onClose();
+      // El API de creación solo acepta name/phone/email (obligatorios) y
+      // relationship/city/province/address (opcionales) — sin seguro, plan
+      // ni estado, esos se asignan por defecto en el backend.
+      const payload: GuardianCreatePayload = {
+        name: String(fd.get("nombre")),
+        phone: String(fd.get("telefono")),
+        email: String(fd.get("email")),
+        relationship: relationToApi[fd.get("relacion") as Relacion],
+        city: String(fd.get("ciudad") || "") || undefined,
+        province: String(fd.get("pais") || "") || undefined,
+      };
+
+      setSaving(true);
+      try {
+        const freshToken = await getValidToken();
+        await apiFetch<GuardianApi>("/api/guardians", freshToken, {
+          method: "POST",
+          body: JSON.stringify(payload),
+        });
+        toast.success("Acudiente creado");
+        onClose();
+        setEditing(null);
+        refetchGuardians();
+      } catch (err) {
+        const isDuplicate =
+          err instanceof Error && err.message.startsWith("Error 409");
+        toast.error("No se pudo crear el acudiente", {
+          description: isDuplicate
+            ? "Ya existe un acudiente con ese correo o teléfono."
+            : err instanceof Error
+            ? err.message
+            : undefined,
+        });
+      } finally {
+        setSaving(false);
+      }
       return;
     }
 
-    // El backend solo acepta estos campos en el PATCH; el resto del form
-    // (teléfono, país, seguro, plan) no es editable vía API por ahora.
+    // El PATCH manda todos los campos que tenemos, tal como los acepta el
+    // backend (no incluye "phone": no es editable vía API).
+    const seguroId = String(fd.get("seguro") || "");
+    const policyNumber = String(fd.get("policyNumber") || "");
     const payload: GuardianPatchPayload = {
       name: String(fd.get("nombre")),
       email: String(fd.get("email")),
+      country: countryEsToApi[pais] ?? (pais || undefined),
       city: String(fd.get("ciudad")),
       relationship: relationToApi[fd.get("relacion") as Relacion],
       status: statusToApi[fd.get("estado") as EstadoCuenta],
+      plan: (String(fd.get("plan") || "") || undefined) as
+        | PlanApi
+        | undefined,
+      insuranceId: seguroId ? Number(seguroId) : undefined,
+      policyNumber: policyNumber || undefined,
     };
 
+    setSaving(true);
     try {
       const freshToken = await getValidToken();
       await apiFetch<GuardianApi>(`/api/guardians/${editing.id}`, freshToken, {
@@ -190,6 +245,8 @@ export default function Guardians() {
       toast.error("No se pudo actualizar el acudiente", {
         description: err instanceof Error ? err.message : undefined,
       });
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -200,97 +257,114 @@ export default function Guardians() {
           direction={{ base: "column", md: "row" }}
           gap={3}
           mb={4}
-          align={{ md: "center" }}
+          align={{ md: "end" }}
           wrap="wrap"
         >
-          <InputGroup flex={1} minW={{ md: "220px" }}>
-            <InputLeftElement pointerEvents="none">
-              <Search size={16} />
-            </InputLeftElement>
-            <Input
-              placeholder="Buscar por nombre, teléfono, ciudad…"
-              value={q}
-              onChange={(e) => setQ(e.target.value)}
-            />
-          </InputGroup>
-          <Select
-            w={{ base: "100%", md: "160px" }}
-            value={estado}
-            onChange={(e) => setEstado(e.target.value)}
-          >
-            <option value="todos">Todos los estados</option>
-            <option value="activa">Activos</option>
-            <option value="suspendida">Suspendidos</option>
-            <option value="baja">De baja</option>
-          </Select>
-          <Select
-            w={{ base: "100%", md: "160px" }}
-            value={paisFilter}
-            onChange={(e) => setPaisFilter(e.target.value)}
-          >
-            <option value="todos">Todos los países</option>
-            {Object.keys(paisesCiudades).map((p) => (
-              <option key={p} value={p}>
-                {p}
-              </option>
-            ))}
-          </Select>
-          <Select
-            w={{ base: "100%", md: "170px" }}
-            value={planFilter}
-            onChange={(e) => setPlanFilter(e.target.value)}
-          >
-            <option value="todos">Todos los planes</option>
-            {["Gratuito", "Premium Mensual", "Premium Anual"].map((p) => (
-              <option key={p} value={p}>
-                {p}
-              </option>
-            ))}
-          </Select>
-          <Select
-            w={{ base: "100%", md: "180px" }}
-            value={seguroFilter}
-            onChange={(e) => setSeguroFilter(e.target.value)}
-          >
-            <option value="todos">Todos los seguros</option>
-            <option value="sin_seguro">Sin seguro</option>
-            {segurosMedicos.map((s) => (
-              <option key={s} value={s}>
-                {s}
-              </option>
-            ))}
-          </Select>
+          <Box flex={1} minW={{ md: "220px" }}>
+            <Text fontSize="xs" fontWeight={600} mb={1}>
+              Buscar
+            </Text>
+            <InputGroup>
+              <InputLeftElement pointerEvents="none">
+                <Search size={16} />
+              </InputLeftElement>
+              <Input
+                placeholder="Nombre, teléfono, ciudad…"
+                value={q}
+                onChange={(e) => setQ(e.target.value)}
+              />
+            </InputGroup>
+          </Box>
+          <Box>
+            <Text fontSize="xs" fontWeight={600} mb={1}>
+              Estado
+            </Text>
+            <Select
+              w={{ base: "100%", md: "160px" }}
+              value={estado}
+              onChange={(e) => setEstado(e.target.value)}
+            >
+              <option value="todos">Todos los estados</option>
+              <option value="activa">Activos</option>
+              <option value="suspendida">Suspendidos</option>
+              <option value="baja">De baja</option>
+            </Select>
+          </Box>
+          <Box>
+            <Text fontSize="xs" fontWeight={600} mb={1}>
+              País
+            </Text>
+            <Select
+              w={{ base: "100%", md: "160px" }}
+              value={paisFilter}
+              onChange={(e) => setPaisFilter(e.target.value)}
+            >
+              <option value="todos">Todos los países</option>
+              {Object.keys(paisesCiudades).map((p) => (
+                <option key={p} value={p}>
+                  {p}
+                </option>
+              ))}
+            </Select>
+          </Box>
+          <Box>
+            <Text fontSize="xs" fontWeight={600} mb={1}>
+              Plan
+            </Text>
+            <Select
+              w={{ base: "100%", md: "170px" }}
+              value={planFilter}
+              onChange={(e) => setPlanFilter(e.target.value)}
+            >
+              <option value="todos">Todos los planes</option>
+              {["Gratuito", "Premium Mensual", "Premium Anual"].map((p) => (
+                <option key={p} value={p}>
+                  {p}
+                </option>
+              ))}
+            </Select>
+          </Box>
+          <Box>
+            <Text fontSize="xs" fontWeight={600} mb={1}>
+              Seguro médico
+            </Text>
+            <Select
+              w={{ base: "100%", md: "180px" }}
+              value={seguroFilter}
+              onChange={(e) => setSeguroFilter(e.target.value)}
+            >
+              <option value="todos">Todos los seguros</option>
+              <option value="sin_seguro">Sin seguro</option>
+              {seguros.map((s) => (
+                <option key={s.id} value={s.name}>
+                  {s.name}
+                </option>
+              ))}
+            </Select>
+          </Box>
         </Flex>
 
-        <Flex gap={3} mb={4} wrap="wrap">
-          <Button
-            variant="solid"
-            leftIcon={<Download size={16} />}
+        <Flex gap={3} mb={4} justify="flex-end" wrap="wrap">
+          <ExportButton
             isDisabled={!canExport}
-            onClick={() =>
-              exportToExcel(
-                filtered.map((a) => ({
-                  ID: a.id,
-                  Nombre: a.nombre,
-                  Email: a.email,
-                  Teléfono: a.telefono,
-                  Relación: a.relacion,
-                  País: a.pais,
-                  Ciudad: a.ciudad,
-                  Seguro: a.seguro ?? "",
-                  "ID Seguro": a.seguroId ?? "",
-                  Plan: a.plan,
-                  Estado: a.estado,
-                  Niños: a.ninos.length,
-                  Registrado: a.registrado,
-                })),
-                "acudientes-lucera",
-                "Acudientes"
-              )
-            }
-          >
-            Exportar
-          </Button>
+            filename="acudientes-lucera"
+            sheetName="Acudientes"
+            data={filtered.map((a) => ({
+              ID: a.id,
+              Nombre: a.nombre,
+              Email: a.email,
+              Teléfono: a.telefono,
+              Relación: a.relacion,
+              País: a.pais,
+              Ciudad: a.ciudad,
+              Seguro: a.seguro ?? "",
+              "ID Seguro": a.seguroId ?? "",
+              Plan: a.plan,
+              Estado: a.estado,
+              Niños: a.ninos.length,
+              Registrado: a.registrado,
+            }))}
+          />
           {canEdit && (
             <Button
               colorScheme="vino"
@@ -453,7 +527,17 @@ export default function Guardians() {
                 </FormControl>
                 <FormControl isRequired>
                   <FormLabel>Teléfono (WhatsApp)</FormLabel>
-                  <Input name="telefono" defaultValue={editing?.telefono} />
+                  <Input
+                    name="telefono"
+                    defaultValue={editing?.telefono}
+                    isReadOnly={!!editing}
+                    bg={editing ? "crema.50" : undefined}
+                  />
+                  {editing && (
+                    <Text fontSize="xs" color="lucera.textMuted" mt={1}>
+                      El teléfono no se puede editar vía API.
+                    </Text>
+                  )}
                 </FormControl>
                 <FormControl isRequired>
                   <FormLabel>Email</FormLabel>
@@ -501,56 +585,60 @@ export default function Guardians() {
                     ))}
                   </Select>
                 </FormControl>
-                <FormControl>
-                  <FormLabel>Seguro médico</FormLabel>
-                  <Select
-                    name="seguro"
-                    defaultValue={editing?.seguro ?? ""}
-                    placeholder="Sin seguro"
-                  >
-                    {segurosMedicos.map((s) => (
-                      <option key={s} value={s}>{s}</option>
-                    ))}
-                  </Select>
-                </FormControl>
-                <FormControl>
-                  <FormLabel>ID del seguro</FormLabel>
-                  <Input name="seguroId" placeholder="Número de póliza" defaultValue={editing?.seguroId} />
-                </FormControl>
-                <FormControl>
-                  <FormLabel>Plan</FormLabel>
-                  <Select
-                    name="plan"
-                    defaultValue={editing?.plan ?? "Gratuito"}
-                  >
-                    {["Gratuito", "Premium Mensual", "Premium Anual"].map(
-                      (p) => (
-                        <option key={p} value={p}>
-                          {p}
-                        </option>
-                      )
-                    )}
-                  </Select>
-                </FormControl>
-                <FormControl>
-                  <FormLabel>Estado</FormLabel>
-                  <Select
-                    name="estado"
-                    defaultValue={editing?.estado ?? "activa"}
-                  >
-                    <option value="activa">Activa</option>
-                    <option value="suspendida">Suspendida</option>
-                    <option value="baja">Baja</option>
-                  </Select>
-                </FormControl>
+                {editing && (
+                  <>
+                    <FormControl>
+                      <FormLabel>Seguro médico</FormLabel>
+                      <Select
+                        name="seguro"
+                        defaultValue={editing?.seguroId ?? ""}
+                        placeholder="Sin seguro"
+                      >
+                        {seguros.map((s) => (
+                          <option key={s.id} value={s.id}>{s.name}</option>
+                        ))}
+                      </Select>
+                    </FormControl>
+                    <FormControl>
+                      <FormLabel>Número de póliza</FormLabel>
+                      <Input name="policyNumber" placeholder="Opcional" />
+                    </FormControl>
+                    <FormControl>
+                      <FormLabel>Plan</FormLabel>
+                      <Select
+                        name="plan"
+                        defaultValue={planToApi[editing?.plan ?? "Gratuito"]}
+                      >
+                        {(["free", "premium_monthly", "premium_annual"] as const).map(
+                          (p) => (
+                            <option key={p} value={p}>
+                              {planToEs[p]}
+                            </option>
+                          )
+                        )}
+                      </Select>
+                    </FormControl>
+                    <FormControl>
+                      <FormLabel>Estado</FormLabel>
+                      <Select
+                        name="estado"
+                        defaultValue={editing?.estado ?? "activa"}
+                      >
+                        <option value="activa">Activa</option>
+                        <option value="suspendida">Suspendida</option>
+                        <option value="baja">Baja</option>
+                      </Select>
+                    </FormControl>
+                  </>
+                )}
               </SimpleGrid>
             </ModalBody>
             <ModalFooter>
-              <Button variant="outline" onClick={onClose} mr={2}>
+              <Button variant="outline" onClick={onClose} mr={2} isDisabled={saving}>
                 Cancelar
               </Button>
-              <Button type="submit" colorScheme="vino">
-                Guardar
+              <Button type="submit" colorScheme="vino" isLoading={saving}>
+                {editing ? "Actualizar" : "Crear"}
               </Button>
             </ModalFooter>
           </form>

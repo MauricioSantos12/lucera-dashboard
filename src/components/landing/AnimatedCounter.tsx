@@ -7,12 +7,11 @@ type Props = HeadingProps & { value: string };
 // Separa "3,400+" / "92%" en { prefix: "", number: 3400, suffix: "+" }
 function parseValue(value: string) {
   const match = value.match(/^(\D*)([\d.,]+)(.*)$/);
-  if (!match) return { prefix: "", number: 0, suffix: value, decimals: 0, hasThousands: false };
+  if (!match) return { prefix: "", number: 0, suffix: value, decimals: 0 };
   const [, prefix, numStr, suffix] = match;
   const number = parseFloat(numStr.replace(/,/g, ""));
   const decimals = numStr.includes(".") ? numStr.split(".")[1].length : 0;
-  const hasThousands = numStr.includes(",");
-  return { prefix, number, suffix, decimals, hasThousands };
+  return { prefix, number, suffix, decimals };
 }
 
 export function AnimatedCounter({ value, ...rest }: Props) {
@@ -25,15 +24,15 @@ export function AnimatedCounter({ value, ...rest }: Props) {
 
   useEffect(() => {
     if (!isInView) return;
-    const { prefix, number, suffix, decimals, hasThousands } = parseValue(value);
+    const { prefix, number, suffix, decimals } = parseValue(value);
     const controls = animate(0, number, {
       duration: 1.2,
       ease: "easeOut",
       onUpdate: (latest) => {
-        const formatted =
-          decimals > 0
-            ? latest.toFixed(decimals)
-            : Math.round(latest).toLocaleString(hasThousands ? "en-US" : undefined);
+        const formatted = latest.toLocaleString("en-US", {
+          minimumFractionDigits: decimals,
+          maximumFractionDigits: decimals,
+        });
         setDisplay(`${prefix}${formatted}${suffix}`);
       },
     });

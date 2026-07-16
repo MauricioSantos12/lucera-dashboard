@@ -41,6 +41,11 @@ export const planToEs: Record<PlanApi, Acudiente["plan"]> = {
   premium_monthly: "Premium Mensual",
   premium_annual: "Premium Anual",
 };
+export const planToApi: Record<Acudiente["plan"], PlanApi> = {
+  Gratuito: "free",
+  "Premium Mensual": "premium_monthly",
+  "Premium Anual": "premium_annual",
+};
 
 export const chatTriageToLevel: Record<ChatTriageApi, TriageLevel> = {
   general: "general",
@@ -101,3 +106,6 @@ export const countryApiToEs: Record<string, string> = {
   Panama: "Panamá",
   Colombia: "Colombia",
 };
+export const countryEsToApi: Record<string, string> = Object.fromEntries(
+  Object.entries(countryApiToEs).map(([api, es]) => [es, api])
+);

@@ -7,7 +7,12 @@ import {
   paymentStatusToEs,
   paymentPlanToEs,
 } from "@/lib/apiMappings";
-import type { PaymentApi, PaginatedResponse } from "@/lib/apiTypes";
+import type {
+  PaymentApi,
+  GuardianApi,
+  InsuranceRef,
+  PaginatedResponse,
+} from "@/lib/apiTypes";
 import { toast } from "@/lib/toast";
 import {
   Box,
@@ -32,7 +37,6 @@ import {
 } from "@chakra-ui/react";
 import {
   Search,
-  Download,
   CreditCard,
   DollarSign,
   CheckCircle2,
@@ -42,7 +46,8 @@ import {
 import { StatCard } from "@/components/StatCard";
 import { Pagination } from "@/components/Pagination";
 import { LoadingState } from "@/components/LoadingState";
-import { exportToExcel } from "@/lib/exportToExcel";
+import { ExportButton } from "@/components/ExportButton";
+import { formatCurrency } from "@/lib/format";
 import { useAuth } from "@/lib/auth";
 
 const estadoStyle: Record<
@@ -63,7 +68,15 @@ type KpiProps = {
   fg: string;
 };
 
-function paymentApiToPago(p: PaymentApi): Pago {
+type PagoRow = Pago & { seguro: string };
+
+// El API de pagos no trae guardianId ni seguro directo, solo el nombre del
+// acudiente (p.guardian) — se cruza por nombre contra /api/guardians para
+// resolver la aseguradora. Puede fallar si dos acudientes comparten nombre.
+function paymentApiToPago(
+  p: PaymentApi,
+  seguroByGuardianName: Record<string, string>
+): PagoRow {
   return {
     id: p.id,
     acudiente: p.guardian,
@@ -74,6 +87,7 @@ function paymentApiToPago(p: PaymentApi): Pago {
     fecha: p.date,
     respuestaProveedor: p.providerResponse,
     tipoPago: p.paymentType,
+    seguro: seguroByGuardianName[p.guardian] ?? "",
   };
 }
 
@@ -88,23 +102,49 @@ export default function Payments() {
   } = useFetch<PaginatedResponse<PaymentApi>>(
     token ? "/api/payments?page=1&page_limit=500" : null
   );
+  const {
+    data: guardiansData,
+    loading: guardiansLoading,
+    error: guardiansError,
+  } = useFetch<PaginatedResponse<GuardianApi>>(
+    token ? "/api/guardians?page=1&page_limit=500" : null
+  );
+  const {
+    data: insurancesData,
+    loading: insurancesLoading,
+    error: insurancesError,
+  } = useFetch<PaginatedResponse<InsuranceRef>>(
+    token ? "/api/insurances?page=1&page_limit=100" : null
+  );
+
+  const seguroByGuardianName = useMemo(
+    () =>
+      Object.fromEntries(
+        (guardiansData?.items ?? []).map((g) => [g.name, g.insurance?.name ?? ""])
+      ),
+    [guardiansData]
+  );
+  const seguros = useMemo(() => insurancesData?.items ?? [], [insurancesData]);
   const pagos = useMemo(
-    () => (paymentsData?.items ?? []).map(paymentApiToPago),
-    [paymentsData]
+    () =>
+      (paymentsData?.items ?? []).map((p) =>
+        paymentApiToPago(p, seguroByGuardianName)
+      ),
+    [paymentsData, seguroByGuardianName]
   );
 
   useEffect(() => {
-    if (paymentsError) {
-      toast.error("No se pudieron cargar los pagos", {
-        description: paymentsError,
-      });
+    const err = paymentsError || guardiansError || insurancesError;
+    if (err) {
+      toast.error("No se pudieron cargar los pagos", { description: err });
     }
-  }, [paymentsError]);
+  }, [paymentsError, guardiansError, insurancesError]);
 
   const [q, setQ] = useState("");
   const [metodo, setMetodo] = useState("todos");
   const [estado, setEstado] = useState("todos");
   const [planFilter, setPlanFilter] = useState("todos");
+  const [seguroFilter, setSeguroFilter] = useState("todos");
   const [page, setPage] = useState(1);
   const perPage = 10;
 
@@ -122,9 +162,12 @@ export default function Payments() {
       const okM = metodo === "todos" || p.metodo === metodo;
       const okE = estado === "todos" || p.estado === estado;
       const okP = planFilter === "todos" || p.plan === planFilter;
-      return okQ && okM && okE && okP;
+      const okS =
+        seguroFilter === "todos" ||
+        (seguroFilter === "sin_seguro" ? !p.seguro : p.seguro === seguroFilter);
+      return okQ && okM && okE && okP && okS;
     });
-  }, [pagos, q, metodo, estado, planFilter]);
+  }, [pagos, q, metodo, estado, planFilter, seguroFilter]);
 
   const totalPages = Math.ceil(filtered.length / perPage);
   const paginated = filtered.slice((page - 1) * perPage, page * perPage);
@@ -189,14 +232,14 @@ export default function Payments() {
         <Kpi
           icon={DollarSign}
           label="Ingresos hoy"
-          value={`$${ingresosHoy.toFixed(2)}`}
+          value={formatCurrency(ingresosHoy)}
           bg="naranja.50"
           fg="naranja.500"
         />
         <Kpi
           icon={DollarSign}
           label="Ingresos del mes"
-          value={`$${ingresosMes.toFixed(2)}`}
+          value={formatCurrency(ingresosMes)}
           bg="vino.50"
           fg="vino.500"
         />
@@ -217,62 +260,110 @@ export default function Payments() {
       </SimpleGrid>
 
       <StatCard>
-        <Flex direction={{ base: "column", md: "row" }} gap={3} mb={4} wrap="wrap">
-          <InputGroup flex={1} minW={{ md: "220px" }}>
-            <InputLeftElement pointerEvents="none">
-              <Search size={16} />
-            </InputLeftElement>
-            <Input
-              placeholder="Buscar TX, acudiente o plan…"
-              value={q}
-              onChange={(e) => setQ(e.target.value)}
-            />
-          </InputGroup>
-          <Select
-            w={{ base: "100%", md: "180px" }}
-            value={metodo}
-            onChange={(e) => setMetodo(e.target.value)}
-          >
-            <option value="todos">Todos los métodos</option>
-            <option value="Stripe">Stripe</option>
-            <option value="Yappy">Yappy</option>
-          </Select>
-          <Select
-            w={{ base: "100%", md: "180px" }}
-            value={estado}
-            onChange={(e) => setEstado(e.target.value)}
-          >
-            <option value="todos">Todos los estados</option>
-            <option value="confirmado">Confirmado</option>
-            <option value="pendiente">Pendiente</option>
-            <option value="fallido">Fallido</option>
-            <option value="reembolsado">Reembolsado</option>
-          </Select>
-          <Select
-            w={{ base: "100%", md: "180px" }}
-            value={planFilter}
-            onChange={(e) => setPlanFilter(e.target.value)}
-          >
-            <option value="todos">Todos los planes</option>
-            {planes.map((p) => (
-              <option key={p} value={p}>
-                {p}
-              </option>
-            ))}
-          </Select>
+        <Flex direction={{ base: "column", md: "row" }} gap={3} mb={4} align={{ md: "end" }} wrap="wrap">
+          <Box flex={1} minW={{ md: "220px" }}>
+            <Text fontSize="xs" fontWeight={600} mb={1}>
+              Buscar
+            </Text>
+            <InputGroup>
+              <InputLeftElement pointerEvents="none">
+                <Search size={16} />
+              </InputLeftElement>
+              <Input
+                placeholder="TX, acudiente o plan…"
+                value={q}
+                onChange={(e) => setQ(e.target.value)}
+              />
+            </InputGroup>
+          </Box>
+          <Box>
+            <Text fontSize="xs" fontWeight={600} mb={1}>
+              Método
+            </Text>
+            <Select
+              w={{ base: "100%", md: "180px" }}
+              value={metodo}
+              onChange={(e) => setMetodo(e.target.value)}
+            >
+              <option value="todos">Todos los métodos</option>
+              <option value="Stripe">Stripe</option>
+              <option value="Yappy">Yappy</option>
+            </Select>
+          </Box>
+          <Box>
+            <Text fontSize="xs" fontWeight={600} mb={1}>
+              Estado
+            </Text>
+            <Select
+              w={{ base: "100%", md: "180px" }}
+              value={estado}
+              onChange={(e) => setEstado(e.target.value)}
+            >
+              <option value="todos">Todos los estados</option>
+              <option value="confirmado">Confirmado</option>
+              <option value="pendiente">Pendiente</option>
+              <option value="fallido">Fallido</option>
+              <option value="reembolsado">Reembolsado</option>
+            </Select>
+          </Box>
+          <Box>
+            <Text fontSize="xs" fontWeight={600} mb={1}>
+              Plan
+            </Text>
+            <Select
+              w={{ base: "100%", md: "180px" }}
+              value={planFilter}
+              onChange={(e) => setPlanFilter(e.target.value)}
+            >
+              <option value="todos">Todos los planes</option>
+              {planes.map((p) => (
+                <option key={p} value={p}>
+                  {p}
+                </option>
+              ))}
+            </Select>
+          </Box>
+          <Box>
+            <Text fontSize="xs" fontWeight={600} mb={1}>
+              Aseguradora
+            </Text>
+            <Select
+              w={{ base: "100%", md: "180px" }}
+              value={seguroFilter}
+              onChange={(e) => setSeguroFilter(e.target.value)}
+            >
+              <option value="todos">Todos los seguros</option>
+              <option value="sin_seguro">Sin seguro</option>
+              {seguros.map((s) => (
+                <option key={s.id} value={s.name}>
+                  {s.name}
+                </option>
+              ))}
+            </Select>
+          </Box>
         </Flex>
 
-        <Flex gap={3} mb={4} wrap="wrap">
-          <Button variant="solid" leftIcon={<Download size={16} />} isDisabled={!canExport} onClick={() => exportToExcel(
-            filtered.map(p => ({ ID: p.id, Acudiente: p.acudiente, Plan: p.plan, Método: p.metodo, Monto: p.monto, Estado: p.estado, Fecha: p.fecha })),
-            "pagos-lucera",
-            "Pagos"
-          )}>
-            Exportar
-          </Button>
+        <Flex gap={3} mb={4} justify="flex-end" wrap="wrap">
+          <ExportButton
+            isDisabled={!canExport}
+            filename="pagos-lucera"
+            sheetName="Pagos"
+            data={filtered.map((p) => ({
+              ID: p.id,
+              Acudiente: p.acudiente,
+              Plan: p.plan,
+              Método: p.metodo,
+              Monto: p.monto,
+              Estado: p.estado,
+              Seguro: p.seguro,
+              Fecha: p.fecha,
+            }))}
+          />
         </Flex>
 
-        {paymentsLoading && !paymentsData ? (
+        {(paymentsLoading && !paymentsData) ||
+        (guardiansLoading && !guardiansData) ||
+        (insurancesLoading && !insurancesData) ? (
           <LoadingState label="Cargando pagos…" />
         ) : (
           <>
@@ -320,7 +411,7 @@ export default function Payments() {
                       </Badge>
                     </Td>
                     <Td isNumeric fontWeight={700}>
-                      ${p.monto.toFixed(2)}
+                      {formatCurrency(p.monto)}
                     </Td>
                     <Td>
                       <Badge colorScheme={tone}>

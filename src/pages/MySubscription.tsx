@@ -9,6 +9,7 @@ import {
 } from "@chakra-ui/react";
 import { Check, CreditCard, Crown, Sparkles } from "lucide-react";
 import { StatCard } from "@/components/StatCard";
+import { formatCurrency } from "@/lib/format";
 import { toast } from "@/lib/toast";
 
 const planes = [
@@ -118,7 +119,7 @@ export default function MySubscription() {
                     <Td fontSize="sm">{p.plan}</Td>
                     <Td><Badge variant="outline">{p.metodo}</Badge></Td>
                     <Td fontSize="sm">{p.tipoPago ?? "Crédito"}</Td>
-                    <Td isNumeric fontWeight={700}>${p.monto.toFixed(2)}</Td>
+                    <Td isNumeric fontWeight={700}>{formatCurrency(p.monto)}</Td>
                     <Td><Badge colorScheme={p.estado === "confirmado" ? "green" : p.estado === "pendiente" ? "yellow" : "gray"} textTransform="capitalize">{p.estado}</Badge></Td>
                     <Td fontSize="xs">{p.fecha.slice(0, 10)}</Td>
                     <Td fontSize="xs">{getEndDate(p.fecha, p.plan)}</Td>

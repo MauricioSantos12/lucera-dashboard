@@ -91,6 +91,16 @@ export interface InsuranceRef {
   name: string;
 }
 
+export interface SpecialtyApi {
+  id: number;
+  name: string;
+}
+
+// POST y PATCH de seguros/especialidades solo aceptan { name }.
+export interface NameInPayload {
+  name: string;
+}
+
 export interface ChildApi {
   id: string;
   name: string;
@@ -117,13 +127,32 @@ export interface GuardianApi {
   children: ChildApi[];
 }
 
-// Todos los campos opcionales; solo se manda lo que cambia
+// Todos los campos opcionales. Sin "phone": el teléfono no es editable vía
+// API (identificador del acudiente). "children"/"insurance"/"registeredAt"
+// tampoco: son de solo lectura o se gestionan por otros endpoints.
 export interface GuardianPatchPayload {
   name?: string;
   email?: string;
+  country?: string;
   city?: string;
+  province?: string;
   relationship?: GuardianRelationship;
   status?: GuardianStatus;
+  plan?: PlanApi;
+  insuranceId?: number;
+  policyNumber?: string;
+}
+
+// name, phone y email son obligatorios; crea el acudiente y su cuenta de
+// usuario. email o phone duplicado responde 409.
+export interface GuardianCreatePayload {
+  name: string;
+  phone: string;
+  email: string;
+  relationship?: GuardianRelationship;
+  city?: string;
+  province?: string;
+  address?: string;
 }
 
 export interface DeleteResponse {
@@ -224,4 +253,27 @@ export interface CenterApi {
   phone: string;
   hours: string;
   recommended: boolean;
+}
+
+// name y city obligatorios. No incluye "type" ni "hours" (esos campos del
+// GET no son editables vía API); "tier" y "country" son propios del alta.
+export interface CenterCreatePayload {
+  name: string;
+  city: string;
+  address?: string;
+  phone?: string;
+  tier?: string;
+  recommended?: boolean;
+  country?: string;
+}
+
+// Todos los campos opcionales; solo se manda lo que cambia. Sin "country"
+// (no se puede reubicar el centro de país vía PATCH).
+export interface CenterUpdatePayload {
+  name?: string;
+  city?: string;
+  address?: string;
+  phone?: string;
+  tier?: string;
+  recommended?: boolean;
 }
