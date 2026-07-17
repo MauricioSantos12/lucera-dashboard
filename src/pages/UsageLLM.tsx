@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { useAuth } from "@/lib/auth";
 import { useFetch } from "@/hooks/useFetch";
+import { useFetchAll } from "@/hooks/useFetchAll";
 import { toast } from "@/lib/toast";
 import { LoadingState } from "@/components/LoadingState";
 import { StatCard } from "@/components/StatCard";
@@ -9,6 +10,8 @@ import type {
   UsageSummaryApi,
   UsageByDayApi,
   UsageByUserApi,
+  GuardianApi,
+  InsuranceRef,
 } from "@/lib/apiTypes";
 import {
   Box,
@@ -41,6 +44,8 @@ import {
 import {
   BarChart,
   Bar,
+  Cell,
+  LabelList,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -52,6 +57,15 @@ import { formatNumber, formatCurrency } from "@/lib/format";
 function toISODate(d: Date) {
   return d.toISOString().slice(0, 10);
 }
+
+// Ciclo de colores de marca (vino, naranja, amarillo), igual que en Estadísticas.
+const brandColors = ["#6d122b", "#ef7d54", "#f8cc37"];
+
+// Deja ~18% de espacio arriba de la barra más alta para que la etiqueta no se recorte.
+const yAxisDomain: [number, (dataMax: number) => number] = [
+  0,
+  (dataMax) => (dataMax || 1) * 1.18,
+];
 
 interface StatProps {
   icon: LucideIcon;
@@ -123,15 +137,31 @@ export default function UsageLLM() {
     loading: byUserLoading,
     error: byUserError,
   } = useFetch<UsageByUserApi[]>(token ? "/api/usage/by-user" : null);
+  // El consumo se atribuye por teléfono → acudiente → su aseguradora.
+  const {
+    data: guardiansData,
+    loading: guardiansLoading,
+    error: guardiansError,
+  } = useFetchAll<GuardianApi>(token ? "/api/guardians" : null);
+  const {
+    data: insurancesData,
+    loading: insurancesLoading,
+    error: insurancesError,
+  } = useFetchAll<InsuranceRef>(token ? "/api/insurances" : null);
 
   useEffect(() => {
-    const err = summaryError || byDayError || byUserError;
+    const err =
+      summaryError ||
+      byDayError ||
+      byUserError ||
+      guardiansError ||
+      insurancesError;
     if (err) {
       toast.error("No se pudo cargar el consumo del LLM", {
         description: err,
       });
     }
-  }, [summaryError, byDayError, byUserError]);
+  }, [summaryError, byDayError, byUserError, guardiansError, insurancesError]);
 
   const [q, setQ] = useState("");
   const users = byUser ?? [];
@@ -153,7 +183,46 @@ export default function UsageLLM() {
     [byDay, fechaInicio, fechaFin]
   );
 
-  const loading = summaryLoading || byDayLoading || byUserLoading;
+  // Costo del LLM agrupado por aseguradora. El consumo viene por teléfono
+  // (/api/usage/by-user), el teléfono identifica al acudiente
+  // (/api/guardians) y de ahí sale su aseguradora. El nombre autoritativo se
+  // resuelve por id contra el catálogo de /api/insurances.
+  const costoPorAseguradora = useMemo(() => {
+    const catalogo = new Map(
+      (insurancesData?.items ?? []).map((i) => [i.id, i.name])
+    );
+    const acudientePorTelefono = new Map(
+      (guardiansData?.items ?? []).map((g) => [g.phone, g])
+    );
+    const totales = new Map<string, number>();
+    (byUser ?? []).forEach((u) => {
+      const acudiente = acudientePorTelefono.get(u.phone);
+      const etiqueta = !acudiente
+        ? "Sin acudiente"
+        : acudiente.insurance
+        ? catalogo.get(acudiente.insurance.id) ?? acudiente.insurance.name
+        : "Sin seguro";
+      totales.set(etiqueta, (totales.get(etiqueta) ?? 0) + u.costUsd);
+    });
+    return [...totales.entries()]
+      .map(([name, costUsd]) => ({ name, costUsd }))
+      .sort((a, b) => b.costUsd - a.costUsd);
+  }, [byUser, guardiansData, insurancesData]);
+
+  // Control de consistencia: lo atribuido debe cuadrar con el consumo total.
+  const costoAtribuido = costoPorAseguradora.reduce(
+    (s, r) => s + r.costUsd,
+    0
+  );
+  const costoTotal = summary?.costUsd ?? 0;
+  const cobertura = costoTotal > 0 ? (costoAtribuido / costoTotal) * 100 : 0;
+
+  const loading =
+    summaryLoading ||
+    byDayLoading ||
+    byUserLoading ||
+    guardiansLoading ||
+    insurancesLoading;
 
   return (
     <DashboardLayout
@@ -294,6 +363,79 @@ export default function UsageLLM() {
             {filteredByDay.length === 0 && (
               <Text mt={3} fontSize="sm" color="lucera.textMuted" textAlign="center">
                 No hay consumo registrado en el rango seleccionado.
+              </Text>
+            )}
+          </StatCard>
+
+          <StatCard mb={6}>
+            <Heading size="sm" fontFamily="heading" mb={1}>
+              Costo por aseguradora
+            </Heading>
+            <Text fontSize="xs" color="lucera.textMuted" mb={4}>
+              Costo del LLM atribuido a la aseguradora del acudiente que
+              generó cada consulta.
+            </Text>
+            <ResponsiveContainer width="100%" height={260}>
+              <BarChart
+                data={costoPorAseguradora}
+                margin={{ top: 20, left: 0, right: 8 }}
+              >
+                <CartesianGrid strokeDasharray="3 3" stroke="#e9d2b1" />
+                <XAxis
+                  dataKey="name"
+                  interval={0}
+                  angle={-15}
+                  textAnchor="end"
+                  height={60}
+                  tick={{ fontSize: 10, fill: "#7b5a48" }}
+                />
+                <YAxis
+                  domain={yAxisDomain}
+                  tick={{ fontSize: 11, fill: "#7b5a48" }}
+                  tickFormatter={(v: number) => formatCurrency(v)}
+                />
+                <Tooltip
+                  cursor={{ fill: "rgba(109,18,43,0.06)" }}
+                  contentStyle={{
+                    background: "white",
+                    border: "1px solid #e9d2b1",
+                    borderRadius: 8,
+                    fontSize: 12,
+                  }}
+                  formatter={(v: number) => formatCurrency(v, 4)}
+                />
+                <Bar
+                  dataKey="costUsd"
+                  name="Costo (USD)"
+                  radius={[6, 6, 0, 0]}
+                  maxBarSize={70}
+                  animationDuration={700}
+                  animationEasing="ease-out"
+                >
+                  {costoPorAseguradora.map((_, i) => (
+                    <Cell key={i} fill={brandColors[i % brandColors.length]} />
+                  ))}
+                  <LabelList
+                    dataKey="costUsd"
+                    position="top"
+                    formatter={(v: number) => formatCurrency(v, 4)}
+                    fontSize={11}
+                    fontWeight={700}
+                    fill="#3a2a1f"
+                  />
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+            {costoPorAseguradora.length === 0 ? (
+              <Text mt={3} fontSize="sm" color="lucera.textMuted" textAlign="center">
+                No hay consumo atribuible todavía.
+              </Text>
+            ) : (
+              <Text mt={3} fontSize="xs" color="lucera.textMuted">
+                Atribuido: {formatCurrency(costoAtribuido, 4)} de{" "}
+                {formatCurrency(costoTotal, 4)} de consumo total (
+                {cobertura.toFixed(1)}%). La diferencia, si la hay, es por
+                redondeo de cada acudiente a 4 decimales.
               </Text>
             )}
           </StatCard>
