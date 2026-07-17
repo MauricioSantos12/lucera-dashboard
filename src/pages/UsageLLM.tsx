@@ -170,7 +170,9 @@ export default function UsageLLM() {
   );
 
   // Por defecto, última semana (hoy - 6 días hasta hoy)
-  const [fechaFin, setFechaFin] = useState(() => toISODate(new Date(Date.now())));
+  const [fechaFin, setFechaFin] = useState(() =>
+    toISODate(new Date(Date.now()))
+  );
   const [fechaInicio, setFechaInicio] = useState(() => {
     const d = new Date(Date.now());
     d.setDate(d.getDate() - 6);
@@ -210,10 +212,7 @@ export default function UsageLLM() {
   }, [byUser, guardiansData, insurancesData]);
 
   // Control de consistencia: lo atribuido debe cuadrar con el consumo total.
-  const costoAtribuido = costoPorAseguradora.reduce(
-    (s, r) => s + r.costUsd,
-    0
-  );
+  const costoAtribuido = costoPorAseguradora.reduce((s, r) => s + r.costUsd, 0);
   const costoTotal = summary?.costUsd ?? 0;
   const cobertura = costoTotal > 0 ? (costoAtribuido / costoTotal) * 100 : 0;
 
@@ -319,7 +318,10 @@ export default function UsageLLM() {
             <ResponsiveContainer width="100%" height={260}>
               <BarChart data={filteredByDay} margin={{ left: 0, right: 8 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#e9d2b1" />
-                <XAxis dataKey="date" tick={{ fontSize: 10, fill: "#7b5a48" }} />
+                <XAxis
+                  dataKey="date"
+                  tick={{ fontSize: 10, fill: "#7b5a48" }}
+                />
                 <YAxis
                   yAxisId="left"
                   tick={{ fontSize: 11, fill: "#7b5a48" }}
@@ -361,7 +363,12 @@ export default function UsageLLM() {
               </BarChart>
             </ResponsiveContainer>
             {filteredByDay.length === 0 && (
-              <Text mt={3} fontSize="sm" color="lucera.textMuted" textAlign="center">
+              <Text
+                mt={3}
+                fontSize="sm"
+                color="lucera.textMuted"
+                textAlign="center"
+              >
                 No hay consumo registrado en el rango seleccionado.
               </Text>
             )}
@@ -372,8 +379,8 @@ export default function UsageLLM() {
               Costo por aseguradora
             </Heading>
             <Text fontSize="xs" color="lucera.textMuted" mb={4}>
-              Costo del LLM atribuido a la aseguradora del acudiente que
-              generó cada consulta.
+              Costo del LLM atribuido a la aseguradora del acudiente que generó
+              cada consulta.
             </Text>
             <ResponsiveContainer width="100%" height={260}>
               <BarChart
@@ -426,16 +433,14 @@ export default function UsageLLM() {
                 </Bar>
               </BarChart>
             </ResponsiveContainer>
-            {costoPorAseguradora.length === 0 ? (
-              <Text mt={3} fontSize="sm" color="lucera.textMuted" textAlign="center">
+            {costoPorAseguradora.length === 0 && (
+              <Text
+                mt={3}
+                fontSize="sm"
+                color="lucera.textMuted"
+                textAlign="center"
+              >
                 No hay consumo atribuible todavía.
-              </Text>
-            ) : (
-              <Text mt={3} fontSize="xs" color="lucera.textMuted">
-                Atribuido: {formatCurrency(costoAtribuido, 4)} de{" "}
-                {formatCurrency(costoTotal, 4)} de consumo total (
-                {cobertura.toFixed(1)}%). La diferencia, si la hay, es por
-                redondeo de cada acudiente a 4 decimales.
               </Text>
             )}
           </StatCard>
@@ -511,7 +516,12 @@ export default function UsageLLM() {
               </Table>
             </TableContainer>
             {filteredUsers.length === 0 && (
-              <Text mt={3} fontSize="sm" color="lucera.textMuted" textAlign="center">
+              <Text
+                mt={3}
+                fontSize="sm"
+                color="lucera.textMuted"
+                textAlign="center"
+              >
                 No hay resultados.
               </Text>
             )}
