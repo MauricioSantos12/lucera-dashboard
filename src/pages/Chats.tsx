@@ -118,8 +118,18 @@ function InfoRow({ label, value }: { label: string; value: ReactNode }) {
 }
 
 // ⚠️ Endpoint pesado: trae todos los mensajes de cada chat en una sola llamada.
+//
+// ⚠️ Nota de seguridad: para el rol Acudiente, este componente filtra sus
+// propios chats SOLO en el navegador (busca su registro en /api/guardians
+// por email y compara teléfono). El access_token de este login sigue
+// teniendo acceso completo a /api/chats, /api/guardians y /api/patients —
+// el backend no aplica scoping por acudiente en esta ruta de login (eso
+// solo existe en los endpoints separados /portal/* con un token scope=portal).
+// Si se necesita aislamiento real, el acudiente debería entrar por
+// /auth/guardian/login + /portal/chats en vez de esta pantalla.
 export default function Chats() {
-  const { token } = useAuth();
+  const { token, user } = useAuth();
+  const esAcudiente = user?.rol === "Acudiente";
   const {
     data: chatsData,
     loading: chatsLoading,
@@ -132,7 +142,17 @@ export default function Chats() {
     token ? "/api/patients" : null
   );
 
-  const rawChats = useMemo(() => chatsData?.items ?? [], [chatsData]);
+  const propioAcudiente = useMemo(() => {
+    if (!esAcudiente) return undefined;
+    return (guardiansData?.items ?? []).find((g) => g.email === user?.email);
+  }, [esAcudiente, guardiansData, user?.email]);
+
+  const rawChats = useMemo(() => {
+    const items = chatsData?.items ?? [];
+    if (!esAcudiente) return items;
+    if (!propioAcudiente) return [];
+    return items.filter((c) => c.phone === propioAcudiente.phone);
+  }, [chatsData, esAcudiente, propioAcudiente]);
   const chats = useMemo(() => rawChats.map(chatApiToSesion), [rawChats]);
 
   const guardianByPhone = useMemo(() => {
@@ -201,8 +221,12 @@ export default function Chats() {
 
   return (
     <DashboardLayout
-      title="Monitoreo de chats"
-      subtitle="Conversaciones de WhatsApp"
+      title={esAcudiente ? "Mis consultas" : "Monitoreo de chats"}
+      subtitle={
+        esAcudiente
+          ? "Tus conversaciones de WhatsApp con Lucera IA"
+          : "Conversaciones de WhatsApp"
+      }
     >
       <Flex
         direction={{ base: "column", lg: "row" }}
@@ -389,7 +413,9 @@ export default function Chats() {
                 color="lucera.textMuted"
                 textAlign="center"
               >
-                No hay chats que coincidan.
+                {esAcudiente && !propioAcudiente
+                  ? "No encontramos tu cuenta de acudiente con este correo."
+                  : "No hay chats que coincidan."}
               </Text>
             )}
           </VStack>

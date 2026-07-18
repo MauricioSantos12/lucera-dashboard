@@ -20,7 +20,7 @@ import Specialties from "./pages/Specialties";
 import Profile from "./pages/Profile";
 // import Schedule from "./pages/Schedule"; // oculto temporalmente
 import MyChildren from "./pages/MyChildren";
-import MyAppointments from "./pages/MyAppointments";
+// import MyAppointments from "./pages/MyAppointments"; // reemplazado por Chats (misma vista que el admin, filtrada al propio acudiente)
 import MySubscription from "./pages/MySubscription";
 import NotFound from "./pages/NotFound";
 
@@ -49,13 +49,14 @@ const App = () => (
           <Route path="/payments" element={<ProtectedRoute><RoleRoute roles={["Admin","Ventas","Invitado"]}><Payments /></RoleRoute></ProtectedRoute>} />
           <Route path="/usage" element={<ProtectedRoute><RoleRoute roles={["Admin","Ventas","Invitado"]}><UsageLLM /></RoleRoute></ProtectedRoute>} />
 
-          <Route path="/chats" element={<ProtectedRoute><RoleRoute roles={["Admin","Ventas","Médico","Invitado"]}><Chats /></RoleRoute></ProtectedRoute>} />
+          <Route path="/chats" element={<ProtectedRoute><RoleRoute roles={["Admin","Ventas","Médico","Acudiente","Invitado"]}><Chats /></RoleRoute></ProtectedRoute>} />
           {/* <Route path="/medications" element={<ProtectedRoute><RoleRoute roles={["Admin","Invitado"]}><Medications /></RoleRoute></ProtectedRoute>} /> oculto temporalmente */}
 
           {/* <Route path="/schedule" element={<ProtectedRoute><RoleRoute roles={["Médico"]}><Schedule /></RoleRoute></ProtectedRoute>} /> oculto temporalmente */}
 
           <Route path="/my-children" element={<ProtectedRoute><RoleRoute roles={["Acudiente"]}><MyChildren /></RoleRoute></ProtectedRoute>} />
-          <Route path="/my-appointments" element={<ProtectedRoute><RoleRoute roles={["Acudiente"]}><MyAppointments /></RoleRoute></ProtectedRoute>} />
+          {/* "Mis consultas" ahora es la misma vista de Chats que usa el admin, filtrada al propio acudiente dentro del componente */}
+          <Route path="/my-appointments" element={<Navigate to="/chats" replace />} />
           <Route path="/my-subscription" element={<ProtectedRoute><RoleRoute roles={["Acudiente"]}><MySubscription /></RoleRoute></ProtectedRoute>} />
 
           <Route path="/centers" element={<ProtectedRoute><RoleRoute roles={["Admin","Ventas","Médico","Invitado"]}><Centers /></RoleRoute></ProtectedRoute>} />

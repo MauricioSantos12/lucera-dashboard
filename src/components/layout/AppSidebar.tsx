@@ -115,7 +115,7 @@ const allItems: Item[] = [
   },
   {
     title: "Mis consultas",
-    url: "/my-appointments",
+    url: "/chats",
     icon: MessageSquare,
     roles: ["Acudiente"],
   },
