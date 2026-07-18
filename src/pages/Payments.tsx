@@ -130,6 +130,8 @@ export default function Payments() {
   }, [paymentsError, guardiansError, insurancesError]);
 
   const [q, setQ] = useState("");
+  const [fechaInicio, setFechaInicio] = useState("");
+  const [fechaFin, setFechaFin] = useState("");
   const [metodo, setMetodo] = useState("todos");
   const [estado, setEstado] = useState("todos");
   const [planFilter, setPlanFilter] = useState("todos");
@@ -148,15 +150,28 @@ export default function Payments() {
       const okQ = `${p.id} ${p.acudiente} ${p.plan}`
         .toLowerCase()
         .includes(q.toLowerCase());
+      // p.fecha viene como "YYYY-MM-DD HH:MM"; comparamos por prefijo de
+      // fecha en vez de parsear a Date para evitar líos de zona horaria.
+      const fecha = p.fecha.slice(0, 10);
+      const okFechaInicio = !fechaInicio || fecha >= fechaInicio;
+      const okFechaFin = !fechaFin || fecha <= fechaFin;
       const okM = metodo === "todos" || p.metodo === metodo;
       const okE = estado === "todos" || p.estado === estado;
       const okP = planFilter === "todos" || p.plan === planFilter;
       const okS =
         seguroFilter === "todos" ||
         (seguroFilter === "sin_seguro" ? !p.seguro : p.seguro === seguroFilter);
-      return okQ && okM && okE && okP && okS;
+      return (
+        okQ &&
+        okFechaInicio &&
+        okFechaFin &&
+        okM &&
+        okE &&
+        okP &&
+        okS
+      );
     });
-  }, [pagos, q, metodo, estado, planFilter, seguroFilter]);
+  }, [pagos, q, fechaInicio, fechaFin, metodo, estado, planFilter, seguroFilter]);
 
   const totalPages = Math.ceil(filtered.length / perPage);
   const paginated = filtered.slice((page - 1) * perPage, page * perPage);
@@ -264,6 +279,30 @@ export default function Payments() {
                 onChange={(e) => setQ(e.target.value)}
               />
             </InputGroup>
+          </Box>
+          <Box>
+            <Text fontSize="xs" fontWeight={600} mb={1}>
+              Fecha inicio
+            </Text>
+            <Input
+              type="date"
+              w={{ base: "100%", md: "160px" }}
+              value={fechaInicio}
+              max={fechaFin || undefined}
+              onChange={(e) => setFechaInicio(e.target.value)}
+            />
+          </Box>
+          <Box>
+            <Text fontSize="xs" fontWeight={600} mb={1}>
+              Fecha fin
+            </Text>
+            <Input
+              type="date"
+              w={{ base: "100%", md: "160px" }}
+              value={fechaFin}
+              min={fechaInicio || undefined}
+              onChange={(e) => setFechaFin(e.target.value)}
+            />
           </Box>
           <Box>
             <Text fontSize="xs" fontWeight={600} mb={1}>

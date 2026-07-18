@@ -394,6 +394,45 @@ export default function Statistics() {
     }));
   }, [filteredGuardianes]);
 
+  // Niños registrados por día, dentro del rango de fechas + país/seguro/
+  // acudiente aplicados. Los pacientes no traen su propia fecha de alta
+  // (solo birthDate, que es nacimiento) — se usa el registeredAt de SU
+  // acudiente como fecha de referencia, ya que un niño solo existe en la
+  // API si su acudiente ya está registrado.
+  const ninosPorFecha = useMemo(() => {
+    const acudientesEnRango = filteredGuardianes.filter((g) => {
+      const fecha = g.registeredAt.slice(0, 10);
+      return fecha >= snapshot.fechaInicio && fecha <= snapshot.fechaFin;
+    });
+    const fechaPorGuardianId = new Map(
+      acudientesEnRango.map((g) => [g.id, g.registeredAt.slice(0, 10)])
+    );
+    const counts = new Map<string, number>();
+    pacientesReales.forEach((p) => {
+      const fecha = fechaPorGuardianId.get(p.guardianId);
+      if (!fecha) return;
+      counts.set(fecha, (counts.get(fecha) ?? 0) + 1);
+    });
+    return [...counts.entries()]
+      .map(([date, value]) => ({ date, value }))
+      .sort((a, b) => a.date.localeCompare(b.date));
+  }, [filteredGuardianes, pacientesReales, snapshot]);
+
+  // Consultas (chats) por acudiente, dentro de los filtros y del rango de
+  // fechas aplicados (filteredChats ya está acotado por ambos). Se limita a
+  // los 10 acudientes con más consultas para que la gráfica siga siendo
+  // legible aunque haya muchos acudientes.
+  const consultasPorAcudiente = useMemo(() => {
+    const counts = new Map<string, number>();
+    filteredChats.forEach((c) => {
+      counts.set(c.guardian, (counts.get(c.guardian) ?? 0) + 1);
+    });
+    return [...counts.entries()]
+      .map(([name, value]) => ({ name, value }))
+      .sort((a, b) => b.value - a.value)
+      .slice(0, 10);
+  }, [filteredChats]);
+
   if (!user) return null;
 
   const canExport = user.rol !== "Invitado";
@@ -986,6 +1025,128 @@ export default function Statistics() {
                   />
                 </ComposedChart>
               </ResponsiveContainer>
+            </StatCard>
+
+            <StatCard>
+              <Heading size="sm" fontFamily="heading" mb={1}>
+                Niños registrados por fecha
+              </Heading>
+              <Text fontSize="xs" color="lucera.textMuted" mb={4}>
+                Según la fecha de registro de su acudiente, en el rango
+                seleccionado.
+              </Text>
+              <ResponsiveContainer width="100%" height={220}>
+                <BarChart data={ninosPorFecha} margin={{ top: 20, left: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e9d2b1" />
+                  <XAxis
+                    dataKey="date"
+                    tick={{ fontSize: 10, fill: "#7b5a48" }}
+                  />
+                  <YAxis
+                    allowDecimals={false}
+                    domain={yAxisDomain}
+                    tick={{ fontSize: 11, fill: "#7b5a48" }}
+                  />
+                  <Tooltip
+                    cursor={{ fill: "rgba(109,18,43,0.06)" }}
+                    contentStyle={{
+                      background: "white",
+                      border: "1px solid #e9d2b1",
+                      borderRadius: 8,
+                      fontSize: 12,
+                    }}
+                  />
+                  <Bar
+                    dataKey="value"
+                    radius={[6, 6, 0, 0]}
+                    maxBarSize={50}
+                    fill={brandColors[0]}
+                    animationDuration={700}
+                    animationEasing="ease-out"
+                  >
+                    <LabelList
+                      dataKey="value"
+                      position="top"
+                      formatter={(v: number) => formatNumber(v)}
+                      fontSize={11}
+                      fontWeight={700}
+                      fill="#3a2a1f"
+                    />
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+              {ninosPorFecha.length === 0 && (
+                <Text mt={2} fontSize="sm" color="lucera.textMuted" textAlign="center">
+                  No hay registros en el rango seleccionado.
+                </Text>
+              )}
+            </StatCard>
+
+            <StatCard>
+              <Heading size="sm" fontFamily="heading" mb={1}>
+                Consultas por acudiente
+              </Heading>
+              <Text fontSize="xs" color="lucera.textMuted" mb={4}>
+                Top 10 acudientes con más consultas, según los filtros
+                aplicados.
+              </Text>
+              <ResponsiveContainer width="100%" height={220}>
+                <BarChart
+                  data={consultasPorAcudiente}
+                  margin={{ top: 20, left: 0 }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e9d2b1" />
+                  <XAxis
+                    dataKey="name"
+                    interval={0}
+                    angle={-20}
+                    textAnchor="end"
+                    height={60}
+                    tick={{ fontSize: 10, fill: "#7b5a48" }}
+                  />
+                  <YAxis
+                    allowDecimals={false}
+                    domain={yAxisDomain}
+                    tick={{ fontSize: 11, fill: "#7b5a48" }}
+                  />
+                  <Tooltip
+                    cursor={{ fill: "rgba(239,125,84,0.08)" }}
+                    contentStyle={{
+                      background: "white",
+                      border: "1px solid #e9d2b1",
+                      borderRadius: 8,
+                      fontSize: 12,
+                    }}
+                  />
+                  <Bar
+                    dataKey="value"
+                    radius={[6, 6, 0, 0]}
+                    maxBarSize={50}
+                    animationDuration={700}
+                    animationEasing="ease-out"
+                  >
+                    {consultasPorAcudiente.map((_, i) => (
+                      <Cell
+                        key={i}
+                        fill={brandColors[i % brandColors.length]}
+                      />
+                    ))}
+                    <LabelList
+                      dataKey="value"
+                      position="top"
+                      formatter={(v: number) => formatNumber(v)}
+                      fontSize={11}
+                      fontWeight={700}
+                      fill="#3a2a1f"
+                    />
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+              {consultasPorAcudiente.length === 0 && (
+                <Text mt={2} fontSize="sm" color="lucera.textMuted" textAlign="center">
+                  No hay consultas en el rango seleccionado.
+                </Text>
+              )}
             </StatCard>
           </SimpleGrid>
 

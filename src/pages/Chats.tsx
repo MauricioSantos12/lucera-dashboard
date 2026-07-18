@@ -159,16 +159,35 @@ export default function Chats() {
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [q, setQ] = useState("");
+  const [fechaInicio, setFechaInicio] = useState("");
+  const [fechaFin, setFechaFin] = useState("");
   const [tab, setTab] = useState<"todas" | "activas" | "cerradas">("todas");
 
-  const filtered = chats.filter((c) => {
+  // Búsqueda + rango de fechas (sobre c.inicio), sin la pestaña todavía —
+  // así los 3 contadores (total/activas/cerradas) reflejan el desglose real
+  // dentro del filtro, sin importar qué pestaña esté seleccionada.
+  const searchAndDateFiltered = chats.filter((c) => {
     const okQ = `${c.acudiente} ${c.paciente} ${c.telefono}`
       .toLowerCase()
       .includes(q.toLowerCase());
-    const okTab =
+    const fecha = c.inicio.slice(0, 10);
+    const okFechaInicio = !fechaInicio || fecha >= fechaInicio;
+    const okFechaFin = !fechaFin || fecha <= fechaFin;
+    return okQ && okFechaInicio && okFechaFin;
+  });
+
+  const conteos = {
+    total: searchAndDateFiltered.length,
+    activas: searchAndDateFiltered.filter((c) => c.estado !== "cerrada").length,
+    cerradas: searchAndDateFiltered.filter((c) => c.estado === "cerrada")
+      .length,
+  };
+
+  const filtered = searchAndDateFiltered.filter((c) => {
+    return (
       tab === "todas" ||
-      (tab === "activas" ? c.estado !== "cerrada" : c.estado === "cerrada");
-    return okQ && okTab;
+      (tab === "activas" ? c.estado !== "cerrada" : c.estado === "cerrada")
+    );
   });
 
   const selected = chats.find((c) => c.id === selectedId) ?? null;
@@ -219,12 +238,57 @@ export default function Chats() {
                 onChange={(e) => setQ(e.target.value)}
               />
             </InputGroup>
-            <HStack mt={3} spacing={2}>
+            <HStack
+              mt={3}
+              spacing={2}
+              flexDir={"column"}
+              alignItems={"flex-start"}
+            >
+              <Box flex={1}>
+                <Text
+                  fontSize="10px"
+                  fontWeight={600}
+                  mb={1}
+                  color="lucera.textMuted"
+                >
+                  Desde
+                </Text>
+                <Input
+                  type="date"
+                  size="sm"
+                  value={fechaInicio}
+                  max={fechaFin || undefined}
+                  onChange={(e) => setFechaInicio(e.target.value)}
+                />
+              </Box>
+              <Box flex={1}>
+                <Text
+                  fontSize="10px"
+                  fontWeight={600}
+                  mb={1}
+                  color="lucera.textMuted"
+                >
+                  Hasta
+                </Text>
+                <Input
+                  type="date"
+                  size="sm"
+                  value={fechaFin}
+                  min={fechaInicio || undefined}
+                  onChange={(e) => setFechaFin(e.target.value)}
+                />
+              </Box>
+            </HStack>
+            <HStack mt={3} spacing={1} wrap="wrap">
               {(
                 [
-                  { key: "todas", label: "Todas" },
-                  { key: "activas", label: "Activas" },
-                  { key: "cerradas", label: "Cerradas" },
+                  { key: "todas", label: "Todas", count: conteos.total },
+                  { key: "activas", label: "Activas", count: conteos.activas },
+                  {
+                    key: "cerradas",
+                    label: "Cerradas",
+                    count: conteos.cerradas,
+                  },
                 ] as const
               ).map((t) => (
                 <Box
@@ -241,7 +305,7 @@ export default function Chats() {
                   color={tab === t.key ? "white" : "lucera.textMuted"}
                   transition="all 120ms"
                 >
-                  {t.label}
+                  {t.label} ({t.count})
                 </Box>
               ))}
             </HStack>
@@ -251,65 +315,80 @@ export default function Chats() {
             {chatsLoading && !chatsData ? (
               <LoadingState label="Cargando chats…" />
             ) : (
-            filtered.map((c) => {
-              const raw = rawChats.find((r) => r.id === c.id);
-              const active = c.id === selectedId;
-              return (
-                <Box
-                  key={c.id}
-                  as="button"
-                  type="button"
-                  onClick={() => setSelectedId(c.id)}
-                  textAlign="left"
-                  p={3}
-                  borderBottomWidth="1px"
-                  borderColor="lucera.borderSoft"
-                  bg={active ? "crema.100" : "white"}
-                  _hover={{ bg: "crema.50" }}
-                >
-                  <HStack justify="space-between" align="flex-start" mb={1}>
-                    <HStack spacing={2} minW={0}>
-                      <Avatar size="sm" name={c.acudiente} bg="vino.500" color="white" />
-                      <Text fontSize="sm" fontWeight={700} noOfLines={1}>
-                        {c.acudiente}
+              filtered.map((c) => {
+                const raw = rawChats.find((r) => r.id === c.id);
+                const active = c.id === selectedId;
+                return (
+                  <Box
+                    key={c.id}
+                    as="button"
+                    type="button"
+                    onClick={() => setSelectedId(c.id)}
+                    textAlign="left"
+                    p={3}
+                    borderBottomWidth="1px"
+                    borderColor="lucera.borderSoft"
+                    bg={active ? "crema.100" : "white"}
+                    _hover={{ bg: "crema.50" }}
+                  >
+                    <HStack justify="space-between" align="flex-start" mb={1}>
+                      <HStack spacing={2} minW={0}>
+                        <Avatar
+                          size="sm"
+                          name={c.acudiente}
+                          bg="vino.500"
+                          color="white"
+                        />
+                        <Text fontSize="sm" fontWeight={700} noOfLines={1}>
+                          {c.acudiente}
+                        </Text>
+                      </HStack>
+                      <VStack spacing={1} align="flex-end" flexShrink={0}>
+                        <Text fontSize="10px" color="lucera.textMuted">
+                          {c.hora}
+                        </Text>
+                        <Box
+                          h="8px"
+                          w="8px"
+                          borderRadius="full"
+                          bg={raw ? triageColors[raw.triage] : "gray.300"}
+                        />
+                      </VStack>
+                    </HStack>
+                    <HStack
+                      fontSize="xs"
+                      color="lucera.textMuted"
+                      spacing={1}
+                      mb={1.5}
+                    >
+                      <Baby size={11} />
+                      <Text noOfLines={1}>
+                        {c.paciente} · {c.ultimoMensaje}
                       </Text>
                     </HStack>
-                    <VStack spacing={1} align="flex-end" flexShrink={0}>
+                    <HStack justify="space-between">
+                      <Badge
+                        fontSize="10px"
+                        colorScheme={estadoTone[c.estado]}
+                        textTransform="capitalize"
+                      >
+                        {c.estado}
+                      </Badge>
                       <Text fontSize="10px" color="lucera.textMuted">
-                        {c.hora}
+                        {c.mensajes.length} msj
                       </Text>
-                      <Box
-                        h="8px"
-                        w="8px"
-                        borderRadius="full"
-                        bg={raw ? triageColors[raw.triage] : "gray.300"}
-                      />
-                    </VStack>
-                  </HStack>
-                  <HStack fontSize="xs" color="lucera.textMuted" spacing={1} mb={1.5}>
-                    <Baby size={11} />
-                    <Text noOfLines={1}>
-                      {c.paciente} · {c.ultimoMensaje}
-                    </Text>
-                  </HStack>
-                  <HStack justify="space-between">
-                    <Badge
-                      fontSize="10px"
-                      colorScheme={estadoTone[c.estado]}
-                      textTransform="capitalize"
-                    >
-                      {c.estado}
-                    </Badge>
-                    <Text fontSize="10px" color="lucera.textMuted">
-                      {c.mensajes.length} msj
-                    </Text>
-                  </HStack>
-                </Box>
-              );
-            })
+                    </HStack>
+                  </Box>
+                );
+              })
             )}
             {!chatsLoading && filtered.length === 0 && (
-              <Text p={4} fontSize="sm" color="lucera.textMuted" textAlign="center">
+              <Text
+                p={4}
+                fontSize="sm"
+                color="lucera.textMuted"
+                textAlign="center"
+              >
                 No hay chats que coincidan.
               </Text>
             )}
@@ -329,7 +408,12 @@ export default function Chats() {
                 justify="space-between"
               >
                 <HStack spacing={3} minW={0}>
-                  <Avatar size="sm" name={selected.acudiente} bg="vino.500" color="white" />
+                  <Avatar
+                    size="sm"
+                    name={selected.acudiente}
+                    bg="vino.500"
+                    color="white"
+                  />
                   <Box minW={0}>
                     <Text fontWeight={700} fontSize="sm" noOfLines={1}>
                       {selected.acudiente}
@@ -337,7 +421,8 @@ export default function Chats() {
                     <HStack fontSize="xs" color="lucera.textMuted" spacing={1}>
                       <Phone size={10} />
                       <Text noOfLines={1}>
-                        {selected.telefono} · {selected.paciente} · {selected.estado}
+                        {selected.telefono} · {selected.paciente} ·{" "}
+                        {selected.estado}
                       </Text>
                     </HStack>
                   </Box>
@@ -350,7 +435,10 @@ export default function Chats() {
                   {selected.mensajes.map((m, i) => {
                     const isUser = m.rol === "acudiente";
                     return (
-                      <Flex key={i} justify={isUser ? "flex-end" : "flex-start"}>
+                      <Flex
+                        key={i}
+                        justify={isUser ? "flex-end" : "flex-start"}
+                      >
                         <Box
                           maxW="75%"
                           px={4}
@@ -393,13 +481,19 @@ export default function Chats() {
               >
                 <Lock size={12} />
                 <Text>
-                  Vista de monitoreo en solo lectura. Las respuestas las gestiona
-                  Lucera IA por WhatsApp.
+                  Vista de monitoreo en solo lectura. Las respuestas las
+                  gestiona Lucera IA por WhatsApp.
                 </Text>
               </HStack>
             </>
           ) : (
-            <Flex flex={1} align="center" justify="center" color="lucera.textMuted" fontSize="sm">
+            <Flex
+              flex={1}
+              align="center"
+              justify="center"
+              color="lucera.textMuted"
+              fontSize="sm"
+            >
               Selecciona un chat para ver el detalle.
             </Flex>
           )}
@@ -421,12 +515,18 @@ export default function Chats() {
               <InfoRow
                 label="Estado"
                 value={
-                  <Badge colorScheme={estadoTone[selected.estado]} textTransform="capitalize">
+                  <Badge
+                    colorScheme={estadoTone[selected.estado]}
+                    textTransform="capitalize"
+                  >
                     {selected.estado}
                   </Badge>
                 }
               />
-              <InfoRow label="Clasificación" value={<TriageBadge level={selected.triaje} />} />
+              <InfoRow
+                label="Clasificación"
+                value={<TriageBadge level={selected.triaje} />}
+              />
               <InfoRow label="Tipo de atención" value={selected.tipoAtencion} />
               <InfoRow label="Abierta" value={selected.inicio} />
               <InfoRow label="Actualizada" value={selected.hora} />
@@ -439,7 +539,9 @@ export default function Chats() {
               <InfoRow
                 label="Relación"
                 value={
-                  selectedGuardian ? relationToEs[selectedGuardian.relationship] : "—"
+                  selectedGuardian
+                    ? relationToEs[selectedGuardian.relationship]
+                    : "—"
                 }
               />
               <InfoRow label="Ciudad" value={selectedGuardian?.city ?? "—"} />
@@ -451,10 +553,17 @@ export default function Chats() {
                 label="Edad"
                 value={selectedPatient ? `${selectedPatient.age} años` : "—"}
               />
-              <InfoRow label="Nacimiento" value={selectedPatient?.birthDate ?? "—"} />
+              <InfoRow
+                label="Nacimiento"
+                value={selectedPatient?.birthDate ?? "—"}
+              />
               <InfoRow
                 label="Peso"
-                value={selectedPatient?.weightKg ? `${selectedPatient.weightKg} kg` : "—"}
+                value={
+                  selectedPatient?.weightKg
+                    ? `${selectedPatient.weightKg} kg`
+                    : "—"
+                }
               />
               <InfoRow
                 label="Alergias"
