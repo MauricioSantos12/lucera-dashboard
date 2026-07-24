@@ -1,15 +1,16 @@
 import { useEffect, useMemo, useState } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
-import { NinoPaciente } from "@/lib/mockData";
+import { Child } from "@/lib/mockData";
 import { useFetchAll } from "@/hooks/useFetchAll";
 import { apiFetch } from "@/lib/apiClient";
-import { relationToEs } from "@/lib/apiMappings";
+import { relationToEs, chatTriageToLevel } from "@/lib/apiMappings";
 import type {
   PatientApi,
   PatientCreatePayload,
   PatientPatchPayload,
   GuardianApi,
   InsuranceRef,
+  ChatApi,
   DeleteResponse,
   BloodType,
 } from "@/lib/apiTypes";
@@ -18,6 +19,7 @@ import {
   Button,
   Flex,
   HStack,
+  VStack,
   IconButton,
   Input,
   InputGroup,
@@ -34,6 +36,7 @@ import {
   TableContainer,
   Wrap,
   WrapItem,
+  Divider,
   Modal,
   ModalBody,
   ModalCloseButton,
@@ -54,53 +57,64 @@ import {
   Plus,
   Pencil,
   Trash2,
+  MessageSquare,
 } from "lucide-react";
 import { StatCard } from "@/components/StatCard";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { Pagination } from "@/components/Pagination";
 import { LoadingState } from "@/components/LoadingState";
 import { ExportButton } from "@/components/ExportButton";
+import { TriageBadge } from "@/components/TriageBadge";
 import { toast } from "@/lib/toast";
 import { useAuth } from "@/lib/auth";
 
-type Row = NinoPaciente & {
-  edad: number;
-  acudienteId: string;
-  acudienteNombre: string;
-  relacion: string;
-  telefono: string;
-  pais: string;
-  seguro: string;
+type Row = Child & {
+  age: number;
+  guardianId: string;
+  guardianName: string;
+  relationship: string;
+  phone: string;
+  country: string;
+  insurance: string;
+  chatCount: number;
+};
+
+const chatStatusLabel: Record<string, string> = {
+  active: "activa",
+  waiting: "esperando",
+  closed: "cerrada",
 };
 
 function patientToRow(
   p: PatientApi,
-  relacionByGuardianId: Record<string, string>,
-  paisByGuardianId: Record<string, string>
+  relationshipByGuardianId: Record<string, string>,
+  countryByGuardianId: Record<string, string>,
+  chatCount: number
 ): Row {
   return {
     id: p.id,
-    nombre: p.name,
-    fechaNacimiento: p.birthDate,
-    tipoSangre: p.bloodType ?? undefined,
-    pesoKg: p.weightKg ?? undefined,
-    condiciones: p.conditions,
-    alergias: p.allergies,
-    edad: p.age,
-    acudienteId: p.guardianId,
-    acudienteNombre: p.guardian,
-    relacion: relacionByGuardianId[p.guardianId] ?? "",
-    telefono: p.phone,
-    pais: paisByGuardianId[p.guardianId] ?? "",
-    seguro: p.insurance?.name ?? "",
+    name: p.name,
+    birthDate: p.birthDate,
+    bloodType: p.bloodType ?? undefined,
+    weightKg: p.weightKg ?? undefined,
+    conditions: p.conditions,
+    allergies: p.allergies,
+    age: p.age,
+    guardianId: p.guardianId,
+    guardianName: p.guardian,
+    relationship: relationshipByGuardianId[p.guardianId] ?? "",
+    phone: p.phone,
+    country: countryByGuardianId[p.guardianId] ?? "",
+    insurance: p.insurance?.name ?? "",
+    chatCount,
   };
 }
 
 export default function Children() {
   const { user, token, getValidToken } = useAuth();
   // Solo Admin crea/edita/elimina; el resto (Ventas, Médico) es solo lectura.
-  const canEdit = user?.rol === "Admin";
-  const canExport = user?.rol !== "Invitado";
+  const canEdit = user?.role === "Admin";
+  const canExport = user?.role !== "Invitado";
   const perPage = 10;
 
   const {
@@ -119,110 +133,141 @@ export default function Children() {
     loading: insurancesLoading,
     error: insurancesError,
   } = useFetchAll<InsuranceRef>(token ? "/api/insurances" : null);
+  const { data: chatsData, error: chatsError } = useFetchAll<ChatApi>(
+    token ? "/api/chats" : null
+  );
 
-  const guardianes = useMemo(() => guardiansData?.items ?? [], [guardiansData]);
-  const relacionByGuardianId = useMemo(
+  // Los chats de cada niño se cruzan por teléfono + nombre del paciente
+  // (el chat no trae el id del paciente, solo su nombre y el teléfono).
+  const chatsByPatient = useMemo(() => {
+    const map = new Map<string, ChatApi[]>();
+    (chatsData?.items ?? []).forEach((c) => {
+      const key = `${c.phone}__${c.patient}`;
+      if (!map.has(key)) map.set(key, []);
+      map.get(key)!.push(c);
+    });
+    return map;
+  }, [chatsData]);
+
+  const guardians = useMemo(() => guardiansData?.items ?? [], [guardiansData]);
+  const relationshipByGuardianId = useMemo(
     () =>
       Object.fromEntries(
-        guardianes.map((g) => [g.id, relationToEs[g.relationship] ?? ""])
+        guardians.map((g) => [g.id, relationToEs[g.relationship] ?? ""])
       ),
-    [guardianes]
+    [guardians]
   );
-  const paisByGuardianId = useMemo(
-    () => Object.fromEntries(guardianes.map((g) => [g.id, g.country])),
-    [guardianes]
+  const countryByGuardianId = useMemo(
+    () => Object.fromEntries(guardians.map((g) => [g.id, g.country])),
+    [guardians]
   );
   const data = useMemo(
     () =>
       (patientsData?.items ?? []).map((p) =>
-        patientToRow(p, relacionByGuardianId, paisByGuardianId)
+        patientToRow(
+          p,
+          relationshipByGuardianId,
+          countryByGuardianId,
+          (chatsByPatient.get(`${p.phone}__${p.name}`) ?? []).length
+        )
       ),
-    [patientsData, relacionByGuardianId, paisByGuardianId]
+    [patientsData, relationshipByGuardianId, countryByGuardianId, chatsByPatient]
   );
-  const seguros = useMemo(() => insurancesData?.items ?? [], [insurancesData]);
-  const paisOptions = useMemo(
-    () => [...new Set(guardianes.map((g) => g.country))].sort(),
-    [guardianes]
+  const insurances = useMemo(() => insurancesData?.items ?? [], [insurancesData]);
+  const countryOptions = useMemo(
+    () => [...new Set(guardians.map((g) => g.country))].sort(),
+    [guardians]
   );
 
   useEffect(() => {
-    const err = patientsError || guardiansError || insurancesError;
+    const err = patientsError || guardiansError || insurancesError || chatsError;
     if (err) {
       toast.error("No se pudieron cargar los niños", { description: err });
     }
-  }, [patientsError, guardiansError, insurancesError]);
+  }, [patientsError, guardiansError, insurancesError, chatsError]);
 
   const [page, setPage] = useState(1);
   const [q, setQ] = useState("");
   const [filter, setFilter] = useState("todos");
-  const [tipoSangreFilter, setTipoSangreFilter] = useState("todos");
-  const [pesoFilter, setPesoFilter] = useState("todos");
-  const [alergiasFilter, setAlergiasFilter] = useState("todos");
-  const [condicionesFilter, setCondicionesFilter] = useState("todos");
-  const [paisFilter, setPaisFilter] = useState("todos");
-  const [seguroFilter, setSeguroFilter] = useState("todos");
+  const [bloodTypeFilter, setBloodTypeFilter] = useState("todos");
+  const [weightFilter, setWeightFilter] = useState("todos");
+  const [allergiesFilter, setAllergiesFilter] = useState("todos");
+  const [conditionsFilter, setConditionsFilter] = useState("todos");
+  const [countryFilter, setCountryFilter] = useState("todos");
+  const [insuranceFilter, setInsuranceFilter] = useState("todos");
   const { isOpen, onOpen, onClose } = useDisclosure();
   const [editing, setEditing] = useState<Row | null>(null);
   const [toDelete, setToDelete] = useState<Row | null>(null);
+  const [detail, setDetail] = useState<Row | null>(null);
   const [saving, setSaving] = useState(false);
+
+  const detailChats = useMemo(
+    () =>
+      detail
+        ? (chatsByPatient.get(`${detail.phone}__${detail.name}`) ?? [])
+            .slice()
+            .sort((a, b) => b.startedAt.localeCompare(a.startedAt))
+        : [],
+    [detail, chatsByPatient]
+  );
 
   const filtered = useMemo(() => {
     setPage(1);
     return data.filter((r) => {
-      const okQ = `${r.nombre} ${r.acudienteNombre} ${r.id}`
+      const okQ = `${r.name} ${r.guardianName} ${r.id}`
         .toLowerCase()
         .includes(q.toLowerCase());
       const okF =
         filter === "todos" ||
-        (filter === "lactantes" && r.edad < 2) ||
-        (filter === "preescolar" && r.edad >= 2 && r.edad < 6) ||
-        (filter === "escolar" && r.edad >= 6);
-      const okTipoSangre =
-        tipoSangreFilter === "todos" || r.tipoSangre === tipoSangreFilter;
-      const okPeso =
-        pesoFilter === "todos" ||
-        (r.pesoKg == null
+        (filter === "lactantes" && r.age < 2) ||
+        (filter === "preescolar" && r.age >= 2 && r.age < 6) ||
+        (filter === "escolar" && r.age >= 6);
+      const okBloodType =
+        bloodTypeFilter === "todos" || r.bloodType === bloodTypeFilter;
+      const okWeight =
+        weightFilter === "todos" ||
+        (r.weightKg == null
           ? false
-          : pesoFilter === "menos10"
-          ? r.pesoKg < 10
-          : pesoFilter === "10a20"
-          ? r.pesoKg >= 10 && r.pesoKg <= 20
-          : r.pesoKg > 20);
-      const okAlergias =
-        alergiasFilter === "todos" ||
-        (alergiasFilter === "con"
-          ? (r.alergias?.length ?? 0) > 0
-          : (r.alergias?.length ?? 0) === 0);
-      const okCondiciones =
-        condicionesFilter === "todos" ||
-        (condicionesFilter === "con"
-          ? (r.condiciones?.length ?? 0) > 0
-          : (r.condiciones?.length ?? 0) === 0);
-      const okPais = paisFilter === "todos" || r.pais === paisFilter;
-      const okSeguro =
-        seguroFilter === "todos" ||
-        (seguroFilter === "sin_seguro" ? !r.seguro : r.seguro === seguroFilter);
+          : weightFilter === "menos10"
+          ? r.weightKg < 10
+          : weightFilter === "10a20"
+          ? r.weightKg >= 10 && r.weightKg <= 20
+          : r.weightKg > 20);
+      const okAllergies =
+        allergiesFilter === "todos" ||
+        (allergiesFilter === "con"
+          ? (r.allergies?.length ?? 0) > 0
+          : (r.allergies?.length ?? 0) === 0);
+      const okConditions =
+        conditionsFilter === "todos" ||
+        (conditionsFilter === "con"
+          ? (r.conditions?.length ?? 0) > 0
+          : (r.conditions?.length ?? 0) === 0);
+      const okCountry = countryFilter === "todos" || r.country === countryFilter;
+      const okInsurance =
+        insuranceFilter === "todos" ||
+        (insuranceFilter === "sin_seguro" ? !r.insurance : r.insurance === insuranceFilter);
       return (
         okQ &&
         okF &&
-        okTipoSangre &&
-        okPeso &&
-        okAlergias &&
-        okCondiciones &&
-        okPais &&
-        okSeguro
+        okBloodType &&
+        okWeight &&
+        okAllergies &&
+        okConditions &&
+        okCountry &&
+        okInsurance
       );
     });
   }, [
     data,
     q,
     filter,
-    tipoSangreFilter,
-    pesoFilter,
-    alergiasFilter,
-    condicionesFilter,
-    paisFilter,
-    seguroFilter,
+    bloodTypeFilter,
+    weightFilter,
+    allergiesFilter,
+    conditionsFilter,
+    countryFilter,
+    insuranceFilter,
   ]);
 
   const totalPages = Math.ceil(filtered.length / perPage);
@@ -235,30 +280,30 @@ export default function Children() {
 
   const handleSave = async (form: HTMLFormElement) => {
     const fd = new FormData(form);
-    const alergias = String(fd.get("alergias") || "")
+    const allergies = String(fd.get("allergies") || "")
       .split(",")
       .map((s) => s.trim())
       .filter(Boolean);
-    const condiciones = String(fd.get("condiciones") || "")
+    const conditions = String(fd.get("conditions") || "")
       .split(",")
       .map((s) => s.trim())
       .filter(Boolean);
-    const fechaNacimiento = String(fd.get("fechaNacimiento"));
-    const pesoKg = Number(fd.get("pesoKg")) || undefined;
-    const tipoSangre =
-      (fd.get("tipoSangre") as NinoPaciente["tipoSangre"]) || undefined;
+    const birthDate = String(fd.get("birthDate"));
+    const weightKg = Number(fd.get("weightKg")) || undefined;
+    const bloodType =
+      (fd.get("bloodType") as Child["bloodType"]) || undefined;
 
     setSaving(true);
     try {
       const freshToken = await getValidToken();
       if (editing) {
         const payload: PatientPatchPayload = {
-          name: String(fd.get("nombre")),
-          birthDate: fechaNacimiento,
-          weightKg: pesoKg,
-          bloodType: tipoSangre as BloodType | undefined,
-          conditions: condiciones,
-          allergies: alergias,
+          name: String(fd.get("name")),
+          birthDate: birthDate,
+          weightKg: weightKg,
+          bloodType: bloodType as BloodType | undefined,
+          conditions: conditions,
+          allergies: allergies,
         };
         await apiFetch<PatientApi>(`/api/patients/${editing.id}`, freshToken, {
           method: "PATCH",
@@ -267,13 +312,13 @@ export default function Children() {
         toast.success("Niño actualizado");
       } else {
         const payload: PatientCreatePayload = {
-          guardianId: String(fd.get("acudienteId")),
-          name: String(fd.get("nombre")),
-          birthDate: fechaNacimiento,
-          weightKg: pesoKg,
-          bloodType: tipoSangre as BloodType | undefined,
-          conditions: condiciones,
-          allergies: alergias,
+          guardianId: String(fd.get("guardianId")),
+          name: String(fd.get("name")),
+          birthDate: birthDate,
+          weightKg: weightKg,
+          bloodType: bloodType as BloodType | undefined,
+          conditions: conditions,
+          allergies: allergies,
         };
         await apiFetch<PatientApi>("/api/patients", freshToken, {
           method: "POST",
@@ -343,8 +388,8 @@ export default function Children() {
             </Text>
             <Select
               w={{ base: "100%", md: "160px" }}
-              value={tipoSangreFilter}
-              onChange={(e) => setTipoSangreFilter(e.target.value)}
+              value={bloodTypeFilter}
+              onChange={(e) => setBloodTypeFilter(e.target.value)}
             >
               <option value="todos">Todos los tipos de sangre</option>
               {["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"].map((t) => (
@@ -360,8 +405,8 @@ export default function Children() {
             </Text>
             <Select
               w={{ base: "100%", md: "160px" }}
-              value={pesoFilter}
-              onChange={(e) => setPesoFilter(e.target.value)}
+              value={weightFilter}
+              onChange={(e) => setWeightFilter(e.target.value)}
             >
               <option value="todos">Todos los pesos</option>
               <option value="menos10">Menos de 10 kg</option>
@@ -375,8 +420,8 @@ export default function Children() {
             </Text>
             <Select
               w={{ base: "100%", md: "160px" }}
-              value={alergiasFilter}
-              onChange={(e) => setAlergiasFilter(e.target.value)}
+              value={allergiesFilter}
+              onChange={(e) => setAllergiesFilter(e.target.value)}
             >
               <option value="todos">Todos</option>
               <option value="con">Con alergias</option>
@@ -389,8 +434,8 @@ export default function Children() {
             </Text>
             <Select
               w={{ base: "100%", md: "160px" }}
-              value={condicionesFilter}
-              onChange={(e) => setCondicionesFilter(e.target.value)}
+              value={conditionsFilter}
+              onChange={(e) => setConditionsFilter(e.target.value)}
             >
               <option value="todos">Todos</option>
               <option value="con">Con condiciones</option>
@@ -403,11 +448,11 @@ export default function Children() {
             </Text>
             <Select
               w={{ base: "100%", md: "160px" }}
-              value={paisFilter}
-              onChange={(e) => setPaisFilter(e.target.value)}
+              value={countryFilter}
+              onChange={(e) => setCountryFilter(e.target.value)}
             >
               <option value="todos">Todos los países</option>
-              {paisOptions.map((p) => (
+              {countryOptions.map((p) => (
                 <option key={p} value={p}>
                   {p}
                 </option>
@@ -420,12 +465,12 @@ export default function Children() {
             </Text>
             <Select
               w={{ base: "100%", md: "180px" }}
-              value={seguroFilter}
-              onChange={(e) => setSeguroFilter(e.target.value)}
+              value={insuranceFilter}
+              onChange={(e) => setInsuranceFilter(e.target.value)}
             >
               <option value="todos">Todos los seguros</option>
               <option value="sin_seguro">Sin seguro</option>
-              {seguros.map((s) => (
+              {insurances.map((s) => (
                 <option key={s.id} value={s.name}>
                   {s.name}
                 </option>
@@ -441,17 +486,18 @@ export default function Children() {
             sheetName="Niños"
             data={filtered.map((r) => ({
               ID: r.id,
-              Nombre: r.nombre,
-              "F. Nacimiento": r.fechaNacimiento,
-              Edad: r.edad,
-              "Peso (kg)": r.pesoKg ?? "",
-              "Tipo Sangre": r.tipoSangre ?? "",
-              Alergias: (r.alergias ?? []).join(", "),
-              Condiciones: (r.condiciones ?? []).join(", "),
-              País: r.pais,
-              Seguro: r.seguro,
-              Acudiente: r.acudienteNombre,
-              Teléfono: r.telefono,
+              Nombre: r.name,
+              "F. Nacimiento": r.birthDate,
+              Edad: r.age,
+              "Peso (kg)": r.weightKg ?? "",
+              "Tipo Sangre": r.bloodType ?? "",
+              Seguro: r.insurance,
+              Chats: r.chatCount,
+              Alergias: (r.allergies ?? []).join(", "),
+              Condiciones: (r.conditions ?? []).join(", "),
+              País: r.country,
+              Acudiente: r.guardianName,
+              Teléfono: r.phone,
             }))}
           />
           {canEdit && (
@@ -485,6 +531,12 @@ export default function Children() {
                 <Th>Edad</Th>
                 <Th display={{ base: "none", md: "table-cell" }}>Peso</Th>
                 <Th display={{ base: "none", md: "table-cell" }}>Sangre</Th>
+                <Th display={{ base: "none", lg: "table-cell" }}>Seguro</Th>
+                <Th textAlign="center">Chats</Th>
+                <Th display={{ base: "none", xl: "table-cell" }}>Dirección</Th>
+                <Th display={{ base: "none", xl: "table-cell" }}>
+                  Centro educativo
+                </Th>
                 <Th display={{ base: "none", lg: "table-cell" }}>
                   Alergias / Condiciones
                 </Th>
@@ -496,7 +548,13 @@ export default function Children() {
               {paginated.map((r) => (
                 <Tr key={r.id} _hover={{ bg: "crema.50" }}>
                   <Td>
-                    <HStack>
+                    <HStack
+                      as="button"
+                      type="button"
+                      onClick={() => setDetail(r)}
+                      _hover={{ color: "vino.500" }}
+                      textAlign="left"
+                    >
                       <Flex
                         h={8}
                         w={8}
@@ -504,11 +562,18 @@ export default function Children() {
                         bg="naranja.50"
                         align="center"
                         justify="center"
+                        flexShrink={0}
                       >
                         <Baby size={14} color="#ef7d54" />
                       </Flex>
-                      <Text fontSize="sm" fontWeight={600}>
-                        {r.nombre}
+                      <Text
+                        fontSize="sm"
+                        fontWeight={600}
+                        textDecoration="underline"
+                        textDecorationColor="lucera.border"
+                        textUnderlineOffset="2px"
+                      >
+                        {r.name}
                       </Text>
                     </HStack>
                   </Td>
@@ -516,24 +581,24 @@ export default function Children() {
                     display={{ base: "none", md: "table-cell" }}
                     fontSize="xs"
                   >
-                    {r.fechaNacimiento}
+                    {r.birthDate}
                   </Td>
                   <Td fontSize="sm" textAlign="center">
-                    {r.edad}
+                    {r.age}
                   </Td>
                   <Td
                     display={{ base: "none", md: "table-cell" }}
                     fontSize="sm"
                     textAlign="center"
                   >
-                    {r.pesoKg ? `${r.pesoKg}` : "—"}
+                    {r.weightKg ? `${r.weightKg}` : "—"}
                   </Td>
                   <Td display={{ base: "none", md: "table-cell" }}>
-                    {r.tipoSangre ? (
+                    {r.bloodType ? (
                       <Badge variant="outline">
                         <HStack spacing={1}>
                           <Droplet size={10} color="#b91c1c" />
-                          <Text fontFamily="mono">{r.tipoSangre}</Text>
+                          <Text fontFamily="mono">{r.bloodType}</Text>
                         </HStack>
                       </Badge>
                     ) : (
@@ -542,9 +607,38 @@ export default function Children() {
                       </Text>
                     )}
                   </Td>
+                  <Td display={{ base: "none", lg: "table-cell" }} fontSize="xs">
+                    {r.insurance || (
+                      <Text as="span" color="lucera.textMuted">
+                        —
+                      </Text>
+                    )}
+                  </Td>
+                  <Td textAlign="center">
+                    <Badge variant="outline">
+                      <HStack spacing={1}>
+                        <MessageSquare size={10} />
+                        <Text>{r.chatCount}</Text>
+                      </HStack>
+                    </Badge>
+                  </Td>
+                  <Td
+                    display={{ base: "none", xl: "table-cell" }}
+                    fontSize="xs"
+                    color="lucera.textMuted"
+                  >
+                    —
+                  </Td>
+                  <Td
+                    display={{ base: "none", xl: "table-cell" }}
+                    fontSize="xs"
+                    color="lucera.textMuted"
+                  >
+                    —
+                  </Td>
                   <Td display={{ base: "none", lg: "table-cell" }}>
                     <Wrap spacing={1}>
-                      {(r.alergias ?? []).map((a) => (
+                      {(r.allergies ?? []).map((a) => (
                         <WrapItem key={a}>
                           <Badge colorScheme="amarillo">
                             <HStack spacing={1}>
@@ -554,13 +648,13 @@ export default function Children() {
                           </Badge>
                         </WrapItem>
                       ))}
-                      {(r.condiciones ?? []).map((c) => (
+                      {(r.conditions ?? []).map((c) => (
                         <WrapItem key={c}>
                           <Badge colorScheme="blue">{c}</Badge>
                         </WrapItem>
                       ))}
-                      {(r.alergias?.length ?? 0) === 0 &&
-                        (r.condiciones?.length ?? 0) === 0 && (
+                      {(r.allergies?.length ?? 0) === 0 &&
+                        (r.conditions?.length ?? 0) === 0 && (
                           <Text fontSize="xs" color="lucera.textMuted">
                             Sin antecedentes
                           </Text>
@@ -568,9 +662,9 @@ export default function Children() {
                     </Wrap>
                   </Td>
                   <Td fontSize="xs">
-                    <Text fontWeight={600}>{r.acudienteNombre}</Text>
+                    <Text fontWeight={600}>{r.guardianName}</Text>
                     <Text color="lucera.textMuted">
-                      {r.relacion} · {r.telefono}
+                      {r.relationship} · {r.phone}
                     </Text>
                   </Td>
                   {canEdit && (
@@ -609,6 +703,119 @@ export default function Children() {
         )}
       </StatCard>
 
+      {/* Detalle del niño + historial de chats */}
+      <Modal isOpen={!!detail} onClose={() => setDetail(null)} size="xl" scrollBehavior="inside">
+        <ModalOverlay />
+        <ModalContent>
+          <ModalHeader>
+            <HStack spacing={2}>
+              <Baby size={18} color="#ef7d54" />
+              <Text>{detail?.name}</Text>
+            </HStack>
+          </ModalHeader>
+          <ModalCloseButton />
+          <ModalBody pb={6}>
+            {detail && (
+              <>
+                <SimpleGrid columns={{ base: 2, md: 3 }} spacing={3} mb={4}>
+                  <Box>
+                    <Text fontSize="10px" textTransform="uppercase" color="lucera.textMuted" letterSpacing="wider">Edad</Text>
+                    <Text fontWeight={600}>{detail.age} años</Text>
+                  </Box>
+                  <Box>
+                    <Text fontSize="10px" textTransform="uppercase" color="lucera.textMuted" letterSpacing="wider">Nacimiento</Text>
+                    <Text fontWeight={600}>{detail.birthDate}</Text>
+                  </Box>
+                  <Box>
+                    <Text fontSize="10px" textTransform="uppercase" color="lucera.textMuted" letterSpacing="wider">Peso</Text>
+                    <Text fontWeight={600}>{detail.weightKg ? `${detail.weightKg} kg` : "—"}</Text>
+                  </Box>
+                  <Box>
+                    <Text fontSize="10px" textTransform="uppercase" color="lucera.textMuted" letterSpacing="wider">Sangre</Text>
+                    <Text fontWeight={600}>{detail.bloodType ?? "—"}</Text>
+                  </Box>
+                  <Box>
+                    <Text fontSize="10px" textTransform="uppercase" color="lucera.textMuted" letterSpacing="wider">Seguro</Text>
+                    <Text fontWeight={600}>{detail.insurance || "—"}</Text>
+                  </Box>
+                  <Box>
+                    <Text fontSize="10px" textTransform="uppercase" color="lucera.textMuted" letterSpacing="wider">Acudiente</Text>
+                    <Text fontWeight={600}>{detail.guardianName}</Text>
+                  </Box>
+                </SimpleGrid>
+
+                {((detail.allergies?.length ?? 0) > 0 ||
+                  (detail.conditions?.length ?? 0) > 0) && (
+                  <Wrap spacing={1} mb={4}>
+                    {(detail.allergies ?? []).map((a) => (
+                      <WrapItem key={a}>
+                        <Badge colorScheme="amarillo">
+                          <HStack spacing={1}>
+                            <AlertTriangle size={10} />
+                            <Text>{a}</Text>
+                          </HStack>
+                        </Badge>
+                      </WrapItem>
+                    ))}
+                    {(detail.conditions ?? []).map((c) => (
+                      <WrapItem key={c}>
+                        <Badge colorScheme="blue">{c}</Badge>
+                      </WrapItem>
+                    ))}
+                  </Wrap>
+                )}
+
+                <Divider mb={3} />
+                <HStack mb={3} spacing={2}>
+                  <MessageSquare size={15} color="#6d122b" />
+                  <Text fontSize="sm" fontWeight={700}>
+                    Historial de chats ({detailChats.length})
+                  </Text>
+                </HStack>
+
+                {detailChats.length === 0 ? (
+                  <Text fontSize="sm" color="lucera.textMuted">
+                    Este niño aún no tiene chats registrados.
+                  </Text>
+                ) : (
+                  <VStack align="stretch" spacing={2}>
+                    {detailChats.map((c) => (
+                      <Box
+                        key={c.id}
+                        borderWidth="1px"
+                        borderColor="lucera.border"
+                        borderRadius="md"
+                        p={3}
+                      >
+                        <Flex justify="space-between" align="center" mb={1} gap={2}>
+                          <HStack spacing={2}>
+                            <TriageBadge level={chatTriageToLevel[c.triage]} />
+                            <Badge textTransform="capitalize" variant="outline">
+                              {chatStatusLabel[c.status] ?? c.status}
+                            </Badge>
+                          </HStack>
+                          <Text fontSize="xs" color="lucera.textMuted" sx={{ fontVariantNumeric: "tabular-nums" }}>
+                            {c.startedAt}
+                          </Text>
+                        </Flex>
+                        <Text fontSize="sm" noOfLines={2}>
+                          {c.lastMessage}
+                        </Text>
+                        {c.aiSummary && (
+                          <Text fontSize="xs" color="lucera.textMuted" mt={1} noOfLines={2}>
+                            IA: {c.aiSummary}
+                          </Text>
+                        )}
+                      </Box>
+                    ))}
+                  </VStack>
+                )}
+              </>
+            )}
+          </ModalBody>
+        </ModalContent>
+      </Modal>
+
       <Modal isOpen={isOpen} onClose={onClose} size="xl">
         <ModalOverlay />
         <ModalContent>
@@ -624,31 +831,31 @@ export default function Children() {
               <SimpleGrid columns={2} spacing={3}>
                 <FormControl gridColumn="span 2" isRequired>
                   <FormLabel>Nombre completo</FormLabel>
-                  <Input name="nombre" defaultValue={editing?.nombre} />
+                  <Input name="name" defaultValue={editing?.name} />
                 </FormControl>
                 <FormControl isRequired>
                   <FormLabel>Fecha de nacimiento</FormLabel>
                   <Input
-                    name="fechaNacimiento"
+                    name="birthDate"
                     type="date"
-                    defaultValue={editing?.fechaNacimiento}
+                    defaultValue={editing?.birthDate}
                   />
                 </FormControl>
                 <FormControl>
                   <FormLabel>Peso (kg)</FormLabel>
                   <Input
-                    name="pesoKg"
+                    name="weightKg"
                     type="number"
                     step="0.1"
                     min="0"
-                    defaultValue={editing?.pesoKg}
+                    defaultValue={editing?.weightKg}
                   />
                 </FormControl>
                 <FormControl>
                   <FormLabel>Tipo de sangre</FormLabel>
                   <Select
-                    name="tipoSangre"
-                    defaultValue={editing?.tipoSangre ?? ""}
+                    name="bloodType"
+                    defaultValue={editing?.bloodType ?? ""}
                     placeholder="Sin especificar"
                   >
                     {["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"].map(
@@ -664,10 +871,10 @@ export default function Children() {
                   <FormControl isRequired>
                     <FormLabel>Acudiente</FormLabel>
                     <Select
-                      name="acudienteId"
+                      name="guardianId"
                       placeholder="Seleccionar acudiente"
                     >
-                      {guardianes.map((g) => (
+                      {guardians.map((g) => (
                         <option key={g.id} value={g.id}>
                           {g.name}
                         </option>
@@ -678,9 +885,9 @@ export default function Children() {
                 <FormControl gridColumn="span 2">
                   <FormLabel>Alergias (separadas por coma)</FormLabel>
                   <Input
-                    name="alergias"
+                    name="allergies"
                     placeholder="Penicilina, Maní…"
-                    defaultValue={editing?.alergias?.join(", ")}
+                    defaultValue={editing?.allergies?.join(", ")}
                   />
                 </FormControl>
                 <FormControl gridColumn="span 2">
@@ -688,9 +895,9 @@ export default function Children() {
                     Condiciones médicas (separadas por coma)
                   </FormLabel>
                   <Input
-                    name="condiciones"
+                    name="conditions"
                     placeholder="Asma leve…"
-                    defaultValue={editing?.condiciones?.join(", ")}
+                    defaultValue={editing?.conditions?.join(", ")}
                   />
                 </FormControl>
               </SimpleGrid>
@@ -713,7 +920,7 @@ export default function Children() {
         title="Eliminar niño"
         description={
           <>
-            ¿Seguro que deseas eliminar a <strong>{toDelete?.nombre}</strong>?
+            ¿Seguro que deseas eliminar a <strong>{toDelete?.name}</strong>?
             Se perderá su historial clínico vinculado y no se puede deshacer.
           </>
         }

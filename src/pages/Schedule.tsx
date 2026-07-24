@@ -2,9 +2,9 @@ import { useMemo, useState } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { useAuth } from "@/lib/auth";
 import {
-  disponibilidad as seed,
-  Disponibilidad,
-  medicos,
+  availability as seed,
+  Availability,
+  doctors,
 } from "@/lib/mockData";
 import {
   Box,
@@ -35,7 +35,7 @@ import { StatCard } from "@/components/StatCard";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { toast } from "@/lib/toast";
 
-const slotTone: Record<Disponibilidad["estado"], string> = {
+const slotTone: Record<Availability["status"], string> = {
   disponible: "green",
   reservado: "vino",
   cancelado: "red",
@@ -43,55 +43,55 @@ const slotTone: Record<Disponibilidad["estado"], string> = {
 
 export default function Schedule() {
   const { user } = useAuth();
-  const medicoNombre =
-    medicos.find((m) => m.id === user?.refId)?.nombre ??
-    user?.nombre ??
+  const doctorName =
+    doctors.find((m) => m.id === user?.refId)?.name ??
+    user?.name ??
     "Médico";
 
   const [date, setDate] = useState<string>(
     new Date().toISOString().slice(0, 10)
   );
-  const [slots, setSlots] = useState<Disponibilidad[]>(
-    seed.filter((s) => s.especialista === medicoNombre)
+  const [slots, setSlots] = useState<Availability[]>(
+    seed.filter((s) => s.specialistName === doctorName)
   );
   const { isOpen, onOpen, onClose } = useDisclosure();
-  const [toDelete, setToDelete] = useState<Disponibilidad | null>(null);
+  const [toDelete, setToDelete] = useState<Availability | null>(null);
 
   const daySlots = useMemo(
     () =>
       slots
-        .filter((s) => s.fecha === date)
+        .filter((s) => s.date === date)
         .sort((a, b) => a.startHour.localeCompare(b.startHour)),
     [slots, date]
   );
 
-  const cycleEstado = (s: Disponibilidad) => {
-    const next: Disponibilidad["estado"] =
-      s.estado === "disponible"
+  const cycleStatus = (s: Availability) => {
+    const next: Availability["status"] =
+      s.status === "disponible"
         ? "reservado"
-        : s.estado === "reservado"
+        : s.status === "reservado"
         ? "cancelado"
         : "disponible";
-    setSlots(slots.map((x) => (x === s ? { ...x, estado: next } : x)));
+    setSlots(slots.map((x) => (x === s ? { ...x, status: next } : x)));
     toast.success(`Franja → ${next}`);
   };
 
   const handleAdd = (form: HTMLFormElement) => {
     const fd = new FormData(form);
-    const nuevo: Disponibilidad = {
-      fecha: String(fd.get("fecha")),
+    const newSlot: Availability = {
+      date: String(fd.get("date")),
       startHour: String(fd.get("startHour")),
       finishHour: String(fd.get("finishHour")),
-      especialista: medicoNombre,
-      estado: "disponible",
-      modalidad: fd.get("modalidad") as Disponibilidad["modalidad"],
+      specialistName: doctorName,
+      status: "disponible",
+      mode: fd.get("mode") as Availability["mode"],
     };
-    setSlots([...slots, nuevo]);
+    setSlots([...slots, newSlot]);
     onClose();
     toast.success("Franja añadida");
   };
 
-  const diasUnicos = Array.from(new Set(slots.map((s) => s.fecha))).sort();
+  const uniqueDays = Array.from(new Set(slots.map((s) => s.date))).sort();
 
   return (
     <DashboardLayout
@@ -121,7 +121,7 @@ export default function Schedule() {
             Días con franjas
           </Text>
           <VStack align="stretch" spacing={1}>
-            {diasUnicos.map((d) => (
+            {uniqueDays.map((d) => (
               <Button
                 key={d}
                 size="sm"
@@ -196,7 +196,7 @@ export default function Schedule() {
                   borderRadius="lg"
                   align="center"
                   gap={3}
-                  bg={`${slotTone[s.estado]}.50`}
+                  bg={`${slotTone[s.status]}.50`}
                 >
                   <Clock size={16} />
                   <Text
@@ -213,18 +213,18 @@ export default function Schedule() {
                   >
                     - {s.finishHour}
                   </Text>
-                  <Badge variant="outline">{s.modalidad ?? "Virtual"}</Badge>
+                  <Badge variant="outline">{s.mode ?? "Virtual"}</Badge>
                   <Badge
-                    colorScheme={slotTone[s.estado]}
+                    colorScheme={slotTone[s.status]}
                     textTransform="capitalize"
                   >
-                    {s.estado}
+                    {s.status}
                   </Badge>
                   <HStack ml="auto">
                     <Button
                       size="sm"
                       variant="ghost"
-                      onClick={() => cycleEstado(s)}
+                      onClick={() => cycleStatus(s)}
                     >
                       Cambiar estado
                     </Button>
@@ -259,7 +259,7 @@ export default function Schedule() {
               <VStack spacing={3} align="stretch">
                 <FormControl isRequired>
                   <FormLabel>Fecha</FormLabel>
-                  <Input name="fecha" type="date" defaultValue={date} />
+                  <Input name="date" type="date" defaultValue={date} />
                 </FormControl>
                 <FormControl isRequired>
                   <FormLabel>Hora de inicio</FormLabel>
@@ -271,7 +271,7 @@ export default function Schedule() {
                 </FormControl>
                 <FormControl>
                   <FormLabel>Modalidad</FormLabel>
-                  <Select name="modalidad" defaultValue="Virtual">
+                  <Select name="mode" defaultValue="Virtual">
                     <option value="Virtual">Virtual</option>
                     <option value="Presencial">Presencial</option>
                     <option value="Ambas">Ambas</option>
@@ -299,7 +299,7 @@ export default function Schedule() {
           <>
             ¿Eliminar la franja del{" "}
             <strong>
-              {toDelete?.fecha} a las {toDelete?.startHour} hasta{" "}
+              {toDelete?.date} a las {toDelete?.startHour} hasta{" "}
               {toDelete?.finishHour}
             </strong>
             ? Si estaba reservada, se notificará al paciente.

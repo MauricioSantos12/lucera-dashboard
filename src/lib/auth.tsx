@@ -25,9 +25,9 @@ export function roleFromApi(role: string): UserRole {
 
 export type AuthUser = {
   email: string;
-  nombre: string;
-  rol: UserRole;
-  telefono?: string;
+  name: string;
+  role: UserRole;
+  phone?: string;
   // Para médicos: id del médico vinculado · para acudientes: id del acudiente
   refId?: string;
 };
@@ -53,11 +53,11 @@ const AuthContext = createContext<AuthContextType | null>(null);
 
 // Cuentas demo para que el evaluador pueda probar cada rol
 export const demoAccounts: Record<UserRole, AuthUser> = {
-  Admin: { email: "admin@lucera.pa", nombre: "Admin Técnico", rol: "Admin", telefono: "+507 6000-0001" },
-  Médico: { email: "esanchez@lucera.pa", nombre: "Dra. Elena Sánchez", rol: "Médico", telefono: "+507 6000-0201", refId: "M-201" },
-  Acudiente: { email: "maria.mendoza@gmail.com", nombre: "María Mendoza", rol: "Acudiente", telefono: "+507 6123-4567", refId: "AC-1042" },
-  Ventas: { email: "ventas@lucera.pa", nombre: "Carla Núñez", rol: "Ventas", telefono: "+507 6000-0099" },
-  Invitado: { email: "invitado@lucera.pa", nombre: "Usuario Invitado", rol: "Invitado", telefono: "+507 6000-0000" },
+  Admin: { email: "admin@lucera.pa", name: "Admin Técnico", role: "Admin", phone: "+507 6000-0001" },
+  Médico: { email: "esanchez@lucera.pa", name: "Dra. Elena Sánchez", role: "Médico", phone: "+507 6000-0201", refId: "M-201" },
+  Acudiente: { email: "maria.mendoza@gmail.com", name: "María Mendoza", role: "Acudiente", phone: "+507 6123-4567", refId: "AC-1042" },
+  Ventas: { email: "ventas@lucera.pa", name: "Carla Núñez", role: "Ventas", phone: "+507 6000-0099" },
+  Invitado: { email: "invitado@lucera.pa", name: "Usuario Invitado", role: "Invitado", phone: "+507 6000-0000" },
 };
 
 export function AuthProvider({ children }: { children: ReactNode }) {

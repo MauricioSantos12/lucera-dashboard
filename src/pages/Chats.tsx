@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
-import { ChatSesion } from "@/lib/mockData";
+import { ChatSession } from "@/lib/mockData";
 import { useAuth } from "@/lib/auth";
 import { useFetchAll } from "@/hooks/useFetchAll";
 import {
@@ -23,6 +24,10 @@ import {
   Text,
   Avatar,
   Badge,
+  Menu,
+  MenuButton,
+  MenuList,
+  MenuItem,
   type BadgeProps,
 } from "@chakra-ui/react";
 import {
@@ -33,6 +38,8 @@ import {
   Clock,
   Users as UsersIcon,
   Lock,
+  ChevronDown,
+  ExternalLink,
   type LucideIcon,
 } from "lucide-react";
 import { TriageBadge } from "@/components/TriageBadge";
@@ -44,33 +51,33 @@ const triageColors: Record<ChatApi["triage"], string> = {
   emergency: "#b91c1c",
 };
 
-const estadoTone: Record<ChatSesion["estado"], BadgeProps["colorScheme"]> = {
+const statusTone: Record<ChatSession["status"], BadgeProps["colorScheme"]> = {
   activa: "green",
   esperando: "yellow",
   cerrada: "gray",
 };
 
-function chatApiToSesion(c: ChatApi): ChatSesion {
+function chatApiToSession(c: ChatApi): ChatSession {
   return {
     id: c.id,
-    acudiente: c.guardian,
-    paciente: c.patient,
-    telefono: c.phone,
-    triaje: chatTriageToLevel[c.triage],
-    tipoAtencion: chatAttentionToEs[c.attentionType] ?? "Virtual",
-    resumenIA: c.aiSummary ?? undefined,
-    calificacion: c.rating ?? undefined,
-    ultimoMensaje: c.lastMessage,
-    hora: c.time,
-    inicio: c.startedAt,
-    cierre: c.closedAt ?? undefined,
-    mensajes: c.messages.map((m) => ({
-      rol: chatRoleToEs[m.role] ?? "sistema",
-      texto: m.text,
-      hora: m.time,
-      alertas: m.alerts,
+    guardian: c.guardian,
+    patient: c.patient,
+    phone: c.phone,
+    triage: chatTriageToLevel[c.triage],
+    attentionType: chatAttentionToEs[c.attentionType] ?? "Virtual",
+    aiSummary: c.aiSummary ?? undefined,
+    rating: c.rating ?? undefined,
+    lastMessage: c.lastMessage,
+    time: c.time,
+    startedAt: c.startedAt,
+    closedAt: c.closedAt ?? undefined,
+    messages: c.messages.map((m) => ({
+      role: chatRoleToEs[m.role] ?? "sistema",
+      text: m.text,
+      time: m.time,
+      alerts: m.alerts,
     })),
-    estado: chatStatusToEstado[c.status] ?? "cerrada",
+    status: chatStatusToEstado[c.status] ?? "cerrada",
   };
 }
 
@@ -129,7 +136,7 @@ function InfoRow({ label, value }: { label: string; value: ReactNode }) {
 // /auth/guardian/login + /portal/chats en vez de esta pantalla.
 export default function Chats() {
   const { token, user } = useAuth();
-  const esAcudiente = user?.rol === "Acudiente";
+  const isGuardianRole = user?.role === "Acudiente";
   const {
     data: chatsData,
     loading: chatsLoading,
@@ -142,18 +149,18 @@ export default function Chats() {
     token ? "/api/patients" : null
   );
 
-  const propioAcudiente = useMemo(() => {
-    if (!esAcudiente) return undefined;
+  const ownGuardian = useMemo(() => {
+    if (!isGuardianRole) return undefined;
     return (guardiansData?.items ?? []).find((g) => g.email === user?.email);
-  }, [esAcudiente, guardiansData, user?.email]);
+  }, [isGuardianRole, guardiansData, user?.email]);
 
   const rawChats = useMemo(() => {
     const items = chatsData?.items ?? [];
-    if (!esAcudiente) return items;
-    if (!propioAcudiente) return [];
-    return items.filter((c) => c.phone === propioAcudiente.phone);
-  }, [chatsData, esAcudiente, propioAcudiente]);
-  const chats = useMemo(() => rawChats.map(chatApiToSesion), [rawChats]);
+    if (!isGuardianRole) return items;
+    if (!ownGuardian) return [];
+    return items.filter((c) => c.phone === ownGuardian.phone);
+  }, [chatsData, isGuardianRole, ownGuardian]);
+  const chats = useMemo(() => rawChats.map(chatApiToSession), [rawChats]);
 
   const guardianByPhone = useMemo(() => {
     const map = new Map<string, GuardianApi>();
@@ -177,37 +184,75 @@ export default function Chats() {
     }
   }, [chatsError]);
 
+  const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [q, setQ] = useState("");
-  const [fechaInicio, setFechaInicio] = useState("");
-  const [fechaFin, setFechaFin] = useState("");
-  const [tab, setTab] = useState<"todas" | "activas" | "cerradas">("todas");
 
-  // Búsqueda + rango de fechas (sobre c.inicio), sin la pestaña todavía —
+  // Deep-link: al llegar con ?chat=<id> (p. ej. desde el detalle de un
+  // acudiente), se preselecciona ese chat una vez cargada la lista.
+  useEffect(() => {
+    const chatId = searchParams.get("chat");
+    if (!chatId) return;
+    if (rawChats.some((c) => c.id === chatId)) {
+      setSelectedId(chatId);
+      setSearchParams({}, { replace: true });
+    }
+  }, [searchParams, rawChats, setSearchParams]);
+  const [q, setQ] = useState("");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
+  const [tab, setTab] = useState<"todas" | "activas" | "cerradas">("todas");
+  // Filtro por disposición del paciente (mutuamente excluyente): urgencias
+  // (triaje emergencia) → derivación (presencial) → casa (virtual).
+  const [disposition, setDisposition] = useState<
+    "todas" | "urgencias" | "casa" | "derivacion"
+  >("todas");
+
+  const dispositionOf = (c: ChatSession): "urgencias" | "casa" | "derivacion" =>
+    c.triage === "emergencia"
+      ? "urgencias"
+      : c.attentionType === "Presencial"
+      ? "derivacion"
+      : "casa";
+
+  // Búsqueda + rango de fechas (sobre c.startedAt), sin la pestaña todavía —
   // así los 3 contadores (total/activas/cerradas) reflejan el desglose real
   // dentro del filtro, sin importar qué pestaña esté seleccionada.
   const searchAndDateFiltered = chats.filter((c) => {
-    const okQ = `${c.acudiente} ${c.paciente} ${c.telefono}`
+    const okQ = `${c.guardian} ${c.patient} ${c.phone}`
       .toLowerCase()
       .includes(q.toLowerCase());
-    const fecha = c.inicio.slice(0, 10);
-    const okFechaInicio = !fechaInicio || fecha >= fechaInicio;
-    const okFechaFin = !fechaFin || fecha <= fechaFin;
-    return okQ && okFechaInicio && okFechaFin;
+    const date = c.startedAt.slice(0, 10);
+    const okStartDate = !startDate || date >= startDate;
+    const okEndDate = !endDate || date <= endDate;
+    return okQ && okStartDate && okEndDate;
   });
 
-  const conteos = {
+  const counts = {
     total: searchAndDateFiltered.length,
-    activas: searchAndDateFiltered.filter((c) => c.estado !== "cerrada").length,
-    cerradas: searchAndDateFiltered.filter((c) => c.estado === "cerrada")
+    activas: searchAndDateFiltered.filter((c) => c.status !== "cerrada").length,
+    cerradas: searchAndDateFiltered.filter((c) => c.status === "cerrada")
       .length,
   };
 
+  const dispositionCounts = {
+    urgencias: searchAndDateFiltered.filter(
+      (c) => dispositionOf(c) === "urgencias"
+    ).length,
+    casa: searchAndDateFiltered.filter((c) => dispositionOf(c) === "casa")
+      .length,
+    derivacion: searchAndDateFiltered.filter(
+      (c) => dispositionOf(c) === "derivacion"
+    ).length,
+  };
+
   const filtered = searchAndDateFiltered.filter((c) => {
-    return (
+    const okTab =
       tab === "todas" ||
-      (tab === "activas" ? c.estado !== "cerrada" : c.estado === "cerrada")
-    );
+      (tab === "activas" ? c.status !== "cerrada" : c.status === "cerrada");
+    const okDisposition =
+      disposition === "todas" || dispositionOf(c) === disposition;
+    return okTab && okDisposition;
   });
 
   const selected = chats.find((c) => c.id === selectedId) ?? null;
@@ -221,13 +266,164 @@ export default function Chats() {
 
   return (
     <DashboardLayout
-      title={esAcudiente ? "Mis consultas" : "Monitoreo de chats"}
+      title={isGuardianRole ? "Mis consultas" : "Monitoreo de chats"}
       subtitle={
-        esAcudiente
+        isGuardianRole
           ? "Tus conversaciones de WhatsApp con Lucera IA"
           : "Conversaciones de WhatsApp"
       }
     >
+      <Flex
+        direction={"column"}
+        gap={3}
+        mb={4}
+        align={{ md: "start" }}
+        wrap="wrap"
+      >
+        <Flex
+          direction={{ base: "column", md: "row" }}
+          gap={1}
+          align={"start"}
+          justify={"start"}
+        >
+          <Box flex={1} minW={{ md: "320px" }}>
+            <Text fontSize="xs" fontWeight={600} mb={1}>
+              Buscar
+            </Text>
+            <InputGroup size="sm">
+              <InputLeftElement pointerEvents="none">
+                <Search size={14} />
+              </InputLeftElement>
+              <Input
+                placeholder="Acudiente, paciente o teléfono…"
+                value={q}
+                onChange={(e) => setQ(e.target.value)}
+              />
+            </InputGroup>
+          </Box>
+          <HStack
+            spacing={2}
+            flexDir={"row"}
+            alignItems={"flex-start"}
+            flexWrap={"wrap"}
+          >
+            <Box flex={1}>
+              <Text
+                fontSize="xs"
+                fontWeight={600}
+                mb={1}
+                color="lucera.textMuted"
+              >
+                Desde
+              </Text>
+              <Input
+                type="date"
+                size="sm"
+                value={startDate}
+                max={endDate || undefined}
+                onChange={(e) => setStartDate(e.target.value)}
+              />
+            </Box>
+            <Box flex={1}>
+              <Text
+                fontSize="xs"
+                fontWeight={600}
+                mb={1}
+                color="lucera.textMuted"
+              >
+                Hasta
+              </Text>
+              <Input
+                type="date"
+                size="sm"
+                value={endDate}
+                min={startDate || undefined}
+                onChange={(e) => setEndDate(e.target.value)}
+              />
+            </Box>
+          </HStack>
+        </Flex>
+        <Flex direction={"column"} gap={1} align={{ md: "start" }}>
+          <Text fontSize="xs" fontWeight={600}>
+            Por estado
+          </Text>
+          <HStack spacing={1} wrap="wrap">
+            {(
+              [
+                { key: "todas", label: "Todas", count: counts.total },
+                { key: "activas", label: "Activas", count: counts.activas },
+                {
+                  key: "cerradas",
+                  label: "Cerradas",
+                  count: counts.cerradas,
+                },
+              ] as const
+            ).map((t) => (
+              <Box
+                key={t.key}
+                as="button"
+                type="button"
+                onClick={() => setTab(t.key)}
+                px={3}
+                py={1.5}
+                borderRadius="full"
+                fontSize="xs"
+                fontWeight={600}
+                bg={tab === t.key ? "exito.500" : "crema.100"}
+                color={tab === t.key ? "white" : "lucera.textMuted"}
+                transition="all 120ms"
+              >
+                {t.label} ({t.count})
+              </Box>
+            ))}
+          </HStack>
+        </Flex>
+        <Flex direction={"column"} gap={1} align={{ md: "start" }}>
+          <Text fontSize="xs" fontWeight={600}>
+            Por clasificación
+          </Text>
+          <HStack spacing={1} wrap="wrap">
+            {(
+              [
+                { key: "todas", label: "Todas" },
+                {
+                  key: "urgencias",
+                  label: "Urgencias",
+                  count: dispositionCounts.urgencias,
+                },
+                {
+                  key: "casa",
+                  label: "Casa",
+                  count: dispositionCounts.casa,
+                },
+                {
+                  key: "derivacion",
+                  label: "Derivación",
+                  count: dispositionCounts.derivacion,
+                },
+              ] as const
+            ).map((d) => (
+              <Box
+                key={d.key}
+                as="button"
+                type="button"
+                onClick={() => setDisposition(d.key)}
+                px={3}
+                py={1.5}
+                borderRadius="full"
+                fontSize="xs"
+                fontWeight={600}
+                bg={disposition === d.key ? "vino.500" : "crema.100"}
+                color={disposition === d.key ? "white" : "lucera.textMuted"}
+                transition="all 120ms"
+              >
+                {d.label}
+                {"count" in d ? ` (${d.count})` : ""}
+              </Box>
+            ))}
+          </HStack>
+        </Flex>
+      </Flex>
       <Flex
         direction={{ base: "column", lg: "row" }}
         h={{ base: "auto", lg: "calc(100vh - 220px)" }}
@@ -248,93 +444,6 @@ export default function Chats() {
           borderColor="lucera.border"
           maxH={{ base: "360px", lg: "none" }}
         >
-          <Box p={3} borderBottomWidth="1px" borderColor="lucera.border">
-            <Text fontSize="xs" fontWeight={600} mb={1}>
-              Buscar
-            </Text>
-            <InputGroup size="sm">
-              <InputLeftElement pointerEvents="none">
-                <Search size={14} />
-              </InputLeftElement>
-              <Input
-                placeholder="Acudiente, paciente o teléfono…"
-                value={q}
-                onChange={(e) => setQ(e.target.value)}
-              />
-            </InputGroup>
-            <HStack
-              mt={3}
-              spacing={2}
-              flexDir={"column"}
-              alignItems={"flex-start"}
-            >
-              <Box flex={1}>
-                <Text
-                  fontSize="10px"
-                  fontWeight={600}
-                  mb={1}
-                  color="lucera.textMuted"
-                >
-                  Desde
-                </Text>
-                <Input
-                  type="date"
-                  size="sm"
-                  value={fechaInicio}
-                  max={fechaFin || undefined}
-                  onChange={(e) => setFechaInicio(e.target.value)}
-                />
-              </Box>
-              <Box flex={1}>
-                <Text
-                  fontSize="10px"
-                  fontWeight={600}
-                  mb={1}
-                  color="lucera.textMuted"
-                >
-                  Hasta
-                </Text>
-                <Input
-                  type="date"
-                  size="sm"
-                  value={fechaFin}
-                  min={fechaInicio || undefined}
-                  onChange={(e) => setFechaFin(e.target.value)}
-                />
-              </Box>
-            </HStack>
-            <HStack mt={3} spacing={1} wrap="wrap">
-              {(
-                [
-                  { key: "todas", label: "Todas", count: conteos.total },
-                  { key: "activas", label: "Activas", count: conteos.activas },
-                  {
-                    key: "cerradas",
-                    label: "Cerradas",
-                    count: conteos.cerradas,
-                  },
-                ] as const
-              ).map((t) => (
-                <Box
-                  key={t.key}
-                  as="button"
-                  type="button"
-                  onClick={() => setTab(t.key)}
-                  px={3}
-                  py={1.5}
-                  borderRadius="full"
-                  fontSize="xs"
-                  fontWeight={600}
-                  bg={tab === t.key ? "exito.500" : "crema.100"}
-                  color={tab === t.key ? "white" : "lucera.textMuted"}
-                  transition="all 120ms"
-                >
-                  {t.label} ({t.count})
-                </Box>
-              ))}
-            </HStack>
-          </Box>
-
           <VStack align="stretch" spacing={0} overflowY="auto" flex={1}>
             {chatsLoading && !chatsData ? (
               <LoadingState label="Cargando chats…" />
@@ -359,17 +468,17 @@ export default function Chats() {
                       <HStack spacing={2} minW={0}>
                         <Avatar
                           size="sm"
-                          name={c.acudiente}
+                          name={c.guardian}
                           bg="vino.500"
                           color="white"
                         />
                         <Text fontSize="sm" fontWeight={700} noOfLines={1}>
-                          {c.acudiente}
+                          {c.guardian}
                         </Text>
                       </HStack>
                       <VStack spacing={1} align="flex-end" flexShrink={0}>
                         <Text fontSize="10px" color="lucera.textMuted">
-                          {c.hora}
+                          {c.time}
                         </Text>
                         <Box
                           h="8px"
@@ -387,19 +496,19 @@ export default function Chats() {
                     >
                       <Baby size={11} />
                       <Text noOfLines={1}>
-                        {c.paciente} · {c.ultimoMensaje}
+                        {c.patient} · {c.lastMessage}
                       </Text>
                     </HStack>
                     <HStack justify="space-between">
                       <Badge
                         fontSize="10px"
-                        colorScheme={estadoTone[c.estado]}
+                        colorScheme={statusTone[c.status]}
                         textTransform="capitalize"
                       >
-                        {c.estado}
+                        {c.status}
                       </Badge>
                       <Text fontSize="10px" color="lucera.textMuted">
-                        {c.mensajes.length} msj
+                        {c.messages.length} msj
                       </Text>
                     </HStack>
                   </Box>
@@ -413,7 +522,7 @@ export default function Chats() {
                 color="lucera.textMuted"
                 textAlign="center"
               >
-                {esAcudiente && !propioAcudiente
+                {isGuardianRole && !ownGuardian
                   ? "No encontramos tu cuenta de acudiente con este correo."
                   : "No hay chats que coincidan."}
               </Text>
@@ -436,30 +545,60 @@ export default function Chats() {
                 <HStack spacing={3} minW={0}>
                   <Avatar
                     size="sm"
-                    name={selected.acudiente}
+                    name={selected.guardian}
                     bg="vino.500"
                     color="white"
                   />
                   <Box minW={0}>
-                    <Text fontWeight={700} fontSize="sm" noOfLines={1}>
-                      {selected.acudiente}
-                    </Text>
+                    {isGuardianRole ? (
+                      <Text fontWeight={700} fontSize="sm" noOfLines={1}>
+                        {selected.guardian}
+                      </Text>
+                    ) : (
+                      <Menu placement="bottom-start">
+                        <MenuButton
+                          as="button"
+                          type="button"
+                          style={{ textAlign: "left" }}
+                        >
+                          <HStack spacing={1} minW={0}>
+                            <Text
+                              fontWeight={700}
+                              fontSize="sm"
+                              noOfLines={1}
+                              _hover={{ color: "vino.500" }}
+                            >
+                              {selected.guardian}
+                            </Text>
+                            <ChevronDown size={14} />
+                          </HStack>
+                        </MenuButton>
+                        <MenuList>
+                          <MenuItem
+                            icon={<ExternalLink size={14} />}
+                            onClick={() => navigate("/guardians")}
+                          >
+                            Ver cuenta del acudiente
+                          </MenuItem>
+                        </MenuList>
+                      </Menu>
+                    )}
                     <HStack fontSize="xs" color="lucera.textMuted" spacing={1}>
                       <Phone size={10} />
                       <Text noOfLines={1}>
-                        {selected.telefono} · {selected.paciente} ·{" "}
-                        {selected.estado}
+                        {selected.phone} · {selected.patient} ·{" "}
+                        {selected.status}
                       </Text>
                     </HStack>
                   </Box>
                 </HStack>
-                <TriageBadge level={selected.triaje} />
+                <TriageBadge level={selected.triage} />
               </Flex>
 
               <Box flex={1} overflowY="auto" p={4}>
                 <VStack spacing={3} maxW="2xl" mx="auto" align="stretch">
-                  {selected.mensajes.map((m, i) => {
-                    const isUser = m.rol === "acudiente";
+                  {selected.messages.map((m, i) => {
+                    const isUser = m.role === "acudiente";
                     return (
                       <Flex
                         key={i}
@@ -479,14 +618,14 @@ export default function Chats() {
                           borderBottomRightRadius={isUser ? "sm" : "2xl"}
                           borderBottomLeftRadius={!isUser ? "sm" : "2xl"}
                         >
-                          <Text>{m.texto}</Text>
+                          <Text>{m.text}</Text>
                           <Text
                             fontSize="10px"
                             mt={1}
                             opacity={0.7}
                             sx={{ fontVariantNumeric: "tabular-nums" }}
                           >
-                            {m.hora}
+                            {m.time}
                           </Text>
                         </Box>
                       </Flex>
@@ -542,26 +681,29 @@ export default function Chats() {
                 label="Estado"
                 value={
                   <Badge
-                    colorScheme={estadoTone[selected.estado]}
+                    colorScheme={statusTone[selected.status]}
                     textTransform="capitalize"
                   >
-                    {selected.estado}
+                    {selected.status}
                   </Badge>
                 }
               />
               <InfoRow
                 label="Clasificación"
-                value={<TriageBadge level={selected.triaje} />}
+                value={<TriageBadge level={selected.triage} />}
               />
-              <InfoRow label="Tipo de atención" value={selected.tipoAtencion} />
-              <InfoRow label="Abierta" value={selected.inicio} />
-              <InfoRow label="Actualizada" value={selected.hora} />
-              <InfoRow label="Cerrada" value={selected.cierre ?? "—"} />
+              <InfoRow
+                label="Tipo de atención"
+                value={selected.attentionType}
+              />
+              <InfoRow label="Abierta" value={selected.startedAt} />
+              <InfoRow label="Actualizada" value={selected.time} />
+              <InfoRow label="Cerrada" value={selected.closedAt ?? "—"} />
             </InfoSection>
 
             <InfoSection icon={UsersIcon} title="Acudiente">
-              <InfoRow label="Nombre" value={selected.acudiente} />
-              <InfoRow label="Teléfono" value={selected.telefono} />
+              <InfoRow label="Nombre" value={selected.guardian} />
+              <InfoRow label="Teléfono" value={selected.phone} />
               <InfoRow
                 label="Relación"
                 value={
@@ -574,7 +716,7 @@ export default function Chats() {
             </InfoSection>
 
             <InfoSection icon={Baby} title="Paciente">
-              <InfoRow label="Nombre" value={selected.paciente} />
+              <InfoRow label="Nombre" value={selected.patient} />
               <InfoRow
                 label="Edad"
                 value={selectedPatient ? `${selectedPatient.age} años` : "—"}
@@ -601,10 +743,10 @@ export default function Chats() {
               />
             </InfoSection>
 
-            {selected.resumenIA && (
+            {selected.aiSummary && (
               <InfoSection icon={Bot} title="Resumen IA">
                 <Text fontSize="xs" color="lucera.textMuted">
-                  {selected.resumenIA}
+                  {selected.aiSummary}
                 </Text>
               </InfoSection>
             )}

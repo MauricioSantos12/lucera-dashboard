@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { useAuth } from "@/lib/auth";
-import { acudientes, pagos } from "@/lib/mockData";
+import { guardians, payments } from "@/lib/mockData";
 import {
   Box,
   Button,
@@ -35,17 +35,17 @@ import { StatCard } from "@/components/StatCard";
 import { formatCurrency } from "@/lib/format";
 import { toast } from "@/lib/toast";
 
-const planes = [
+const plans = [
   {
     key: "Gratuito",
-    precio: 0,
-    periodo: "siempre",
+    price: 0,
+    period: "siempre",
     features: ["3 consultas IA/mes", "Triaje básico", "Directorio de centros"],
   },
   {
     key: "Premium Mensual",
-    precio: 9.99,
-    periodo: "mes",
+    price: 9.99,
+    period: "mes",
     features: [
       "Consultas IA ilimitadas",
       "Resumen clínico para tu pediatra",
@@ -55,8 +55,8 @@ const planes = [
   },
   {
     key: "Premium Anual",
-    precio: 89.99,
-    periodo: "año",
+    price: 89.99,
+    period: "año",
     features: [
       "Todo Premium Mensual",
       "2 meses gratis",
@@ -66,8 +66,8 @@ const planes = [
   },
 ];
 
-function getEndDate(fecha: string, plan: string): string {
-  const start = new Date(fecha);
+function getEndDate(date: string, plan: string): string {
+  const start = new Date(date);
   if (plan === "Premium Anual") start.setFullYear(start.getFullYear() + 1);
   else start.setMonth(start.getMonth() + 1);
   return start.toISOString().slice(0, 10);
@@ -75,8 +75,8 @@ function getEndDate(fecha: string, plan: string): string {
 
 export default function MySubscription() {
   const { user } = useAuth();
-  const ac = acudientes.find((a) => a.id === user?.refId) ?? acudientes[0];
-  const misPagos = pagos.filter((p) => p.acudiente === ac.nombre);
+  const guardian = guardians.find((g) => g.id === user?.refId) ?? guardians[0];
+  const myPayments = payments.filter((p) => p.guardian === guardian.name);
   const { isOpen, onOpen, onClose } = useDisclosure();
   const [selectedPlan, setSelectedPlan] = useState<string | null>(null);
 
@@ -110,12 +110,12 @@ export default function MySubscription() {
             </Badge>
             <Heading size="lg" fontFamily="heading" color="white">
               <HStack>
-                <Text>{ac.plan}</Text>
-                {ac.plan !== "Gratuito" && <Crown size={20} color="#f8cc37" />}
+                <Text>{guardian.plan}</Text>
+                {guardian.plan !== "Gratuito" && <Crown size={20} color="#f8cc37" />}
               </HStack>
             </Heading>
             <Text opacity={0.7} fontSize="sm" mt={1}>
-              Activo desde {ac.registrado}
+              Activo desde {guardian.registeredAt}
             </Text>
           </Box>
           <CreditCard size={32} color="rgba(255,255,255,0.4)" />
@@ -124,17 +124,17 @@ export default function MySubscription() {
 
       {/* <Heading size="sm" mb={3} fontFamily="heading">Cambiar plan</Heading>
       <SimpleGrid columns={{ base: 1, md: 3 }} spacing={4} mb={6}>
-        {planes.map(p => {
-          const actual = p.key === ac.plan;
+        {plans.map(p => {
+          const current = p.key === guardian.plan;
           return (
-            <StatCard key={p.key} display="flex" flexDirection="column" boxShadow={actual ? "0 0 0 2px var(--chakra-colors-vino-500)" : undefined}>
+            <StatCard key={p.key} display="flex" flexDirection="column" boxShadow={current ? "0 0 0 2px var(--chakra-colors-vino-500)" : undefined}>
               <Flex justify="space-between" align="center" mb={2}>
                 <Heading size="sm" fontFamily="heading">{p.key}</Heading>
-                {actual && <Badge colorScheme="vino">Actual</Badge>}
+                {current && <Badge colorScheme="vino">Actual</Badge>}
               </Flex>
               <Box mb={4}>
-                <Heading size="xl" fontFamily="heading" sx={{ fontVariantNumeric: "tabular-nums" }} display="inline">${p.precio}</Heading>
-                <Text as="span" fontSize="xs" color="lucera.textMuted">/{p.periodo}</Text>
+                <Heading size="xl" fontFamily="heading" sx={{ fontVariantNumeric: "tabular-nums" }} display="inline">${p.price}</Heading>
+                <Text as="span" fontSize="xs" color="lucera.textMuted">/{p.period}</Text>
               </Box>
               <List spacing={1.5} flex={1} mb={4}>
                 {p.features.map(f => (
@@ -142,12 +142,12 @@ export default function MySubscription() {
                 ))}
               </List>
               <Button
-                isDisabled={actual}
+                isDisabled={current}
                 colorScheme="naranja"
                 onClick={() => handleChangePlan(p.key)}
-                leftIcon={!actual ? <Sparkles size={14} /> : undefined}
+                leftIcon={!current ? <Sparkles size={14} /> : undefined}
               >
-                {actual ? "Plan actual" : "Cambiar"}
+                {current ? "Plan actual" : "Cambiar"}
               </Button>
             </StatCard>
           );
@@ -158,7 +158,7 @@ export default function MySubscription() {
         <Heading size="sm" mb={3} fontFamily="heading">
           Historial de pagos
         </Heading>
-        {misPagos.length === 0 ? (
+        {myPayments.length === 0 ? (
           <Text fontSize="sm" color="lucera.textMuted">
             Aún no tienes pagos registrados.
           </Text>
@@ -182,7 +182,7 @@ export default function MySubscription() {
                 </Tr>
               </Thead>
               <Tbody>
-                {misPagos.map((p) => (
+                {myPayments.map((p) => (
                   <Tr key={p.id} _hover={{ bg: "crema.50" }}>
                     <Td
                       fontFamily="mono"
@@ -193,28 +193,28 @@ export default function MySubscription() {
                     </Td>
                     <Td fontSize="sm">{p.plan}</Td>
                     <Td>
-                      <Badge variant="outline">{p.metodo}</Badge>
+                      <Badge variant="outline">{p.method}</Badge>
                     </Td>
-                    <Td fontSize="sm">{p.tipoPago ?? "Crédito"}</Td>
+                    <Td fontSize="sm">{p.paymentType ?? "Crédito"}</Td>
                     <Td isNumeric fontWeight={700}>
-                      {formatCurrency(p.monto)}
+                      {formatCurrency(p.amount)}
                     </Td>
                     <Td>
                       <Badge
                         colorScheme={
-                          p.estado === "confirmado"
+                          p.status === "confirmado"
                             ? "green"
-                            : p.estado === "pendiente"
+                            : p.status === "pendiente"
                             ? "yellow"
                             : "gray"
                         }
                         textTransform="capitalize"
                       >
-                        {p.estado}
+                        {p.status}
                       </Badge>
                     </Td>
-                    <Td fontSize="xs">{p.fecha.slice(0, 10)}</Td>
-                    <Td fontSize="xs">{getEndDate(p.fecha, p.plan)}</Td>
+                    <Td fontSize="xs">{p.date.slice(0, 10)}</Td>
+                    <Td fontSize="xs">{getEndDate(p.date, p.plan)}</Td>
                   </Tr>
                 ))}
               </Tbody>

@@ -10,38 +10,46 @@ import type {
   PaymentStatusApi,
   CenterTypeApi,
 } from "@/lib/apiTypes";
-import type { Relacion, EstadoCuenta, Acudiente, TriageLevel, ChatSesion, Pago, Centro } from "@/lib/mockData";
+import type {
+  Relationship,
+  AccountStatus,
+  Guardian,
+  TriageLevel,
+  ChatSession,
+  Payment,
+  Center,
+} from "@/lib/mockData";
 
-export const relationToEs: Record<GuardianRelationship, Relacion> = {
+export const relationToEs: Record<GuardianRelationship, Relationship> = {
   mother: "Madre",
   father: "Padre",
   guardian: "Tutor",
   grandparent: "Abuelo/a",
 };
-export const relationToApi: Record<Relacion, GuardianRelationship> = {
+export const relationToApi: Record<Relationship, GuardianRelationship> = {
   Madre: "mother",
   Padre: "father",
   Tutor: "guardian",
   "Abuelo/a": "grandparent",
 };
 
-export const statusToEs: Record<GuardianStatus, EstadoCuenta> = {
+export const statusToEs: Record<GuardianStatus, AccountStatus> = {
   active: "activa",
   suspended: "suspendida",
   inactive: "baja",
 };
-export const statusToApi: Record<EstadoCuenta, GuardianStatus> = {
+export const statusToApi: Record<AccountStatus, GuardianStatus> = {
   activa: "active",
   suspendida: "suspended",
   baja: "inactive",
 };
 
-export const planToEs: Record<PlanApi, Acudiente["plan"]> = {
+export const planToEs: Record<PlanApi, Guardian["plan"]> = {
   free: "Gratuito",
   premium_monthly: "Premium Mensual",
   premium_annual: "Premium Anual",
 };
-export const planToApi: Record<Acudiente["plan"], PlanApi> = {
+export const planToApi: Record<Guardian["plan"], PlanApi> = {
   Gratuito: "free",
   "Premium Mensual": "premium_monthly",
   "Premium Anual": "premium_annual",
@@ -53,12 +61,12 @@ export const chatTriageToLevel: Record<ChatTriageApi, TriageLevel> = {
   emergency: "emergencia",
 };
 
-export const chatAttentionToEs: Record<ChatAttentionApi, ChatSesion["tipoAtencion"]> = {
+export const chatAttentionToEs: Record<ChatAttentionApi, ChatSession["attentionType"]> = {
   virtual: "Virtual",
   in_person: "Presencial",
 };
 
-export const chatStatusToEstado: Record<ChatStatusApi, ChatSesion["estado"]> = {
+export const chatStatusToEstado: Record<ChatStatusApi, ChatSession["status"]> = {
   active: "activa",
   waiting: "esperando",
   closed: "cerrada",
@@ -66,19 +74,19 @@ export const chatStatusToEstado: Record<ChatStatusApi, ChatSesion["estado"]> = {
 
 export const chatRoleToEs: Record<
   ChatMessageRoleApi,
-  ChatSesion["mensajes"][number]["rol"]
+  ChatSession["messages"][number]["role"]
 > = {
   guardian: "acudiente",
   bot: "bot",
   system: "sistema",
 };
 
-export const paymentMethodToEs: Record<PaymentMethodApi, Pago["metodo"]> = {
+export const paymentMethodToEs: Record<PaymentMethodApi, Payment["method"]> = {
   stripe: "Stripe",
   yappy: "Yappy",
 };
 
-export const paymentStatusToEs: Record<PaymentStatusApi, Pago["estado"]> = {
+export const paymentStatusToEs: Record<PaymentStatusApi, Payment["status"]> = {
   confirmed: "confirmado",
   pending: "pendiente",
   failed: "fallido",
@@ -93,13 +101,13 @@ export const paymentPlanToEs: Record<string, string> = {
   premium_annual: "Premium Anual",
 };
 
-export const centerTypeToEs: Record<CenterTypeApi, Centro["tipo"]> = {
+export const centerTypeToEs: Record<CenterTypeApi, Center["type"]> = {
   Hospital: "Hospital",
   Clinic: "Clínica",
   Emergency: "Urgencias",
 };
 
-// El backend devuelve el país sin tilde ("Panama"), pero paisesCiudades
+// El backend devuelve el país sin tilde ("Panama"), pero countriesCities
 // (mockData.ts) usa "Panamá" como clave para las opciones de país/ciudad
 // del filtro y del formulario. Este mapa homologa ambos lados.
 export const countryApiToEs: Record<string, string> = {

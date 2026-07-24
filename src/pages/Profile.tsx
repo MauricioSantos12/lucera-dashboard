@@ -19,21 +19,21 @@ import {
 import { ShieldCheck, Save } from "lucide-react";
 import { StatCard } from "@/components/StatCard";
 import { MultiSelect } from "@/components/MultiSelect";
-import { centros } from "@/lib/mockData";
+import { centers } from "@/lib/mockData";
 import { toast } from "@/lib/toast";
 
 export default function Profile() {
   const { user, updateProfile } = useAuth();
-  const [nombre, setNombre] = useState(user?.nombre ?? "");
+  const [name, setName] = useState(user?.name ?? "");
   const [email, setEmail] = useState(user?.email ?? "");
-  const [telefono, setTelefono] = useState(user?.telefono ?? "");
-  const [selectedCentros, setSelectedCentros] = useState<string[]>([]);
+  const [phone, setPhone] = useState(user?.phone ?? "");
+  const [selectedCenters, setSelectedCenters] = useState<string[]>([]);
 
-  const showCentros = user?.rol === "Admin" || user?.rol === "Médico";
-  const centrosOptions = centros.map(c => ({ value: c.id, label: c.nombre }));
+  const showCenters = user?.role === "Admin" || user?.role === "Médico";
+  const centerOptions = centers.map(c => ({ value: c.id, label: c.name }));
 
   if (!user) return null;
-  const initials = user.nombre
+  const initials = user.name
     .split(" ")
     .map((p) => p[0])
     .slice(0, 2)
@@ -41,7 +41,7 @@ export default function Profile() {
 
   const onSave = (e: React.FormEvent) => {
     e.preventDefault();
-    updateProfile({ nombre, email, telefono });
+    updateProfile({ name, email, phone });
     toast.success("Perfil actualizado");
   };
   console.log({ user });
@@ -61,12 +61,12 @@ export default function Profile() {
               mb={2}
             />
             <Heading size="md" fontFamily="heading">
-              {user.nombre}
+              {user.name}
             </Heading>
             <Text fontSize="xs" color="lucera.textMuted">
               {user.email}
             </Text>
-            <Badge colorScheme="vino">{user.rol}</Badge>
+            <Badge colorScheme="vino">{user.role}</Badge>
             {user.refId && (
               <Text
                 fontSize="10px"
@@ -104,7 +104,7 @@ export default function Profile() {
             Datos personales
           </Heading>
           <Text fontSize="xs" color="lucera.textMuted" mb={4}>
-            {user.rol === "Admin"
+            {user.role === "Admin"
               ? "Como administrador, puedes editar tu perfil aquí. Para gestionar otras cuentas usa los módulos de Acudientes y Médicos."
               : "Solo puedes editar tu propio perfil. Los administradores no pueden cambiar estos datos sin tu consentimiento (Ley 81)."}
           </Text>
@@ -114,8 +114,8 @@ export default function Profile() {
               <FormControl isRequired>
                 <FormLabel>Nombre completo</FormLabel>
                 <Input
-                  value={nombre}
-                  onChange={(e) => setNombre(e.target.value)}
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
                 />
               </FormControl>
               <SimpleGrid columns={{ base: 1, md: 2 }} spacing={4}>
@@ -130,18 +130,18 @@ export default function Profile() {
                 <FormControl>
                   <FormLabel>Teléfono (WhatsApp · MFA)</FormLabel>
                   <Input
-                    value={telefono}
-                    onChange={(e) => setTelefono(e.target.value)}
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
                   />
                 </FormControl>
               </SimpleGrid>
-              {showCentros && (
+              {showCenters && (
                 <FormControl>
                   <FormLabel>Centros de atención</FormLabel>
                   <MultiSelect
-                    options={centrosOptions}
-                    value={selectedCentros}
-                    onChange={setSelectedCentros}
+                    options={centerOptions}
+                    value={selectedCenters}
+                    onChange={setSelectedCenters}
                     placeholder="Seleccionar centros…"
                   />
                 </FormControl>

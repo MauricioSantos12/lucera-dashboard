@@ -18,16 +18,16 @@ import {
 import { Link as RouterLink, useNavigate } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
 import logoSymbol from "@/assets/lucera-symbol.jpg";
-import { paisesCiudades } from "@/lib/mockData";
+import { countriesCities } from "@/lib/mockData";
 import { toast } from "@/lib/toast";
 import { apiFetch } from "@/lib/apiClient";
 import { relationToApi } from "@/lib/apiMappings";
-import type { Relacion } from "@/lib/mockData";
+import type { Relationship } from "@/lib/mockData";
 import type { GuardianApi, GuardianCreatePayload } from "@/lib/apiTypes";
 
 export default function Register() {
   const navigate = useNavigate();
-  const [pais, setPais] = useState("");
+  const [country, setCountry] = useState("");
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -44,12 +44,12 @@ export default function Register() {
     // El endpoint de creación no acepta contraseña ni seguro médico — solo
     // name/phone/email (obligatorios) y relationship/city/province.
     const payload: GuardianCreatePayload = {
-      name: String(fd.get("nombre")),
-      phone: String(fd.get("telefono")),
+      name: String(fd.get("name")),
+      phone: String(fd.get("phone")),
       email: String(fd.get("email")),
-      relationship: relationToApi[fd.get("relacion") as Relacion],
-      city: String(fd.get("ciudad") || "") || undefined,
-      province: String(fd.get("pais") || "") || undefined,
+      relationship: relationToApi[fd.get("relationship") as Relationship],
+      city: String(fd.get("city") || "") || undefined,
+      province: String(fd.get("country") || "") || undefined,
     };
 
     setLoading(true);
@@ -142,11 +142,11 @@ export default function Register() {
             <SimpleGrid columns={{ base: 1, md: 2 }} spacing={4}>
               <FormControl gridColumn="span 2" isRequired>
                 <FormLabel>Nombre completo</FormLabel>
-                <Input name="nombre" placeholder="Ej: María Mendoza" />
+                <Input name="name" placeholder="Ej: María Mendoza" />
               </FormControl>
               <FormControl isRequired>
                 <FormLabel>Teléfono (WhatsApp)</FormLabel>
-                <Input name="telefono" placeholder="+507 6XXX-XXXX" />
+                <Input name="phone" placeholder="+507 6XXX-XXXX" />
               </FormControl>
               <FormControl isRequired>
                 <FormLabel>Email</FormLabel>
@@ -154,7 +154,7 @@ export default function Register() {
               </FormControl>
               <FormControl>
                 <FormLabel>Relación con el niño</FormLabel>
-                <Select name="relacion" defaultValue="Madre">
+                <Select name="relationship" defaultValue="Madre">
                   {["Madre", "Padre", "Tutor", "Abuelo/a"].map((r) => (
                     <option key={r} value={r}>{r}</option>
                   ))}
@@ -163,20 +163,20 @@ export default function Register() {
               <FormControl isRequired>
                 <FormLabel>País</FormLabel>
                 <Select
-                  name="pais"
+                  name="country"
                   placeholder="Seleccionar país"
-                  value={pais}
-                  onChange={(e) => setPais(e.target.value)}
+                  value={country}
+                  onChange={(e) => setCountry(e.target.value)}
                 >
-                  {Object.keys(paisesCiudades).map((p) => (
+                  {Object.keys(countriesCities).map((p) => (
                     <option key={p} value={p}>{p}</option>
                   ))}
                 </Select>
               </FormControl>
               <FormControl isRequired>
                 <FormLabel>Ciudad</FormLabel>
-                <Select name="ciudad" placeholder="Seleccionar ciudad">
-                  {(paisesCiudades[pais] ?? []).map((c) => (
+                <Select name="city" placeholder="Seleccionar ciudad">
+                  {(countriesCities[country] ?? []).map((c) => (
                     <option key={c} value={c}>{c}</option>
                   ))}
                 </Select>

@@ -209,9 +209,9 @@ export default function LandingPage() {
   const toast = useToast();
   const [selectedPlan, setSelectedPlan] = useState<string | null>(null);
   const [planForm, setPlanForm] = useState({
-    nombre: "",
-    correo: "",
-    telefono: "",
+    name: "",
+    email: "",
+    phone: "",
   });
 
   const handleSelectPlan = (planName: string) => {
@@ -229,7 +229,7 @@ export default function LandingPage() {
       isClosable: true,
     });
     onClose();
-    setPlanForm({ nombre: "", correo: "", telefono: "" });
+    setPlanForm({ name: "", email: "", phone: "" });
   };
 
   return (
@@ -983,9 +983,9 @@ export default function LandingPage() {
               <FormControl isRequired>
                 <FormLabel fontSize="sm">Nombre completo</FormLabel>
                 <Input
-                  value={planForm.nombre}
+                  value={planForm.name}
                   onChange={(e) =>
-                    setPlanForm((f) => ({ ...f, nombre: e.target.value }))
+                    setPlanForm((f) => ({ ...f, name: e.target.value }))
                   }
                   placeholder="María Mendoza"
                 />
@@ -994,9 +994,9 @@ export default function LandingPage() {
                 <FormLabel fontSize="sm">Correo electrónico</FormLabel>
                 <Input
                   type="email"
-                  value={planForm.correo}
+                  value={planForm.email}
                   onChange={(e) =>
-                    setPlanForm((f) => ({ ...f, correo: e.target.value }))
+                    setPlanForm((f) => ({ ...f, email: e.target.value }))
                   }
                   placeholder="maria@correo.com"
                 />
@@ -1005,9 +1005,9 @@ export default function LandingPage() {
                 <FormLabel fontSize="sm">Teléfono</FormLabel>
                 <Input
                   type="tel"
-                  value={planForm.telefono}
+                  value={planForm.phone}
                   onChange={(e) =>
-                    setPlanForm((f) => ({ ...f, telefono: e.target.value }))
+                    setPlanForm((f) => ({ ...f, phone: e.target.value }))
                   }
                   placeholder="+507 6000-0000"
                 />

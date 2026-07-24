@@ -189,7 +189,7 @@ function SidebarLink({
 function SidebarBody({ onNav }: { onNav?: () => void }) {
   const location = useLocation();
   const { user } = useAuth();
-  const role = user?.rol ?? "Admin";
+  const role = user?.role ?? "Admin";
   const items = allItems.filter((i) => i.roles.includes(role));
   const isActive = (path: string) =>
     path === "/dashboard"

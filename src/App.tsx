@@ -29,7 +29,7 @@ const queryClient = new QueryClient();
 function RoleRoute({ roles, children }: { roles: UserRole[]; children: ReactNode }) {
   const { user } = useAuth();
   if (!user) return null;
-  if (!roles.includes(user.rol)) return <Navigate to="/dashboard" replace />;
+  if (!roles.includes(user.role)) return <Navigate to="/dashboard" replace />;
   return <>{children}</>;
 }
 

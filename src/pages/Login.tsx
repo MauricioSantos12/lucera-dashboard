@@ -57,13 +57,13 @@ export default function Login() {
       const data: LoginResponse = await res.json();
       const acc: AuthUser = {
         email: data.user.email,
-        nombre: data.user.name,
-        rol: roleFromApi(data.user.role),
+        name: data.user.name,
+        role: roleFromApi(data.user.role),
       };
       setLoading(false);
       if (!REQUIRE_MFA_CODE) {
         login(acc, data.access_token, data.refresh_token, data.expires_in);
-        toast.success(`Bienvenido(a), ${acc.nombre}`);
+        toast.success(`Bienvenido(a), ${acc.name}`);
         return;
       }
       setPendingAuth({
@@ -98,7 +98,7 @@ export default function Login() {
         pendingAuth.refreshToken,
         pendingAuth.expiresIn
       );
-      toast.success(`Bienvenido(a), ${pendingAuth.user.nombre}`);
+      toast.success(`Bienvenido(a), ${pendingAuth.user.name}`);
     }, 500);
   };
 

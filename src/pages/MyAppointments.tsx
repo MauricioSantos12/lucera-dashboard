@@ -1,17 +1,17 @@
 import { useState } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { useAuth } from "@/lib/auth";
-import { chats, ChatSesion } from "@/lib/mockData";
+import { chatSessions, ChatSession } from "@/lib/mockData";
 import { Box, Flex, HStack, Text, VStack } from "@chakra-ui/react";
 import { Bot, User, Stethoscope, Lock } from "lucide-react";
 import { TriageBadge } from "@/components/TriageBadge";
 
 export default function MyAppointments() {
   const { user } = useAuth();
-  const acNombre = user?.nombre ?? "";
-  const mias = chats.filter(c => c.acudiente === acNombre);
-  const list = mias.length ? mias : chats.slice(0, 2);
-  const [selected, setSelected] = useState<ChatSesion>(list[0]);
+  const ownName = user?.name ?? "";
+  const mine = chatSessions.filter(c => c.guardian === ownName);
+  const list = mine.length ? mine : chatSessions.slice(0, 2);
+  const [selected, setSelected] = useState<ChatSession>(list[0]);
 
   return (
     <DashboardLayout title="Mis consultas" subtitle="Historial de conversaciones con Lucera IA (solo lectura)">
@@ -31,11 +31,11 @@ export default function MyAppointments() {
                 onClick={() => setSelected(c)}
               >
                 <Flex justify="space-between" mb={1}>
-                  <Text fontWeight={600} fontSize="sm">{c.paciente}</Text>
-                  <Text fontSize="10px" color="lucera.textMuted" sx={{ fontVariantNumeric: "tabular-nums" }}>{c.hora}</Text>
+                  <Text fontWeight={600} fontSize="sm">{c.patient}</Text>
+                  <Text fontSize="10px" color="lucera.textMuted" sx={{ fontVariantNumeric: "tabular-nums" }}>{c.time}</Text>
                 </Flex>
-                <Text fontSize="xs" color="lucera.textMuted" noOfLines={1} mb={2}>{c.ultimoMensaje}</Text>
-                <TriageBadge level={c.triaje} />
+                <Text fontSize="xs" color="lucera.textMuted" noOfLines={1} mb={2}>{c.lastMessage}</Text>
+                <TriageBadge level={c.triage} />
               </Box>
             ))}
           </Box>
@@ -44,17 +44,17 @@ export default function MyAppointments() {
         <Flex direction="column" flex={1} bg="lucera.surface" borderWidth="1px" borderColor="lucera.border" borderRadius="xl" overflow="hidden">
           <Flex p={4} borderBottomWidth="1px" borderColor="lucera.border" justify="space-between" align="center">
             <Box>
-              <Text fontWeight={700} fontSize="sm">{selected.paciente}</Text>
-              <Text fontSize="xs" color="lucera.textMuted">{selected.id} · {selected.inicio}</Text>
+              <Text fontWeight={700} fontSize="sm">{selected.patient}</Text>
+              <Text fontSize="xs" color="lucera.textMuted">{selected.id} · {selected.startedAt}</Text>
             </Box>
-            <TriageBadge level={selected.triaje} />
+            <TriageBadge level={selected.triage} />
           </Flex>
 
           <Box flex={1} overflowY="auto" p={4} bg="crema.50">
             <VStack spacing={3} maxW="2xl" mx="auto" align="stretch">
-              {selected.mensajes.map((m, i) => {
-                const isUser = m.rol === "acudiente";
-                const isBot = m.rol === "bot";
+              {selected.messages.map((m, i) => {
+                const isUser = m.role === "acudiente";
+                const isBot = m.role === "bot";
                 return (
                   <Flex key={i} gap={2} justify={isUser ? "flex-end" : "flex-start"}>
                     {!isUser && (
@@ -74,8 +74,8 @@ export default function MyAppointments() {
                           {isBot ? "Lucera IA" : "Sistema"}
                         </Text>
                       )}
-                      <Text>{m.texto}</Text>
-                      <Text fontSize="10px" mt={1} opacity={0.7} sx={{ fontVariantNumeric: "tabular-nums" }}>{m.hora}</Text>
+                      <Text>{m.text}</Text>
+                      <Text fontSize="10px" mt={1} opacity={0.7} sx={{ fontVariantNumeric: "tabular-nums" }}>{m.time}</Text>
                     </Box>
                     {isUser && <Flex h={7} w={7} borderRadius="full" bg="vino.50" color="vino.500" align="center" justify="center"><User size={14} /></Flex>}
                   </Flex>

@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
-import { especialistas as seed, Especialista } from "@/lib/mockData";
+import { specialists as seed, Specialist } from "@/lib/mockData";
 import {
   Box,
   Button,
@@ -39,49 +39,49 @@ import { Pagination } from "@/components/Pagination";
 import { MultiSelect } from "@/components/MultiSelect";
 import { toast } from "@/lib/toast";
 import { exportToExcel } from "@/lib/exportToExcel";
-import { centros } from "@/lib/mockData";
+import { centers } from "@/lib/mockData";
 import { useAuth } from "@/lib/auth";
 
-const estadoTone = (e: Especialista["estado"]) =>
+const statusTone = (e: Specialist["status"]) =>
   e === "activo" ? "green" : e === "vacaciones" ? "blue" : "gray";
 
 export default function Specialists() {
   const { user } = useAuth();
-  const showCentros = user?.rol === "Admin" || user?.rol === "Médico";
-  const canEdit = user?.rol !== "Invitado";
-  const canExport = user?.rol !== "Invitado" && user?.rol !== "Ventas";
-  const [data, setData] = useState<Especialista[]>(seed);
-  const [especialidad, setEspecialidad] = useState("todas");
+  const showCenters = user?.role === "Admin" || user?.role === "Médico";
+  const canEdit = user?.role !== "Invitado";
+  const canExport = user?.role !== "Invitado" && user?.role !== "Ventas";
+  const [data, setData] = useState<Specialist[]>(seed);
+  const [specialtyFilter, setSpecialtyFilter] = useState("todas");
   const [q, setQ] = useState("");
   const [page, setPage] = useState(1);
   const perPage = 10;
   const { isOpen, onOpen, onClose } = useDisclosure();
-  const [editing, setEditing] = useState<Especialista | null>(null);
-  const [toDelete, setToDelete] = useState<Especialista | null>(null);
-  const [selectedCentros, setSelectedCentros] = useState<string[]>([]);
+  const [editing, setEditing] = useState<Specialist | null>(null);
+  const [toDelete, setToDelete] = useState<Specialist | null>(null);
+  const [selectedCenters, setSelectedCenters] = useState<string[]>([]);
 
-  const centrosOptions = centros.map((c) => ({ value: c.id, label: c.nombre }));
+  const centerOptions = centers.map((c) => ({ value: c.id, label: c.name }));
 
-  const especialidades = Array.from(new Set(data.map((e) => e.especialidad)));
+  const specialties = Array.from(new Set(data.map((e) => e.specialty)));
 
   const filtered = useMemo(() => {
     setPage(1);
     return data.filter((e) => {
-      const okQ = `${e.nombre} ${e.especialidad} ${e.id}`
+      const okQ = `${e.name} ${e.specialty} ${e.id}`
         .toLowerCase()
         .includes(q.toLowerCase());
-      const okEsp = especialidad === "todas" || e.especialidad === especialidad;
+      const okEsp = specialtyFilter === "todas" || e.specialty === specialtyFilter;
       return okQ && okEsp;
     });
-  }, [data, q, especialidad]);
+  }, [data, q, specialtyFilter]);
 
   const totalPages = Math.ceil(filtered.length / perPage);
   const paginated = filtered.slice((page - 1) * perPage, page * perPage);
 
-  const openEdit = (e: Especialista | null) => {
+  const openEdit = (e: Specialist | null) => {
     setEditing(e);
-    setSelectedCentros(
-      e?.hospitales.map((h) => centros.find((c) => c.nombre === h)?.id ?? h) ??
+    setSelectedCenters(
+      e?.hospitals.map((h) => centers.find((c) => c.name === h)?.id ?? h) ??
         []
     );
     onOpen();
@@ -89,23 +89,23 @@ export default function Specialists() {
 
   const onSave = (form: HTMLFormElement) => {
     const fd = new FormData(form);
-    const next: Especialista = {
+    const next: Specialist = {
       ...(editing ?? {
         id: `M-${300 + data.length}`,
-        hospitales: [],
-        consultasMes: 0,
-        registroIdoneidad: "",
+        hospitals: [],
+        monthlyConsultations: 0,
+        licenseRegistration: "",
       }),
-      nombre: String(fd.get("nombre")),
-      especialidad: String(fd.get("especialidad")),
-      licencia: String(fd.get("licencia")),
-      registroIdoneidad: String(fd.get("licencia")),
+      name: String(fd.get("name")),
+      specialty: String(fd.get("specialty")),
+      license: String(fd.get("license")),
+      licenseRegistration: String(fd.get("license")),
       email: String(fd.get("email")),
-      modalidad: fd.get("modalidad") as Especialista["modalidad"],
-      estado: fd.get("estado") as Especialista["estado"],
-      horarios: String(fd.get("horarios")),
-      hospitales: selectedCentros.map(
-        (id) => centros.find((c) => c.id === id)?.nombre ?? id
+      mode: fd.get("mode") as Specialist["mode"],
+      status: fd.get("status") as Specialist["status"],
+      hours: String(fd.get("hours")),
+      hospitals: selectedCenters.map(
+        (id) => centers.find((c) => c.id === id)?.name ?? id
       ),
     };
     setData(
@@ -134,11 +134,11 @@ export default function Specialists() {
           </InputGroup>
           <Select
             w={{ base: "100%", md: "260px" }}
-            value={especialidad}
-            onChange={(e) => setEspecialidad(e.target.value)}
+            value={specialtyFilter}
+            onChange={(e) => setSpecialtyFilter(e.target.value)}
           >
             <option value="todas">Todas las especialidades</option>
-            {especialidades.map((e) => (
+            {specialties.map((e) => (
               <option key={e} value={e}>
                 {e}
               </option>
@@ -152,14 +152,14 @@ export default function Specialists() {
               exportToExcel(
                 filtered.map((e) => ({
                   ID: e.id,
-                  Nombre: e.nombre,
-                  Especialidad: e.especialidad,
-                  Idoneidad: e.registroIdoneidad,
+                  Nombre: e.name,
+                  Especialidad: e.specialty,
+                  Idoneidad: e.licenseRegistration,
                   Email: e.email,
-                  Modalidad: e.modalidad,
-                  Estado: e.estado,
-                  "Consultas/mes": e.consultasMes,
-                  Hospitales: e.hospitales.join(", "),
+                  Modalidad: e.mode,
+                  Estado: e.status,
+                  "Consultas/mes": e.monthlyConsultations,
+                  Hospitales: e.hospitals.join(", "),
                 })),
                 "especialistas-lucera",
                 "Especialistas"
@@ -221,7 +221,7 @@ export default function Specialists() {
                         <Stethoscope size={14} color="#ef7d54" />
                       </Flex>
                       <Text fontSize="sm" fontWeight={600}>
-                        {e.nombre}
+                        {e.name}
                       </Text>
                     </HStack>
                   </Td>
@@ -229,14 +229,14 @@ export default function Specialists() {
                     display={{ base: "none", md: "table-cell" }}
                     fontSize="sm"
                   >
-                    {e.especialidad}
+                    {e.specialty}
                   </Td>
                   <Td
                     display={{ base: "none", lg: "table-cell" }}
                     fontFamily="mono"
                     fontSize="xs"
                   >
-                    {e.registroIdoneidad}
+                    {e.licenseRegistration}
                   </Td>
                   <Td
                     display={{ base: "none", lg: "table-cell" }}
@@ -247,10 +247,10 @@ export default function Specialists() {
                   </Td>
                   <Td>
                     <Badge
-                      colorScheme={estadoTone(e.estado)}
+                      colorScheme={statusTone(e.status)}
                       textTransform="capitalize"
                     >
-                      {e.estado}
+                      {e.status}
                     </Badge>
                   </Td>
                   <Td
@@ -258,7 +258,7 @@ export default function Specialists() {
                     isNumeric
                     fontWeight={700}
                   >
-                    {e.consultasMes}
+                    {e.monthlyConsultations}
                   </Td>
                   {canEdit && (
                     <Td textAlign="right">
@@ -311,18 +311,18 @@ export default function Specialists() {
               <SimpleGrid columns={2} spacing={3}>
                 <FormControl gridColumn="span 2" isRequired>
                   <FormLabel>Nombre</FormLabel>
-                  <Input name="nombre" defaultValue={editing?.nombre} />
+                  <Input name="name" defaultValue={editing?.name} />
                 </FormControl>
                 <FormControl isRequired>
                   <FormLabel>Especialidad</FormLabel>
                   <Input
-                    name="especialidad"
-                    defaultValue={editing?.especialidad}
+                    name="specialty"
+                    defaultValue={editing?.specialty}
                   />
                 </FormControl>
                 <FormControl isRequired>
                   <FormLabel>Idoneidad MINSA</FormLabel>
-                  <Input name="licencia" defaultValue={editing?.licencia} />
+                  <Input name="license" defaultValue={editing?.license} />
                 </FormControl>
                 <FormControl isRequired>
                   <FormLabel>Email</FormLabel>
@@ -335,8 +335,8 @@ export default function Specialists() {
                 <FormControl>
                   <FormLabel>Modalidad</FormLabel>
                   <Select
-                    name="modalidad"
-                    defaultValue={editing?.modalidad ?? "Ambas"}
+                    name="mode"
+                    defaultValue={editing?.mode ?? "Ambas"}
                   >
                     {["Virtual", "Presencial", "Ambas"].map((m) => (
                       <option key={m} value={m}>
@@ -348,28 +348,28 @@ export default function Specialists() {
                 <FormControl gridColumn="span 2">
                   <FormLabel>Horarios</FormLabel>
                   <Input
-                    name="horarios"
-                    defaultValue={editing?.horarios ?? "Lun-Vie 08:00-14:00"}
+                    name="hours"
+                    defaultValue={editing?.hours ?? "Lun-Vie 08:00-14:00"}
                   />
                 </FormControl>
                 <FormControl gridColumn="span 2">
                   <FormLabel>Estado</FormLabel>
                   <Select
-                    name="estado"
-                    defaultValue={editing?.estado ?? "activo"}
+                    name="status"
+                    defaultValue={editing?.status ?? "activo"}
                   >
                     <option value="activo">Activo</option>
                     <option value="vacaciones">Vacaciones</option>
                     <option value="inactivo">Inactivo</option>
                   </Select>
                 </FormControl>
-                {showCentros && (
+                {showCenters && (
                   <FormControl gridColumn="span 2">
                     <FormLabel>Centros de atención</FormLabel>
                     <MultiSelect
-                      options={centrosOptions}
-                      value={selectedCentros}
-                      onChange={setSelectedCentros}
+                      options={centerOptions}
+                      value={selectedCenters}
+                      onChange={setSelectedCenters}
                       placeholder="Seleccionar centros…"
                     />
                   </FormControl>
@@ -394,7 +394,7 @@ export default function Specialists() {
         title="Eliminar médico"
         description={
           <>
-            ¿Eliminar a <strong>{toDelete?.nombre}</strong>? Se cancelarán sus
+            ¿Eliminar a <strong>{toDelete?.name}</strong>? Se cancelarán sus
             franjas futuras.
           </>
         }

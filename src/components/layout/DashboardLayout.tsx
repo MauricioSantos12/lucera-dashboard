@@ -28,7 +28,7 @@ function Header({ title, subtitle }: { title: string; subtitle?: string }) {
   const { onOpen, isMobile } = useSidebarCtx();
   const navigate = useNavigate();
   const initials =
-    user?.nombre
+    user?.name
       .split(" ")
       .map((p) => p[0])
       .slice(0, 2)
@@ -93,7 +93,7 @@ function Header({ title, subtitle }: { title: string; subtitle?: string }) {
               transition="color 0.2s ease-in-out"
               _hover={{ color: "lucera.text" }}
             >
-              {user?.nombre}
+              {user?.name}
             </Box>
           </MenuButton>
           <MenuList>

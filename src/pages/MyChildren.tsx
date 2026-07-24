@@ -37,7 +37,7 @@ export default function MyChildren() {
   const { data: guardiansData } = useFetchAll<GuardianApi>(
     token ? "/api/guardians" : null
   );
-  const propioAcudiente = useMemo(
+  const ownGuardian = useMemo(
     () => (guardiansData?.items ?? []).find((g) => g.email === user?.email),
     [guardiansData, user?.email]
   );
@@ -49,12 +49,12 @@ export default function MyChildren() {
     refetch: refetchPatients,
   } = useFetchAll<PatientApi>(token ? "/api/patients" : null);
 
-  const misHijos = useMemo(
+  const myChildren = useMemo(
     () =>
       (patientsData?.items ?? []).filter(
-        (p) => p.guardianId === propioAcudiente?.id
+        (p) => p.guardianId === ownGuardian?.id
       ),
-    [patientsData, propioAcudiente]
+    [patientsData, ownGuardian]
   );
 
   useEffect(() => {
@@ -76,38 +76,38 @@ export default function MyChildren() {
   };
 
   const handleSave = async (form: HTMLFormElement) => {
-    if (!propioAcudiente) return;
+    if (!ownGuardian) return;
     // Defensa en profundidad: la lista ya viene escopada, pero verificamos
     // de nuevo antes de escribir que el registro es realmente propio.
-    if (editing && editing.guardianId !== propioAcudiente.id) {
+    if (editing && editing.guardianId !== ownGuardian.id) {
       toast.error("No puedes editar este registro");
       return;
     }
 
     const fd = new FormData(form);
-    const alergias = String(fd.get("alergias") || "")
+    const allergies = String(fd.get("allergies") || "")
       .split(",")
       .map((s) => s.trim())
       .filter(Boolean);
-    const condiciones = String(fd.get("condiciones") || "")
+    const conditions = String(fd.get("conditions") || "")
       .split(",")
       .map((s) => s.trim())
       .filter(Boolean);
-    const birthDate = String(fd.get("fechaNacimiento"));
-    const weightKg = Number(fd.get("pesoKg")) || undefined;
-    const bloodType = (fd.get("tipoSangre") as BloodType) || undefined;
+    const birthDate = String(fd.get("birthDate"));
+    const weightKg = Number(fd.get("weightKg")) || undefined;
+    const bloodType = (fd.get("bloodType") as BloodType) || undefined;
 
     setSaving(true);
     try {
       const freshToken = await getValidToken();
       if (editing) {
         const payload: PatientPatchPayload = {
-          name: String(fd.get("nombre")),
+          name: String(fd.get("name")),
           birthDate,
           weightKg,
           bloodType,
-          conditions: condiciones,
-          allergies: alergias,
+          conditions,
+          allergies,
         };
         await apiFetch<PatientApi>(`/api/patients/${editing.id}`, freshToken, {
           method: "PATCH",
@@ -116,13 +116,13 @@ export default function MyChildren() {
         toast.success("Datos actualizados");
       } else {
         const payload: PatientCreatePayload = {
-          guardianId: propioAcudiente.id,
-          name: String(fd.get("nombre")),
+          guardianId: ownGuardian.id,
+          name: String(fd.get("name")),
           birthDate,
           weightKg,
           bloodType,
-          conditions: condiciones,
-          allergies: alergias,
+          conditions,
+          allergies,
         };
         await apiFetch<PatientApi>("/api/patients", freshToken, {
           method: "POST",
@@ -145,7 +145,7 @@ export default function MyChildren() {
 
   return (
     <DashboardLayout title="Mis hijos" subtitle="Niños registrados en tu cuenta de Lucera">
-      {guardiansData && !propioAcudiente ? (
+      {guardiansData && !ownGuardian ? (
         <Text color="lucera.textMuted" textAlign="center" py={10}>
           No encontramos tu cuenta de acudiente con este correo.
         </Text>
@@ -156,7 +156,7 @@ export default function MyChildren() {
               colorScheme="naranja"
               leftIcon={<Plus size={16} />}
               onClick={() => openEdit(null)}
-              isDisabled={!propioAcudiente}
+              isDisabled={!ownGuardian}
             >
               Registrar hijo/a
             </Button>
@@ -167,7 +167,7 @@ export default function MyChildren() {
           ) : (
             <SimpleGrid columns={{ base: 1, md: 2 }} spacing={4}>
               <AnimatePresence mode="popLayout">
-                {misHijos.map((n) => (
+                {myChildren.map((n) => (
                   <MotionDiv
                     key={n.id}
                     layout
@@ -244,7 +244,7 @@ export default function MyChildren() {
                   </MotionDiv>
                 ))}
               </AnimatePresence>
-              {misHijos.length === 0 && (
+              {myChildren.length === 0 && (
                 <Text color="lucera.textMuted" gridColumn={{ md: "span 2" }} textAlign="center" py={6}>
                   Aún no tienes hijos registrados.
                 </Text>
@@ -263,16 +263,16 @@ export default function MyChildren() {
             <ModalBody>
               <Text fontSize="xs" color="lucera.textMuted" mb={3}>Estos datos permiten a Lucera IA calcular dosis y dar recomendaciones más seguras.</Text>
               <SimpleGrid columns={2} spacing={3}>
-                <FormControl gridColumn="span 2" isRequired><FormLabel>Nombre completo</FormLabel><Input name="nombre" defaultValue={editing?.name} /></FormControl>
-                <FormControl isRequired><FormLabel>Fecha de nacimiento</FormLabel><Input name="fechaNacimiento" type="date" defaultValue={editing?.birthDate} /></FormControl>
-                <FormControl><FormLabel>Peso (kg)</FormLabel><Input name="pesoKg" type="number" step="0.1" min="0" defaultValue={editing?.weightKg ?? undefined} /></FormControl>
+                <FormControl gridColumn="span 2" isRequired><FormLabel>Nombre completo</FormLabel><Input name="name" defaultValue={editing?.name} /></FormControl>
+                <FormControl isRequired><FormLabel>Fecha de nacimiento</FormLabel><Input name="birthDate" type="date" defaultValue={editing?.birthDate} /></FormControl>
+                <FormControl><FormLabel>Peso (kg)</FormLabel><Input name="weightKg" type="number" step="0.1" min="0" defaultValue={editing?.weightKg ?? undefined} /></FormControl>
                 <FormControl gridColumn="span 2"><FormLabel>Tipo de sangre</FormLabel>
-                  <Select name="tipoSangre" defaultValue={editing?.bloodType ?? ""} placeholder="Sin especificar">
+                  <Select name="bloodType" defaultValue={editing?.bloodType ?? ""} placeholder="Sin especificar">
                     {["A+","A-","B+","B-","AB+","AB-","O+","O-"].map((t) => <option key={t} value={t}>{t}</option>)}
                   </Select>
                 </FormControl>
-                <FormControl gridColumn="span 2"><FormLabel>Alergias (separadas por coma)</FormLabel><Input name="alergias" placeholder="Penicilina, Maní…" defaultValue={editing?.allergies?.join(", ")} /></FormControl>
-                <FormControl gridColumn="span 2"><FormLabel>Condiciones médicas (separadas por coma)</FormLabel><Input name="condiciones" placeholder="Asma leve…" defaultValue={editing?.conditions?.join(", ")} /></FormControl>
+                <FormControl gridColumn="span 2"><FormLabel>Alergias (separadas por coma)</FormLabel><Input name="allergies" placeholder="Penicilina, Maní…" defaultValue={editing?.allergies?.join(", ")} /></FormControl>
+                <FormControl gridColumn="span 2"><FormLabel>Condiciones médicas (separadas por coma)</FormLabel><Input name="conditions" placeholder="Asma leve…" defaultValue={editing?.conditions?.join(", ")} /></FormControl>
               </SimpleGrid>
             </ModalBody>
             <ModalFooter>
@@ -291,8 +291,8 @@ export default function MyChildren() {
         title="Eliminar registro"
         description={<>¿Eliminar el perfil de <strong>{toDelete?.name}</strong>? Se perderá su historial clínico vinculado y no se puede deshacer.</>}
         onConfirm={async () => {
-          if (!toDelete || !propioAcudiente) return;
-          if (toDelete.guardianId !== propioAcudiente.id) {
+          if (!toDelete || !ownGuardian) return;
+          if (toDelete.guardianId !== ownGuardian.id) {
             toast.error("No puedes eliminar este registro");
             return;
           }

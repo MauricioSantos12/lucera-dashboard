@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
-import { Centro, paisesCiudades } from "@/lib/mockData";
+import { Center, countriesCities } from "@/lib/mockData";
 import { useFetchAll } from "@/hooks/useFetchAll";
 import { apiFetch } from "@/lib/apiClient";
 import { centerTypeToEs, countryEsToApi } from "@/lib/apiMappings";
@@ -51,7 +51,7 @@ import { ExportButton } from "@/components/ExportButton";
 import { useAuth } from "@/lib/auth";
 import { toast } from "@/lib/toast";
 
-const tipoTone: Record<Centro["tipo"], string> = {
+const typeTone: Record<Center["type"], string> = {
   Hospital: "vino",
   Clínica: "naranja",
   Farmacia: "amarillo",
@@ -60,23 +60,23 @@ const tipoTone: Record<Centro["tipo"], string> = {
 };
 
 // El GET no expone país por centro, solo ciudad. Lo derivamos de
-// paisesCiudades (mockData.ts) para poder filtrar por país.
+// countriesCities (mockData.ts) para poder filtrar por país.
 const cityToCountry: Record<string, string> = Object.entries(
-  paisesCiudades
-).reduce((acc, [pais, ciudades]) => {
-  ciudades.forEach((c) => {
-    acc[c] = pais;
+  countriesCities
+).reduce((acc, [country, cities]) => {
+  cities.forEach((c) => {
+    acc[c] = country;
   });
   return acc;
 }, {} as Record<string, string>);
 
-type CentroRow = Centro & { pais: string };
+type CenterRow = Center & { country: string };
 
 export default function Centers() {
   const { user, token, getValidToken } = useAuth();
-  const isAdmin = user?.rol === "Admin";
+  const isAdmin = user?.role === "Admin";
   const canEdit = isAdmin;
-  const canExport = user?.rol !== "Invitado";
+  const canExport = user?.role !== "Invitado";
 
   const {
     data: centersData,
@@ -87,27 +87,27 @@ export default function Centers() {
   const data = useMemo(
     () =>
       (centersData?.items ?? []).map(
-        (c): CentroRow => ({
+        (c): CenterRow => ({
           id: c.id,
-          nombre: c.name,
-          tipo: centerTypeToEs[c.type] ?? "Hospital",
-          ciudad: c.city,
-          pais: cityToCountry[c.city] ?? "Otro",
-          direccion: c.address,
-          telefono: c.phone,
-          horarios: c.hours,
-          recomendado: c.recommended,
+          name: c.name,
+          type: centerTypeToEs[c.type] ?? "Hospital",
+          city: c.city,
+          country: cityToCountry[c.city] ?? "Otro",
+          address: c.address,
+          phone: c.phone,
+          hours: c.hours,
+          recommended: c.recommended,
         })
       ),
     [centersData]
   );
 
-  const paises = useMemo(
-    () => [...new Set(data.map((c) => c.pais))].sort(),
+  const countries = useMemo(
+    () => [...new Set(data.map((c) => c.country))].sort(),
     [data]
   );
-  const ciudades = useMemo(
-    () => [...new Set(data.map((c) => c.ciudad))].sort(),
+  const cities = useMemo(
+    () => [...new Set(data.map((c) => c.city))].sort(),
     [data]
   );
 
@@ -120,50 +120,50 @@ export default function Centers() {
   }, [centersError]);
 
   const [q, setQ] = useState("");
-  const [tipo, setTipo] = useState("todos");
-  const [paisFilter, setPaisFilter] = useState("todos");
-  const [ciudadFilter, setCiudadFilter] = useState("todos");
+  const [type, setType] = useState("todos");
+  const [countryFilter, setCountryFilter] = useState("todos");
+  const [cityFilter, setCityFilter] = useState("todos");
   const [page, setPage] = useState(1);
   const perPage = 10;
   const { isOpen, onOpen, onClose } = useDisclosure();
-  const [editing, setEditing] = useState<CentroRow | null>(null);
-  const [toDelete, setToDelete] = useState<CentroRow | null>(null);
-  const [recomendado, setRecomendado] = useState(false);
-  const [pais, setPais] = useState("");
+  const [editing, setEditing] = useState<CenterRow | null>(null);
+  const [toDelete, setToDelete] = useState<CenterRow | null>(null);
+  const [recommended, setRecommended] = useState(false);
+  const [country, setCountry] = useState("");
   const [saving, setSaving] = useState(false);
 
   const filtered = useMemo(() => {
     setPage(1);
     return data.filter((c) => {
-      const okQ = `${c.nombre} ${c.ciudad} ${c.direccion}`
+      const okQ = `${c.name} ${c.city} ${c.address}`
         .toLowerCase()
         .includes(q.toLowerCase());
-      const okT = tipo === "todos" || c.tipo === tipo;
-      const okPais = paisFilter === "todos" || c.pais === paisFilter;
-      const okCiudad = ciudadFilter === "todos" || c.ciudad === ciudadFilter;
-      return okQ && okT && okPais && okCiudad;
+      const okT = type === "todos" || c.type === type;
+      const okCountry = countryFilter === "todos" || c.country === countryFilter;
+      const okCity = cityFilter === "todos" || c.city === cityFilter;
+      return okQ && okT && okCountry && okCity;
     });
-  }, [data, q, tipo, paisFilter, ciudadFilter]);
+  }, [data, q, type, countryFilter, cityFilter]);
 
   const totalPages = Math.ceil(filtered.length / perPage);
   const paginated = filtered.slice((page - 1) * perPage, page * perPage);
 
-  const openEdit = (c: CentroRow | null) => {
+  const openEdit = (c: CenterRow | null) => {
     setEditing(c);
-    setRecomendado(c?.recomendado ?? false);
-    setPais(c?.pais ?? "");
+    setRecommended(c?.recommended ?? false);
+    setCountry(c?.country ?? "");
     onOpen();
   };
 
   const onSave = async (form: HTMLFormElement) => {
     const fd = new FormData(form);
     const common = {
-      name: String(fd.get("nombre")),
-      city: String(fd.get("ciudad")),
-      address: String(fd.get("direccion") || "") || undefined,
-      phone: String(fd.get("telefono") || "") || undefined,
+      name: String(fd.get("name")),
+      city: String(fd.get("city")),
+      address: String(fd.get("address") || "") || undefined,
+      phone: String(fd.get("phone") || "") || undefined,
       tier: String(fd.get("tier") || "") || undefined,
-      recommended: recomendado,
+      recommended: recommended,
     };
 
     setSaving(true);
@@ -179,7 +179,7 @@ export default function Centers() {
       } else {
         const payload: CenterCreatePayload = {
           ...common,
-          country: countryEsToApi[pais] ?? (pais || undefined),
+          country: countryEsToApi[country] ?? (country || undefined),
         };
         await apiFetch<CenterApi>("/api/centers", freshToken, {
           method: "POST",
@@ -231,11 +231,11 @@ export default function Centers() {
             </Text>
             <Select
               w={{ base: "100%", md: "180px" }}
-              value={tipo}
-              onChange={(e) => setTipo(e.target.value)}
+              value={type}
+              onChange={(e) => setType(e.target.value)}
             >
               <option value="todos">Todos los tipos</option>
-              {(Object.keys(tipoTone) as Centro["tipo"][]).map((t) => (
+              {(Object.keys(typeTone) as Center["type"][]).map((t) => (
                 <option key={t} value={t}>
                   {t}
                 </option>
@@ -248,11 +248,11 @@ export default function Centers() {
             </Text>
             <Select
               w={{ base: "100%", md: "160px" }}
-              value={paisFilter}
-              onChange={(e) => setPaisFilter(e.target.value)}
+              value={countryFilter}
+              onChange={(e) => setCountryFilter(e.target.value)}
             >
               <option value="todos">Todos los países</option>
-              {paises.map((p) => (
+              {countries.map((p) => (
                 <option key={p} value={p}>
                   {p}
                 </option>
@@ -265,11 +265,11 @@ export default function Centers() {
             </Text>
             <Select
               w={{ base: "100%", md: "180px" }}
-              value={ciudadFilter}
-              onChange={(e) => setCiudadFilter(e.target.value)}
+              value={cityFilter}
+              onChange={(e) => setCityFilter(e.target.value)}
             >
               <option value="todos">Todas las ciudades</option>
-              {ciudades.map((c) => (
+              {cities.map((c) => (
                 <option key={c} value={c}>
                   {c}
                 </option>
@@ -285,13 +285,13 @@ export default function Centers() {
             sheetName="Centros"
             data={filtered.map((c) => ({
               ID: c.id,
-              Nombre: c.nombre,
-              Tipo: c.tipo,
-              Ciudad: c.ciudad,
-              Dirección: c.direccion,
-              Teléfono: c.telefono,
-              Horarios: c.horarios,
-              Recomendado: c.recomendado ? "Sí" : "No",
+              Nombre: c.name,
+              Tipo: c.type,
+              Ciudad: c.city,
+              Dirección: c.address,
+              Teléfono: c.phone,
+              Horarios: c.hours,
+              Recomendado: c.recommended ? "Sí" : "No",
             }))}
           />
           {canEdit && (
@@ -344,41 +344,41 @@ export default function Centers() {
                         <Building2 size={14} color="#6d122b" />
                       </Flex>
                       <Text fontSize="sm" fontWeight={600}>
-                        {c.nombre}
+                        {c.name}
                       </Text>
                     </HStack>
                   </Td>
                   <Td>
-                    <Badge colorScheme={tipoTone[c.tipo]}>{c.tipo}</Badge>
+                    <Badge colorScheme={typeTone[c.type]}>{c.type}</Badge>
                   </Td>
                   <Td
                     display={{ base: "none", md: "table-cell" }}
                     fontSize="sm"
                   >
-                    {c.ciudad}
+                    {c.city}
                   </Td>
                   <Td
                     display={{ base: "none", lg: "table-cell" }}
                     fontSize="xs"
                     color="lucera.textMuted"
                   >
-                    {c.direccion}
+                    {c.address}
                   </Td>
                   <Td
                     display={{ base: "none", md: "table-cell" }}
                     fontFamily="mono"
                     fontSize="xs"
                   >
-                    {c.telefono}
+                    {c.phone}
                   </Td>
                   <Td
                     display={{ base: "none", lg: "table-cell" }}
                     fontSize="xs"
                   >
-                    {c.horarios}
+                    {c.hours}
                   </Td>
                   <Td textAlign="center">
-                    {c.recomendado ? (
+                    {c.recommended ? (
                       <Badge colorScheme="amarillo">
                         <HStack spacing={1}>
                           <Star size={10} fill="currentColor" />
@@ -443,25 +443,25 @@ export default function Centers() {
             <ModalBody>
               {editing && (
                 <Text fontSize="xs" color="lucera.textMuted" mb={3}>
-                  Tipo ({editing.tipo}) y horarios ({editing.horarios}) no son
+                  Tipo ({editing.type}) y horarios ({editing.hours}) no son
                   editables desde el API todavía.
                 </Text>
               )}
               <SimpleGrid columns={2} spacing={3}>
                 <FormControl gridColumn="span 2" isRequired>
                   <FormLabel>Nombre</FormLabel>
-                  <Input name="nombre" defaultValue={editing?.nombre} />
+                  <Input name="name" defaultValue={editing?.name} />
                 </FormControl>
                 {!editing && (
                   <FormControl isRequired>
                     <FormLabel>País</FormLabel>
                     <Select
-                      name="pais"
-                      value={pais}
-                      onChange={(e) => setPais(e.target.value)}
+                      name="country"
+                      value={country}
+                      onChange={(e) => setCountry(e.target.value)}
                       placeholder="Seleccionar país"
                     >
-                      {Object.keys(paisesCiudades).map((p) => (
+                      {Object.keys(countriesCities).map((p) => (
                         <option key={p} value={p}>
                           {p}
                         </option>
@@ -471,15 +471,15 @@ export default function Centers() {
                 )}
                 <FormControl isRequired>
                   <FormLabel>Ciudad</FormLabel>
-                  <Input name="ciudad" defaultValue={editing?.ciudad} />
+                  <Input name="city" defaultValue={editing?.city} />
                 </FormControl>
                 <FormControl gridColumn="span 2">
                   <FormLabel>Dirección</FormLabel>
-                  <Input name="direccion" defaultValue={editing?.direccion} />
+                  <Input name="address" defaultValue={editing?.address} />
                 </FormControl>
                 <FormControl>
                   <FormLabel>Teléfono</FormLabel>
-                  <Input name="telefono" defaultValue={editing?.telefono} />
+                  <Input name="phone" defaultValue={editing?.phone} />
                 </FormControl>
                 <FormControl>
                   <FormLabel>Nivel</FormLabel>
@@ -502,8 +502,8 @@ export default function Centers() {
                     </Text>
                   </Box>
                   <Switch
-                    isChecked={recomendado}
-                    onChange={(e) => setRecomendado(e.target.checked)}
+                    isChecked={recommended}
+                    onChange={(e) => setRecommended(e.target.checked)}
                     colorScheme="naranja"
                   />
                 </FormControl>
@@ -527,7 +527,7 @@ export default function Centers() {
         title="Eliminar centro"
         description={
           <>
-            ¿Eliminar <strong>{toDelete?.nombre}</strong> del directorio? La IA
+            ¿Eliminar <strong>{toDelete?.name}</strong> del directorio? La IA
             dejará de derivar pacientes ahí.
           </>
         }

@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
-import { medicamentos as seed, Medicamento } from "@/lib/mockData";
+import { medications as seed, Medication } from "@/lib/mockData";
 import {
   Box,
   Button,
@@ -52,7 +52,7 @@ import { toast } from "@/lib/toast";
 import { exportToExcel } from "@/lib/exportToExcel";
 import { useAuth } from "@/lib/auth";
 
-const catTone: Record<Medicamento["categoria"], string> = {
+const catTone: Record<Medication["category"], string> = {
   Analgésico: "vino",
   Antipirético: "naranja",
   Antihistamínico: "blue",
@@ -61,7 +61,7 @@ const catTone: Record<Medicamento["categoria"], string> = {
   Otros: "gray",
 };
 
-const cats: Medicamento["categoria"][] = [
+const cats: Medication["category"][] = [
   "Analgésico",
   "Antipirético",
   "Antihistamínico",
@@ -72,52 +72,52 @@ const cats: Medicamento["categoria"][] = [
 
 export default function Medications() {
   const { user } = useAuth();
-  const canEdit = user?.rol !== "Invitado";
-  const canExport = user?.rol !== "Invitado" && user?.rol !== "Ventas";
-  const [data, setData] = useState<Medicamento[]>(seed);
+  const canEdit = user?.role !== "Invitado";
+  const canExport = user?.role !== "Invitado" && user?.role !== "Ventas";
+  const [data, setData] = useState<Medication[]>(seed);
   const [q, setQ] = useState("");
   const [cat, setCat] = useState("todas");
-  const [estado, setEstado] = useState("todos");
+  const [status, setStatus] = useState("todos");
   const [page, setPage] = useState(1);
   const perPage = 10;
   const { isOpen, onOpen, onClose } = useDisclosure();
-  const [editing, setEditing] = useState<Medicamento | null>(null);
-  const [toDelete, setToDelete] = useState<Medicamento | null>(null);
-  const [recomendable, setRecomendable] = useState(true);
+  const [editing, setEditing] = useState<Medication | null>(null);
+  const [toDelete, setToDelete] = useState<Medication | null>(null);
+  const [recommendable, setRecommendable] = useState(true);
 
   const filtered = useMemo(() => {
     setPage(1);
     return data.filter((m) => {
-      const okQ = `${m.nombre} ${m.generico} ${m.marca ?? ""}`
+      const okQ = `${m.name} ${m.genericName} ${m.brand ?? ""}`
         .toLowerCase()
         .includes(q.toLowerCase());
-      const okC = cat === "todas" || m.categoria === cat;
-      const okE = estado === "todos" || m.estado === estado;
+      const okC = cat === "todas" || m.category === cat;
+      const okE = status === "todos" || m.status === status;
       return okQ && okC && okE;
     });
-  }, [data, q, cat, estado]);
+  }, [data, q, cat, status]);
 
   const totalPages = Math.ceil(filtered.length / perPage);
   const paginated = filtered.slice((page - 1) * perPage, page * perPage);
 
-  const openEdit = (m: Medicamento | null) => {
+  const openEdit = (m: Medication | null) => {
     setEditing(m);
-    setRecomendable(m?.recomendable ?? true);
+    setRecommendable(m?.recommendable ?? true);
     onOpen();
   };
 
   const onSave = (form: HTMLFormElement) => {
     const fd = new FormData(form);
-    const next: Medicamento = {
+    const next: Medication = {
       id: editing?.id ?? `MED-${data.length + 1}`,
-      nombre: String(fd.get("nombre")),
-      generico: String(fd.get("generico")),
-      marca: String(fd.get("marca") || "") || undefined,
-      categoria: fd.get("categoria") as Medicamento["categoria"],
-      estado: fd.get("estado") as Medicamento["estado"],
-      dosisPorKg: String(fd.get("dosisPorKg") || "") || undefined,
-      notas: String(fd.get("notas") || "") || undefined,
-      recomendable,
+      name: String(fd.get("name")),
+      genericName: String(fd.get("genericName")),
+      brand: String(fd.get("brand") || "") || undefined,
+      category: fd.get("category") as Medication["category"],
+      status: fd.get("status") as Medication["status"],
+      dosePerKg: String(fd.get("dosePerKg") || "") || undefined,
+      notes: String(fd.get("notes") || "") || undefined,
+      recommendable,
     };
     setData(
       editing
@@ -182,8 +182,8 @@ export default function Medications() {
           </Select>
           <Select
             w={{ base: "100%", md: "180px" }}
-            value={estado}
-            onChange={(e) => setEstado(e.target.value)}
+            value={status}
+            onChange={(e) => setStatus(e.target.value)}
           >
             <option value="todos">Todos los estados</option>
             <option value="disponible">Disponible</option>
@@ -197,13 +197,13 @@ export default function Medications() {
               exportToExcel(
                 filtered.map((m) => ({
                   ID: m.id,
-                  Nombre: m.nombre,
-                  Genérico: m.generico,
-                  Marca: m.marca ?? "",
-                  Categoría: m.categoria,
-                  Estado: m.estado,
-                  "Dosis/kg": m.dosisPorKg ?? "",
-                  "Recomendable IA": m.recomendable ? "Sí" : "No",
+                  Nombre: m.name,
+                  Genérico: m.genericName,
+                  Marca: m.brand ?? "",
+                  Categoría: m.category,
+                  Estado: m.status,
+                  "Dosis/kg": m.dosePerKg ?? "",
+                  "Recomendable IA": m.recommendable ? "Sí" : "No",
                 })),
                 "medicamentos-lucera",
                 "Medicamentos"
@@ -260,11 +260,11 @@ export default function Medications() {
                       </Flex>
                       <Box>
                         <Text fontSize="sm" fontWeight={600}>
-                          {m.nombre}
+                          {m.name}
                         </Text>
-                        {m.marca && (
+                        {m.brand && (
                           <Text fontSize="xs" color="lucera.textMuted">
-                            {m.marca}
+                            {m.brand}
                           </Text>
                         )}
                       </Box>
@@ -276,11 +276,11 @@ export default function Medications() {
                     color="lucera.textMuted"
                     fontStyle="italic"
                   >
-                    {m.generico}
+                    {m.genericName}
                   </Td>
                   <Td>
-                    <Badge colorScheme={catTone[m.categoria]}>
-                      {m.categoria}
+                    <Badge colorScheme={catTone[m.category]}>
+                      {m.category}
                     </Badge>
                   </Td>
                   {/* <Td
@@ -288,17 +288,17 @@ export default function Medications() {
                     fontFamily="mono"
                     fontSize="xs"
                   >
-                    {m.dosisPorKg ?? "—"}
+                    {m.dosePerKg ?? "—"}
                   </Td> */}
                   <Td>
                     <Badge
-                      colorScheme={m.estado === "disponible" ? "green" : "gray"}
+                      colorScheme={m.status === "disponible" ? "green" : "gray"}
                     >
-                      {m.estado}
+                      {m.status}
                     </Badge>
                   </Td>
                   <Td textAlign="center">
-                    {m.recomendable ? (
+                    {m.recommendable ? (
                       <CheckCircle2
                         size={16}
                         color="#2f9e6b"
@@ -363,21 +363,21 @@ export default function Medications() {
               <SimpleGrid columns={2} spacing={3}>
                 <FormControl isRequired>
                   <FormLabel>Nombre</FormLabel>
-                  <Input name="nombre" defaultValue={editing?.nombre} />
+                  <Input name="name" defaultValue={editing?.name} />
                 </FormControl>
                 <FormControl isRequired>
                   <FormLabel>Genérico</FormLabel>
-                  <Input name="generico" defaultValue={editing?.generico} />
+                  <Input name="genericName" defaultValue={editing?.genericName} />
                 </FormControl>
                 <FormControl>
                   <FormLabel>Marca</FormLabel>
-                  <Input name="marca" defaultValue={editing?.marca} />
+                  <Input name="brand" defaultValue={editing?.brand} />
                 </FormControl>
                 <FormControl>
                   <FormLabel>Categoría</FormLabel>
                   <Select
-                    name="categoria"
-                    defaultValue={editing?.categoria ?? "Analgésico"}
+                    name="category"
+                    defaultValue={editing?.category ?? "Analgésico"}
                   >
                     {cats.map((c) => (
                       <option key={c} value={c}>
@@ -389,20 +389,20 @@ export default function Medications() {
                 <FormControl gridColumn="span 2">
                   <FormLabel>Dosis por kg</FormLabel>
                   <Input
-                    name="dosisPorKg"
+                    name="dosePerKg"
                     placeholder="10-15 mg/kg cada 6h"
-                    defaultValue={editing?.dosisPorKg}
+                    defaultValue={editing?.dosePerKg}
                   />
                 </FormControl>
                 <FormControl gridColumn="span 2">
                   <FormLabel>Notas</FormLabel>
-                  <Input name="notas" defaultValue={editing?.notas} />
+                  <Input name="notes" defaultValue={editing?.notes} />
                 </FormControl>
                 <FormControl>
                   <FormLabel>Estado</FormLabel>
                   <Select
-                    name="estado"
-                    defaultValue={editing?.estado ?? "disponible"}
+                    name="status"
+                    defaultValue={editing?.status ?? "disponible"}
                   >
                     <option value="disponible">Disponible</option>
                     <option value="descontinuado">Descontinuado</option>
@@ -421,8 +421,8 @@ export default function Medications() {
                     Recomendable IA
                   </FormLabel>
                   <Switch
-                    isChecked={recomendable}
-                    onChange={(e) => setRecomendable(e.target.checked)}
+                    isChecked={recommendable}
+                    onChange={(e) => setRecommendable(e.target.checked)}
                     colorScheme="naranja"
                   />
                 </FormControl>
@@ -446,7 +446,7 @@ export default function Medications() {
         title="Eliminar medicamento"
         description={
           <>
-            ¿Eliminar <strong>{toDelete?.nombre}</strong> del catálogo? La IA
+            ¿Eliminar <strong>{toDelete?.name}</strong> del catálogo? La IA
             dejará de sugerirlo.
           </>
         }

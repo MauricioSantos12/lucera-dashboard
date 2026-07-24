@@ -24,55 +24,55 @@ export const triageBadgeClass: Record<TriageLevel, string> = {
 };
 
 // Sesiones por mes (una sesión = conversación completa) y conversión a pago
-export const sesionesPorMes = [
-  { mes: "Nov", sesiones: 420, premium: 38 },
-  { mes: "Dic", sesiones: 510, premium: 52 },
-  { mes: "Ene", sesiones: 612, premium: 71 },
-  { mes: "Feb", sesiones: 705, premium: 88 },
-  { mes: "Mar", sesiones: 822, premium: 112 },
-  { mes: "Abr", sesiones: 940, premium: 138 },
-  { mes: "May", sesiones: 1018, premium: 161 },
+export const sessionsPerMonth = [
+  { month: "Nov", sessions: 420, premium: 38 },
+  { month: "Dic", sessions: 510, premium: 52 },
+  { month: "Ene", sessions: 612, premium: 71 },
+  { month: "Feb", sessions: 705, premium: 88 },
+  { month: "Mar", sessions: 822, premium: 112 },
+  { month: "Abr", sessions: 940, premium: 138 },
+  { month: "May", sessions: 1018, premium: 161 },
 ];
 // alias retro-compat
-export const consultasPorMes = sesionesPorMes.map((s) => ({
-  mes: s.mes,
-  consultas: s.sesiones,
-  satisfaccion: 88 + Math.round(s.premium / 25),
+export const consultationsPerMonth = sessionsPerMonth.map((s) => ({
+  month: s.month,
+  consultations: s.sessions,
+  satisfaction: 88 + Math.round(s.premium / 25),
 }));
 
-export const triajeStats = [
-  { nivel: "General", value: 1860, color: "hsl(var(--triage-self))" },
-  { nivel: "Urgente", value: 612, color: "hsl(var(--triage-priority))" },
-  { nivel: "Emergencia", value: 98, color: "hsl(var(--triage-emergency))" },
+export const triageStats = [
+  { level: "General", value: 1860, color: "hsl(var(--triage-self))" },
+  { level: "Urgente", value: 612, color: "hsl(var(--triage-priority))" },
+  { level: "Emergencia", value: 98, color: "hsl(var(--triage-emergency))" },
 ];
 
 // CSAT calificación 1-5 al cerrar sesión (mostrado como % satisfacción ≥4)
 export const csatTrend = [
-  { semana: "S1", csat: 84 },
-  { semana: "S2", csat: 86 },
-  { semana: "S3", csat: 88 },
-  { semana: "S4", csat: 87 },
-  { semana: "S5", csat: 90 },
-  { semana: "S6", csat: 91 },
-  { semana: "S7", csat: 90 },
-  { semana: "S8", csat: 92 },
+  { week: "S1", csat: 84 },
+  { week: "S2", csat: 86 },
+  { week: "S3", csat: 88 },
+  { week: "S4", csat: 87 },
+  { week: "S5", csat: 90 },
+  { week: "S6", csat: 91 },
+  { week: "S7", csat: 90 },
+  { week: "S8", csat: 92 },
 ];
 
 // Distribución por plan
-export const planesDistribucion = [
-  { plan: "Gratuito", usuarios: 2840, color: "hsl(var(--triage-self))" },
-  { plan: "Premium Mensual", usuarios: 412, color: "hsl(var(--accent))" },
-  { plan: "Premium Anual", usuarios: 187, color: "hsl(var(--primary))" },
+export const planDistribution = [
+  { plan: "Gratuito", users: 2840, color: "hsl(var(--triage-self))" },
+  { plan: "Premium Mensual", users: 412, color: "hsl(var(--accent))" },
+  { plan: "Premium Anual", users: 187, color: "hsl(var(--primary))" },
 ];
 
 // Tipo de atención al cerrar la sesión
-export const tipoAtencion = [
-  { tipo: "Virtual (cerrada en chat)", value: 1820 },
-  { tipo: "Derivada a presencial", value: 750 },
+export const attentionTypeStats = [
+  { type: "Virtual (cerrada en chat)", value: 1820 },
+  { type: "Derivada a presencial", value: 750 },
 ];
 
 // ---------------- Seguros médicos ----------------
-export const segurosMedicos = [
+export const insuranceNames = [
   "MAPFRE",
   "Pan-American Life Insurance Group (PALIG)",
   "Blue Cross and Blue Shield of Panama",
@@ -80,10 +80,10 @@ export const segurosMedicos = [
   "Seguros SURA",
 ] as const;
 
-export type SeguroMedico = (typeof segurosMedicos)[number];
+export type InsuranceName = (typeof insuranceNames)[number];
 
 // ---------------- País / Ciudad ----------------
-export const paisesCiudades: Record<string, string[]> = {
+export const countriesCities: Record<string, string[]> = {
   Panamá: [
     "Ciudad de Panamá",
     "San Miguelito",
@@ -108,877 +108,877 @@ export const paisesCiudades: Record<string, string[]> = {
 };
 
 // ---------------- Acudientes y pacientes pediátricos ----------------
-export type Relacion = "Madre" | "Padre" | "Tutor" | "Abuelo/a";
-export type EstadoCuenta = "activa" | "suspendida" | "baja";
+export type Relationship = "Madre" | "Padre" | "Tutor" | "Abuelo/a";
+export type AccountStatus = "activa" | "suspendida" | "baja";
 
-export type NinoPaciente = {
+export type Child = {
   id: string;
-  nombre: string;
-  fechaNacimiento: string; // YYYY-MM-DD
-  tipoSangre?: "A+" | "A-" | "B+" | "B-" | "AB+" | "AB-" | "O+" | "O-";
-  pesoKg?: number;
-  condiciones?: string[];
-  alergias?: string[];
+  name: string;
+  birthDate: string; // YYYY-MM-DD
+  bloodType?: "A+" | "A-" | "B+" | "B-" | "AB+" | "AB-" | "O+" | "O-";
+  weightKg?: number;
+  conditions?: string[];
+  allergies?: string[];
 };
 
-export type Acudiente = {
+export type Guardian = {
   id: string;
-  telefono: string; // identificador principal
+  phone: string; // identificador principal
   email: string;
-  nombre: string;
-  relacion: Relacion;
-  pais: string;
-  ciudad: string;
-  seguro?: SeguroMedico;
-  seguroId?: string;
-  estado: EstadoCuenta;
+  name: string;
+  relationship: Relationship;
+  country: string;
+  city: string;
+  insurance?: InsuranceName;
+  policyNumber?: string;
+  status: AccountStatus;
   plan: "Gratuito" | "Premium Mensual" | "Premium Anual";
-  registrado: string;
-  ninos: NinoPaciente[];
+  registeredAt: string;
+  children: Child[];
 };
 
-export const acudientes: Acudiente[] = [
+export const guardians: Guardian[] = [
   {
     id: "ID-002",
-    telefono: "+507 6123-4567",
+    phone: "+507 6123-4567",
     email: "maria.mendoza@gmail.com",
-    nombre: "María Mendoza",
-    relacion: "Madre",
-    pais: "Panamá",
-    ciudad: "Ciudad de Panamá",
-    seguro: "MAPFRE",
-    seguroId: "MAP-20251112-001",
-    estado: "activa",
+    name: "María Mendoza",
+    relationship: "Madre",
+    country: "Panamá",
+    city: "Ciudad de Panamá",
+    insurance: "MAPFRE",
+    policyNumber: "MAP-20251112-001",
+    status: "activa",
     plan: "Premium Mensual",
-    registrado: "2025-11-12",
-    ninos: [
+    registeredAt: "2025-11-12",
+    children: [
       {
         id: "N-1",
-        nombre: "Sofía Mendoza",
-        fechaNacimiento: "2019-03-14",
-        tipoSangre: "O+",
-        pesoKg: 22,
-        alergias: ["Penicilina"],
+        name: "Sofía Mendoza",
+        birthDate: "2019-03-14",
+        bloodType: "O+",
+        weightKg: 22,
+        allergies: ["Penicilina"],
       },
     ],
   },
   {
     id: "ID-003",
-    telefono: "+507 6234-5678",
+    phone: "+507 6234-5678",
     email: "lquintero@hotmail.com",
-    nombre: "Luis Quintero",
-    relacion: "Padre",
-    pais: "Panamá",
-    ciudad: "San Miguelito",
-    estado: "activa",
+    name: "Luis Quintero",
+    relationship: "Padre",
+    country: "Panamá",
+    city: "San Miguelito",
+    status: "activa",
     plan: "Gratuito",
-    registrado: "2026-02-03",
-    ninos: [
+    registeredAt: "2026-02-03",
+    children: [
       {
         id: "N-2",
-        nombre: "Mateo Quintero",
-        fechaNacimiento: "2021-08-22",
-        pesoKg: 16,
+        name: "Mateo Quintero",
+        birthDate: "2021-08-22",
+        weightKg: 16,
       },
       {
         id: "N-3",
-        nombre: "Camila Quintero",
-        fechaNacimiento: "2024-01-09",
-        pesoKg: 9,
+        name: "Camila Quintero",
+        birthDate: "2024-01-09",
+        weightKg: 9,
       },
     ],
   },
   {
     id: "ID-004",
-    telefono: "+507 6345-6789",
+    phone: "+507 6345-6789",
     email: "carmen.r@yahoo.com",
-    nombre: "Carmen Rodríguez",
-    relacion: "Madre",
-    pais: "Panamá",
-    ciudad: "David",
-    seguro: "Blue Cross and Blue Shield of Panama",
-    seguroId: "BCBS-2025-4421",
-    estado: "activa",
+    name: "Carmen Rodríguez",
+    relationship: "Madre",
+    country: "Panamá",
+    city: "David",
+    insurance: "Blue Cross and Blue Shield of Panama",
+    policyNumber: "BCBS-2025-4421",
+    status: "activa",
     plan: "Premium Anual",
-    registrado: "2025-09-21",
-    ninos: [
+    registeredAt: "2025-09-21",
+    children: [
       {
         id: "N-4",
-        nombre: "Isabella Rodríguez",
-        fechaNacimiento: "2017-05-30",
-        tipoSangre: "A+",
-        pesoKg: 28,
-        alergias: ["Maní", "Mariscos"],
-        condiciones: ["Asma leve"],
+        name: "Isabella Rodríguez",
+        birthDate: "2017-05-30",
+        bloodType: "A+",
+        weightKg: 28,
+        allergies: ["Maní", "Mariscos"],
+        conditions: ["Asma leve"],
       },
     ],
   },
   {
     id: "ID-005",
-    telefono: "+507 6456-7890",
+    phone: "+507 6456-7890",
     email: "ana.castillo@gmail.com",
-    nombre: "Ana Castillo",
-    relacion: "Madre",
-    pais: "Panamá",
-    ciudad: "Colón",
-    seguro: "Seguros SURA",
-    seguroId: "SURA-PA-88712",
-    estado: "activa",
+    name: "Ana Castillo",
+    relationship: "Madre",
+    country: "Panamá",
+    city: "Colón",
+    insurance: "Seguros SURA",
+    policyNumber: "SURA-PA-88712",
+    status: "activa",
     plan: "Premium Mensual",
-    registrado: "2026-01-15",
-    ninos: [
+    registeredAt: "2026-01-15",
+    children: [
       {
         id: "N-5",
-        nombre: "Diego Castillo",
-        fechaNacimiento: "2022-06-11",
-        pesoKg: 14,
-        condiciones: ["Bronquiolitis recurrente"],
+        name: "Diego Castillo",
+        birthDate: "2022-06-11",
+        weightKg: 14,
+        conditions: ["Bronquiolitis recurrente"],
       },
     ],
   },
   {
     id: "ID-006",
-    telefono: "+507 6567-8901",
+    phone: "+507 6567-8901",
     email: "rperez@gmail.com",
-    nombre: "Roberto Pérez",
-    relacion: "Padre",
-    pais: "Panamá",
-    ciudad: "Santiago",
-    estado: "suspendida",
+    name: "Roberto Pérez",
+    relationship: "Padre",
+    country: "Panamá",
+    city: "Santiago",
+    status: "suspendida",
     plan: "Gratuito",
-    registrado: "2025-08-04",
-    ninos: [
+    registeredAt: "2025-08-04",
+    children: [
       {
         id: "N-6",
-        nombre: "Valentina Pérez",
-        fechaNacimiento: "2016-02-18",
-        pesoKg: 30,
+        name: "Valentina Pérez",
+        birthDate: "2016-02-18",
+        weightKg: 30,
       },
     ],
   },
   {
     id: "ID-007",
-    telefono: "+507 6678-9012",
+    phone: "+507 6678-9012",
     email: "patricia.h@gmail.com",
-    nombre: "Patricia Herrera",
-    relacion: "Madre",
-    pais: "Panamá",
-    ciudad: "Ciudad de Panamá",
-    estado: "activa",
+    name: "Patricia Herrera",
+    relationship: "Madre",
+    country: "Panamá",
+    city: "Ciudad de Panamá",
+    status: "activa",
     plan: "Premium Mensual",
-    registrado: "2026-03-02",
-    ninos: [
+    registeredAt: "2026-03-02",
+    children: [
       {
         id: "N-7",
-        nombre: "Lucas Herrera",
-        fechaNacimiento: "2023-10-05",
-        pesoKg: 12,
-        alergias: ["Lactosa"],
+        name: "Lucas Herrera",
+        birthDate: "2023-10-05",
+        weightKg: 12,
+        allergies: ["Lactosa"],
       },
     ],
   },
   {
     id: "ID-008",
-    telefono: "+507 6789-0123",
+    phone: "+507 6789-0123",
     email: "jorge.vega@gmail.com",
-    nombre: "Jorge Vega",
-    relacion: "Padre",
-    pais: "Panamá",
-    ciudad: "La Chorrera",
-    seguro: "Pan-American Life Insurance Group (PALIG)",
-    seguroId: "PALIG-507-33201",
-    estado: "activa",
+    name: "Jorge Vega",
+    relationship: "Padre",
+    country: "Panamá",
+    city: "La Chorrera",
+    insurance: "Pan-American Life Insurance Group (PALIG)",
+    policyNumber: "PALIG-507-33201",
+    status: "activa",
     plan: "Premium Anual",
-    registrado: "2025-07-19",
-    ninos: [
+    registeredAt: "2025-07-19",
+    children: [
       {
         id: "N-8",
-        nombre: "Camila Vega",
-        fechaNacimiento: "2018-09-01",
-        tipoSangre: "B+",
-        pesoKg: 24,
+        name: "Camila Vega",
+        birthDate: "2018-09-01",
+        bloodType: "B+",
+        weightKg: 24,
       },
     ],
   },
   {
     id: "ID-009",
-    telefono: "+507 6123-4567",
+    phone: "+507 6123-4567",
     email: "maria.mendoza@gmail.com",
-    nombre: "María Mendoza",
-    relacion: "Madre",
-    pais: "Panamá",
-    ciudad: "Ciudad de Panamá",
-    estado: "activa",
+    name: "María Mendoza",
+    relationship: "Madre",
+    country: "Panamá",
+    city: "Ciudad de Panamá",
+    status: "activa",
     plan: "Premium Mensual",
-    registrado: "2025-11-12",
-    ninos: [
+    registeredAt: "2025-11-12",
+    children: [
       {
         id: "N-1",
-        nombre: "Sofía Mendoza",
-        fechaNacimiento: "2019-03-14",
-        tipoSangre: "O+",
-        pesoKg: 22,
-        alergias: ["Penicilina"],
+        name: "Sofía Mendoza",
+        birthDate: "2019-03-14",
+        bloodType: "O+",
+        weightKg: 22,
+        allergies: ["Penicilina"],
       },
     ],
   },
   {
     id: "ID-010",
-    telefono: "+507 6234-5678",
+    phone: "+507 6234-5678",
     email: "lquintero@hotmail.com",
-    nombre: "Luis Quintero",
-    relacion: "Padre",
-    pais: "Panamá",
-    ciudad: "San Miguelito",
-    estado: "activa",
+    name: "Luis Quintero",
+    relationship: "Padre",
+    country: "Panamá",
+    city: "San Miguelito",
+    status: "activa",
     plan: "Gratuito",
-    registrado: "2026-02-03",
-    ninos: [
+    registeredAt: "2026-02-03",
+    children: [
       {
         id: "N-2",
-        nombre: "Mateo Quintero",
-        fechaNacimiento: "2021-08-22",
-        pesoKg: 16,
+        name: "Mateo Quintero",
+        birthDate: "2021-08-22",
+        weightKg: 16,
       },
       {
         id: "N-3",
-        nombre: "Camila Quintero",
-        fechaNacimiento: "2024-01-09",
-        pesoKg: 9,
+        name: "Camila Quintero",
+        birthDate: "2024-01-09",
+        weightKg: 9,
       },
     ],
   },
   {
     id: "ID-011",
-    telefono: "+507 6345-6789",
+    phone: "+507 6345-6789",
     email: "carmen.r@yahoo.com",
-    nombre: "Carmen Rodríguez",
-    relacion: "Madre",
-    pais: "Panamá",
-    ciudad: "David",
-    estado: "activa",
+    name: "Carmen Rodríguez",
+    relationship: "Madre",
+    country: "Panamá",
+    city: "David",
+    status: "activa",
     plan: "Premium Anual",
-    registrado: "2025-09-21",
-    ninos: [
+    registeredAt: "2025-09-21",
+    children: [
       {
         id: "N-4",
-        nombre: "Isabella Rodríguez",
-        fechaNacimiento: "2017-05-30",
-        tipoSangre: "A+",
-        pesoKg: 28,
-        alergias: ["Maní", "Mariscos"],
-        condiciones: ["Asma leve"],
+        name: "Isabella Rodríguez",
+        birthDate: "2017-05-30",
+        bloodType: "A+",
+        weightKg: 28,
+        allergies: ["Maní", "Mariscos"],
+        conditions: ["Asma leve"],
       },
     ],
   },
   {
     id: "ID-012",
-    telefono: "+507 6456-7890",
+    phone: "+507 6456-7890",
     email: "ana.castillo@gmail.com",
-    nombre: "Ana Castillo",
-    relacion: "Madre",
-    pais: "Colombia",
-    ciudad: "Bogotá",
-    seguro: "Internacional de Seguros (IS)",
-    seguroId: "IS-COL-55023",
-    estado: "activa",
+    name: "Ana Castillo",
+    relationship: "Madre",
+    country: "Colombia",
+    city: "Bogotá",
+    insurance: "Internacional de Seguros (IS)",
+    policyNumber: "IS-COL-55023",
+    status: "activa",
     plan: "Premium Mensual",
-    registrado: "2026-01-15",
-    ninos: [
+    registeredAt: "2026-01-15",
+    children: [
       {
         id: "N-5",
-        nombre: "Diego Castillo",
-        fechaNacimiento: "2022-06-11",
-        pesoKg: 14,
-        condiciones: ["Bronquiolitis recurrente"],
+        name: "Diego Castillo",
+        birthDate: "2022-06-11",
+        weightKg: 14,
+        conditions: ["Bronquiolitis recurrente"],
       },
     ],
   },
   {
     id: "ID-013",
-    telefono: "+507 6567-8901",
+    phone: "+507 6567-8901",
     email: "rperez@gmail.com",
-    nombre: "Roberto Pérez",
-    relacion: "Padre",
-    pais: "Colombia",
-    ciudad: "Medellín",
-    estado: "suspendida",
+    name: "Roberto Pérez",
+    relationship: "Padre",
+    country: "Colombia",
+    city: "Medellín",
+    status: "suspendida",
     plan: "Gratuito",
-    registrado: "2025-08-04",
-    ninos: [
+    registeredAt: "2025-08-04",
+    children: [
       {
         id: "N-6",
-        nombre: "Valentina Pérez",
-        fechaNacimiento: "2016-02-18",
-        pesoKg: 30,
+        name: "Valentina Pérez",
+        birthDate: "2016-02-18",
+        weightKg: 30,
       },
     ],
   },
   {
     id: "ID-014",
-    telefono: "+507 6678-9012",
+    phone: "+507 6678-9012",
     email: "patricia.h@gmail.com",
-    nombre: "Patricia Herrera",
-    relacion: "Madre",
-    pais: "Panamá",
-    ciudad: "Ciudad de Panamá",
-    estado: "activa",
+    name: "Patricia Herrera",
+    relationship: "Madre",
+    country: "Panamá",
+    city: "Ciudad de Panamá",
+    status: "activa",
     plan: "Premium Mensual",
-    registrado: "2026-03-02",
-    ninos: [
+    registeredAt: "2026-03-02",
+    children: [
       {
         id: "N-7",
-        nombre: "Lucas Herrera",
-        fechaNacimiento: "2023-10-05",
-        pesoKg: 12,
-        alergias: ["Lactosa"],
+        name: "Lucas Herrera",
+        birthDate: "2023-10-05",
+        weightKg: 12,
+        allergies: ["Lactosa"],
       },
     ],
   },
   {
     id: "ID-015",
-    telefono: "+507 6789-0123",
+    phone: "+507 6789-0123",
     email: "jorge.vega@gmail.com",
-    nombre: "Jorge Vega",
-    relacion: "Padre",
-    pais: "Panamá",
-    ciudad: "La Chorrera",
-    estado: "activa",
+    name: "Jorge Vega",
+    relationship: "Padre",
+    country: "Panamá",
+    city: "La Chorrera",
+    status: "activa",
     plan: "Premium Anual",
-    registrado: "2025-07-19",
-    ninos: [
+    registeredAt: "2025-07-19",
+    children: [
       {
         id: "N-8",
-        nombre: "Camila Vega",
-        fechaNacimiento: "2018-09-01",
-        tipoSangre: "B+",
-        pesoKg: 24,
+        name: "Camila Vega",
+        birthDate: "2018-09-01",
+        bloodType: "B+",
+        weightKg: 24,
       },
     ],
   },
 ];
 
 // alias retro-compat (Pacientes legacy mapeado al primer niño)
-export type Paciente = {
+export type LegacyPatient = {
   id: string;
-  nombre: string;
-  cedula: string;
-  edad: number;
-  tutor: string;
-  telefono: string;
-  estado: "activo" | "suspendido" | "pendiente";
-  ultimaConsulta: string;
+  name: string;
+  nationalId: string;
+  age: number;
+  guardianName: string;
+  phone: string;
+  status: "activo" | "suspendido" | "pendiente";
+  lastConsultation: string;
 };
-export const pacientes: Paciente[] = acudientes.map((a) => {
-  const n = a.ninos[0];
-  const edad = Math.floor(
-    (Date.now() - new Date(n.fechaNacimiento).getTime()) / (365.25 * 86400000)
+export const legacyPatients: LegacyPatient[] = guardians.map((g) => {
+  const child = g.children[0];
+  const age = Math.floor(
+    (Date.now() - new Date(child.birthDate).getTime()) / (365.25 * 86400000)
   );
   return {
-    id: a.id.replace("AC-", "P-"),
-    nombre: n.nombre,
-    cedula: `8-PI-${n.fechaNacimiento.slice(2, 4)}-${a.id.slice(-4)}`,
-    edad,
-    tutor: a.nombre,
-    telefono: a.telefono,
-    estado:
-      a.estado === "activa"
+    id: g.id.replace("AC-", "P-"),
+    name: child.name,
+    nationalId: `8-PI-${child.birthDate.slice(2, 4)}-${g.id.slice(-4)}`,
+    age,
+    guardianName: g.name,
+    phone: g.phone,
+    status:
+      g.status === "activa"
         ? "activo"
-        : a.estado === "suspendida"
+        : g.status === "suspendida"
         ? "suspendido"
         : "pendiente",
-    ultimaConsulta: a.registrado,
+    lastConsultation: g.registeredAt,
   };
 });
 
 // ---------------- Médicos ----------------
-export type Modalidad = "Virtual" | "Presencial" | "Ambas";
+export type ConsultationMode = "Virtual" | "Presencial" | "Ambas";
 
-export type Medico = {
+export type Doctor = {
   id: string;
-  nombre: string;
-  especialidad: string;
-  licencia: string; // número de idoneidad
+  name: string;
+  specialty: string;
+  license: string; // número de idoneidad
   email: string;
-  modalidad: Modalidad;
-  hospitales: string[];
-  estado: "activo" | "vacaciones" | "inactivo";
-  consultasMes: number;
-  horarios: string; // resumen
+  mode: ConsultationMode;
+  hospitals: string[];
+  status: "activo" | "vacaciones" | "inactivo";
+  monthlyConsultations: number;
+  hours: string; // resumen
 };
 
-export const medicos: Medico[] = [
+export const doctors: Doctor[] = [
   {
     id: "M-201",
-    nombre: "Dra. Elena Sánchez",
-    especialidad: "Pediatría General",
-    licencia: "MINSA-12045",
+    name: "Dra. Elena Sánchez",
+    specialty: "Pediatría General",
+    license: "MINSA-12045",
     email: "esanchez@lucera.pa",
-    modalidad: "Ambas",
-    hospitales: ["Hospital del Niño", "Clínica Hospital San Fernando"],
-    estado: "activo",
-    consultasMes: 124,
-    horarios: "Lun-Vie 08:00-14:00",
+    mode: "Ambas",
+    hospitals: ["Hospital del Niño", "Clínica Hospital San Fernando"],
+    status: "activo",
+    monthlyConsultations: 124,
+    hours: "Lun-Vie 08:00-14:00",
   },
   {
     id: "M-202",
-    nombre: "Dr. Carlos Arosemena",
-    especialidad: "Neonatología",
-    licencia: "MINSA-09872",
+    name: "Dr. Carlos Arosemena",
+    specialty: "Neonatología",
+    license: "MINSA-09872",
     email: "carosemena@lucera.pa",
-    modalidad: "Presencial",
-    hospitales: ["Hospital Punta Pacífica"],
-    estado: "activo",
-    consultasMes: 87,
-    horarios: "Mar-Sáb 09:00-15:00",
+    mode: "Presencial",
+    hospitals: ["Hospital Punta Pacífica"],
+    status: "activo",
+    monthlyConsultations: 87,
+    hours: "Mar-Sáb 09:00-15:00",
   },
   {
     id: "M-203",
-    nombre: "Dra. Mariela De León",
-    especialidad: "Pediatría General",
-    licencia: "MINSA-15324",
+    name: "Dra. Mariela De León",
+    specialty: "Pediatría General",
+    license: "MINSA-15324",
     email: "mdeleon@lucera.pa",
-    modalidad: "Virtual",
-    hospitales: ["Centro Médico Paitilla"],
-    estado: "vacaciones",
-    consultasMes: 0,
-    horarios: "Lun-Vie 14:00-20:00",
+    mode: "Virtual",
+    hospitals: ["Centro Médico Paitilla"],
+    status: "vacaciones",
+    monthlyConsultations: 0,
+    hours: "Lun-Vie 14:00-20:00",
   },
   {
     id: "M-204",
-    nombre: "Dr. Andrés Pinilla",
-    especialidad: "Cardiología Pediátrica",
-    licencia: "MINSA-11290",
+    name: "Dr. Andrés Pinilla",
+    specialty: "Cardiología Pediátrica",
+    license: "MINSA-11290",
     email: "apinilla@lucera.pa",
-    modalidad: "Ambas",
-    hospitales: ["Hospital del Niño"],
-    estado: "activo",
-    consultasMes: 56,
-    horarios: "Mié-Vie 10:00-16:00",
+    mode: "Ambas",
+    hospitals: ["Hospital del Niño"],
+    status: "activo",
+    monthlyConsultations: 56,
+    hours: "Mié-Vie 10:00-16:00",
   },
   {
     id: "M-205",
-    nombre: "Dra. Rocío Batista",
-    especialidad: "Dermatología Pediátrica",
-    licencia: "MINSA-13478",
+    name: "Dra. Rocío Batista",
+    specialty: "Dermatología Pediátrica",
+    license: "MINSA-13478",
     email: "rbatista@lucera.pa",
-    modalidad: "Virtual",
-    hospitales: ["Clínica Hospital San Fernando"],
-    estado: "activo",
-    consultasMes: 92,
-    horarios: "Lun-Jue 16:00-20:00",
+    mode: "Virtual",
+    hospitals: ["Clínica Hospital San Fernando"],
+    status: "activo",
+    monthlyConsultations: 92,
+    hours: "Lun-Jue 16:00-20:00",
   },
   {
     id: "M-206",
-    nombre: "Dr. Hugo Saavedra",
-    especialidad: "Gastroenterología Pediátrica",
-    licencia: "MINSA-10567",
+    name: "Dr. Hugo Saavedra",
+    specialty: "Gastroenterología Pediátrica",
+    license: "MINSA-10567",
     email: "hsaavedra@lucera.pa",
-    modalidad: "Presencial",
-    hospitales: ["Hospital Punta Pacífica"],
-    estado: "inactivo",
-    consultasMes: 0,
-    horarios: "—",
+    mode: "Presencial",
+    hospitals: ["Hospital Punta Pacífica"],
+    status: "inactivo",
+    monthlyConsultations: 0,
+    hours: "—",
   },
 ];
 // alias
-export type Especialista = Medico & { registroIdoneidad: string };
-export const especialistas: Especialista[] = medicos.map((m) => ({
-  ...m,
-  registroIdoneidad: m.licencia,
+export type Specialist = Doctor & { licenseRegistration: string };
+export const specialists: Specialist[] = doctors.map((d) => ({
+  ...d,
+  licenseRegistration: d.license,
 }));
 
 // ---------------- Centros de atención ----------------
-export type TipoCentro =
+export type CenterType =
   | "Clínica"
   | "Hospital"
   | "Farmacia"
   | "Laboratorio"
   | "Urgencias";
 
-export type Centro = {
+export type Center = {
   id: string;
-  nombre: string;
-  tipo: TipoCentro;
-  ciudad: string;
-  direccion: string;
-  telefono: string;
-  horarios: string;
-  recomendado: boolean;
+  name: string;
+  type: CenterType;
+  city: string;
+  address: string;
+  phone: string;
+  hours: string;
+  recommended: boolean;
 };
 
-export const centros: Centro[] = [
+export const centers: Center[] = [
   {
     id: "C-01",
-    nombre: "Hospital del Niño Dr. José Renán Esquivel",
-    tipo: "Hospital",
-    ciudad: "Ciudad de Panamá",
-    direccion: "Av. Balboa",
-    telefono: "+507 512-9800",
-    horarios: "24/7",
-    recomendado: true,
+    name: "Hospital del Niño Dr. José Renán Esquivel",
+    type: "Hospital",
+    city: "Ciudad de Panamá",
+    address: "Av. Balboa",
+    phone: "+507 512-9800",
+    hours: "24/7",
+    recommended: true,
   },
   {
     id: "C-02",
-    nombre: "Clínica Hospital San Fernando",
-    tipo: "Clínica",
-    ciudad: "Ciudad de Panamá",
-    direccion: "Vía España",
-    telefono: "+507 305-6300",
-    horarios: "24/7",
-    recomendado: true,
+    name: "Clínica Hospital San Fernando",
+    type: "Clínica",
+    city: "Ciudad de Panamá",
+    address: "Vía España",
+    phone: "+507 305-6300",
+    hours: "24/7",
+    recommended: true,
   },
   {
     id: "C-03",
-    nombre: "Hospital Punta Pacífica",
-    tipo: "Hospital",
-    ciudad: "Ciudad de Panamá",
-    direccion: "Punta Pacífica",
-    telefono: "+507 204-8000",
-    horarios: "24/7",
-    recomendado: true,
+    name: "Hospital Punta Pacífica",
+    type: "Hospital",
+    city: "Ciudad de Panamá",
+    address: "Punta Pacífica",
+    phone: "+507 204-8000",
+    hours: "24/7",
+    recommended: true,
   },
   {
     id: "C-04",
-    nombre: "Farmacia Arrocha — Multiplaza",
-    tipo: "Farmacia",
-    ciudad: "Ciudad de Panamá",
-    direccion: "Multiplaza Pacific",
-    telefono: "+507 302-5800",
-    horarios: "Lun-Dom 07:00-23:00",
-    recomendado: true,
+    name: "Farmacia Arrocha — Multiplaza",
+    type: "Farmacia",
+    city: "Ciudad de Panamá",
+    address: "Multiplaza Pacific",
+    phone: "+507 302-5800",
+    hours: "Lun-Dom 07:00-23:00",
+    recommended: true,
   },
   {
     id: "C-05",
-    nombre: "Laboratorio Clínico Hospital Nacional",
-    tipo: "Laboratorio",
-    ciudad: "Ciudad de Panamá",
-    direccion: "Av. Cuba",
-    telefono: "+507 207-8100",
-    horarios: "Lun-Sáb 06:00-18:00",
-    recomendado: false,
+    name: "Laboratorio Clínico Hospital Nacional",
+    type: "Laboratorio",
+    city: "Ciudad de Panamá",
+    address: "Av. Cuba",
+    phone: "+507 207-8100",
+    hours: "Lun-Sáb 06:00-18:00",
+    recommended: false,
   },
   {
     id: "C-06",
-    nombre: "Urgencias Pediátricas — Centro Médico Paitilla",
-    tipo: "Urgencias",
-    ciudad: "Ciudad de Panamá",
-    direccion: "Calle 53 Este, Paitilla",
-    telefono: "+507 265-8800",
-    horarios: "24/7",
-    recomendado: true,
+    name: "Urgencias Pediátricas — Centro Médico Paitilla",
+    type: "Urgencias",
+    city: "Ciudad de Panamá",
+    address: "Calle 53 Este, Paitilla",
+    phone: "+507 265-8800",
+    hours: "24/7",
+    recommended: true,
   },
   {
     id: "C-07",
-    nombre: "Hospital Mae Lewis",
-    tipo: "Hospital",
-    ciudad: "David",
-    direccion: "Vía Panamericana",
-    telefono: "+507 775-4616",
-    horarios: "24/7",
-    recomendado: false,
+    name: "Hospital Mae Lewis",
+    type: "Hospital",
+    city: "David",
+    address: "Vía Panamericana",
+    phone: "+507 775-4616",
+    hours: "24/7",
+    recommended: false,
   },
 ];
 
 // ---------------- Sesiones de chat ----------------
-export type ChatSesion = {
+export type ChatSession = {
   id: string;
-  acudiente: string;
-  paciente: string; // niño
-  telefono: string;
-  triaje: TriageLevel;
-  tipoAtencion: "Virtual" | "Presencial";
-  resumenIA?: string;
-  calificacion?: number; // 1..5
-  ultimoMensaje: string;
-  hora: string;
-  inicio: string;
-  cierre?: string;
-  mensajes: {
-    rol: "acudiente" | "bot" | "sistema";
-    texto: string;
-    hora: string;
-    tipo?: "texto" | "imagen" | "pdf";
-    alertas?: string[];
+  guardian: string;
+  patient: string; // niño
+  phone: string;
+  triage: TriageLevel;
+  attentionType: "Virtual" | "Presencial";
+  aiSummary?: string;
+  rating?: number; // 1..5
+  lastMessage: string;
+  time: string;
+  startedAt: string;
+  closedAt?: string;
+  messages: {
+    role: "acudiente" | "bot" | "sistema";
+    text: string;
+    time: string;
+    type?: "texto" | "imagen" | "pdf";
+    alerts?: string[];
   }[];
-  estado: "activa" | "esperando" | "cerrada";
+  status: "activa" | "esperando" | "cerrada";
 };
 
-export const chats: ChatSesion[] = [
+export const chatSessions: ChatSession[] = [
   {
     id: "SES-9001",
-    acudiente: "María Mendoza",
-    paciente: "Sofía Mendoza",
-    telefono: "+507 6123-4567",
-    triaje: "urgente",
-    tipoAtencion: "Virtual",
-    resumenIA:
+    guardian: "María Mendoza",
+    patient: "Sofía Mendoza",
+    phone: "+507 6123-4567",
+    triage: "urgente",
+    attentionType: "Virtual",
+    aiSummary:
       "Fiebre persistente 39.5°C >12h sin respuesta a antipirético. Recomendada valoración pediátrica en 24h.",
-    ultimoMensaje: "Tiene fiebre de 39.5°C desde anoche...",
-    hora: "10:42",
-    inicio: "2026-05-06 10:38",
-    estado: "activa",
-    mensajes: [
+    lastMessage: "Tiene fiebre de 39.5°C desde anoche...",
+    time: "10:42",
+    startedAt: "2026-05-06 10:38",
+    status: "activa",
+    messages: [
       {
-        rol: "acudiente",
-        texto: "Hola, mi hija tiene fiebre alta",
-        hora: "10:38",
+        role: "acudiente",
+        text: "Hola, mi hija tiene fiebre alta",
+        time: "10:38",
       },
       {
-        rol: "bot",
-        texto:
+        role: "bot",
+        text:
           "Hola María. Lamento escuchar eso. ¿Cuál es la temperatura actual y desde cuándo comenzó?",
-        hora: "10:38",
+        time: "10:38",
       },
       {
-        rol: "acudiente",
-        texto: "Tiene fiebre de 39.5°C desde anoche, no baja con acetaminofén",
-        hora: "10:42",
-        alertas: ["Fiebre alta sostenida"],
+        role: "acudiente",
+        text: "Tiene fiebre de 39.5°C desde anoche, no baja con acetaminofén",
+        time: "10:42",
+        alerts: ["Fiebre alta sostenida"],
       },
       {
-        rol: "bot",
-        texto:
+        role: "bot",
+        text:
           "Voy a clasificar esto como URGENTE (amarillo). Te recomiendo valoración con pediatra hoy. ¿Quieres ver opciones cercanas en Ciudad de Panamá?",
-        hora: "10:42",
+        time: "10:42",
       },
     ],
   },
   {
     id: "SES-9002",
-    acudiente: "Luis Quintero",
-    paciente: "Mateo Quintero",
-    telefono: "+507 6234-5678",
-    triaje: "general",
-    tipoAtencion: "Virtual",
-    ultimoMensaje: "Le salió un sarpullido en los brazos",
-    hora: "10:30",
-    inicio: "2026-05-06 10:28",
-    estado: "esperando",
-    mensajes: [
+    guardian: "Luis Quintero",
+    patient: "Mateo Quintero",
+    phone: "+507 6234-5678",
+    triage: "general",
+    attentionType: "Virtual",
+    lastMessage: "Le salió un sarpullido en los brazos",
+    time: "10:30",
+    startedAt: "2026-05-06 10:28",
+    status: "esperando",
+    messages: [
       {
-        rol: "acudiente",
-        texto: "Buenas, le salió un sarpullido en los brazos",
-        hora: "10:28",
-        tipo: "imagen",
+        role: "acudiente",
+        text: "Buenas, le salió un sarpullido en los brazos",
+        time: "10:28",
+        type: "imagen",
       },
       {
-        rol: "bot",
-        texto: "Hola Luis. ¿Pica? ¿Hubo cambio de jabón o alimento reciente?",
-        hora: "10:30",
+        role: "bot",
+        text: "Hola Luis. ¿Pica? ¿Hubo cambio de jabón o alimento reciente?",
+        time: "10:30",
       },
     ],
   },
   {
     id: "SES-9003",
-    acudiente: "Ana Castillo",
-    paciente: "Diego Castillo",
-    telefono: "+507 6456-7890",
-    triaje: "emergencia",
-    tipoAtencion: "Presencial",
-    resumenIA:
+    guardian: "Ana Castillo",
+    patient: "Diego Castillo",
+    phone: "+507 6456-7890",
+    triage: "emergencia",
+    attentionType: "Presencial",
+    aiSummary:
       "Dificultad respiratoria con cianosis. EMERGENCIA. Derivado a 911 y a Urgencias Pediátricas Paitilla.",
-    ultimoMensaje: "Está respirando muy rápido y morado",
-    hora: "10:15",
-    inicio: "2026-05-06 10:14",
-    estado: "activa",
-    mensajes: [
+    lastMessage: "Está respirando muy rápido y morado",
+    time: "10:15",
+    startedAt: "2026-05-06 10:14",
+    status: "activa",
+    messages: [
       {
-        rol: "acudiente",
-        texto: "AYUDA mi hijo está respirando muy rápido y morado",
-        hora: "10:14",
-        alertas: ["Cianosis", "Dificultad respiratoria"],
+        role: "acudiente",
+        text: "AYUDA mi hijo está respirando muy rápido y morado",
+        time: "10:14",
+        alerts: ["Cianosis", "Dificultad respiratoria"],
       },
       {
-        rol: "bot",
-        texto:
+        role: "bot",
+        text:
           "🚨 EMERGENCIA (rojo). Llama al 911 ahora mismo. Te derivo a Urgencias Pediátricas — Centro Médico Paitilla.",
-        hora: "10:15",
+        time: "10:15",
       },
       {
-        rol: "sistema",
-        texto:
+        role: "sistema",
+        text:
           "Derivación enviada al acudiente: Urgencias Pediátricas Paitilla (1.2 km).",
-        hora: "10:15",
+        time: "10:15",
       },
     ],
   },
   {
     id: "SES-9004",
-    acudiente: "Patricia Herrera",
-    paciente: "Lucas Herrera",
-    telefono: "+507 6678-9012",
-    triaje: "general",
-    tipoAtencion: "Virtual",
-    resumenIA:
+    guardian: "Patricia Herrera",
+    patient: "Lucas Herrera",
+    phone: "+507 6678-9012",
+    triage: "general",
+    attentionType: "Virtual",
+    aiSummary:
       "Cuadro viral leve. Indicado lavado nasal + hidratación. Sin necesidad de derivación.",
-    calificacion: 5,
-    ultimoMensaje: "Solo tiene mocos, sin fiebre",
-    hora: "09:50",
-    inicio: "2026-05-06 09:48",
-    cierre: "2026-05-06 09:55",
-    estado: "cerrada",
-    mensajes: [
+    rating: 5,
+    lastMessage: "Solo tiene mocos, sin fiebre",
+    time: "09:50",
+    startedAt: "2026-05-06 09:48",
+    closedAt: "2026-05-06 09:55",
+    status: "cerrada",
+    messages: [
       {
-        rol: "acudiente",
-        texto: "Mi bebé tiene mocos hace dos días",
-        hora: "09:48",
+        role: "acudiente",
+        text: "Mi bebé tiene mocos hace dos días",
+        time: "09:48",
       },
       {
-        rol: "bot",
-        texto: "¿Tiene fiebre, dificultad para respirar o no come?",
-        hora: "09:48",
+        role: "bot",
+        text: "¿Tiene fiebre, dificultad para respirar o no come?",
+        time: "09:48",
       },
       {
-        rol: "acudiente",
-        texto: "Solo tiene mocos, sin fiebre",
-        hora: "09:50",
+        role: "acudiente",
+        text: "Solo tiene mocos, sin fiebre",
+        time: "09:50",
       },
       {
-        rol: "bot",
-        texto:
+        role: "bot",
+        text:
           "Cuadro viral leve. Lavados nasales con suero fisiológico e hidratación. Si aparece fiebre, vuelve a contactarnos.",
-        hora: "09:50",
+        time: "09:50",
       },
     ],
   },
   {
     id: "SES-9005",
-    acudiente: "Jorge Vega",
-    paciente: "Camila Vega",
-    telefono: "+507 6789-0123",
-    triaje: "general",
-    tipoAtencion: "Virtual",
-    resumenIA:
+    guardian: "Jorge Vega",
+    patient: "Camila Vega",
+    phone: "+507 6789-0123",
+    triage: "general",
+    attentionType: "Virtual",
+    aiSummary:
       "Probable otitis post-viral. Recomendada consulta presencial si dolor persiste >48h.",
-    calificacion: 4,
-    ultimoMensaje: "Dolor de oído leve",
-    hora: "09:20",
-    inicio: "2026-05-06 09:18",
-    cierre: "2026-05-06 09:25",
-    estado: "cerrada",
-    mensajes: [
+    rating: 4,
+    lastMessage: "Dolor de oído leve",
+    time: "09:20",
+    startedAt: "2026-05-06 09:18",
+    closedAt: "2026-05-06 09:25",
+    status: "cerrada",
+    messages: [
       {
-        rol: "acudiente",
-        texto: "Camila se queja de dolor de oído",
-        hora: "09:18",
+        role: "acudiente",
+        text: "Camila se queja de dolor de oído",
+        time: "09:18",
       },
-      { rol: "bot", texto: "¿Tuvo gripe reciente? ¿Fiebre?", hora: "09:19" },
+      { role: "bot", text: "¿Tuvo gripe reciente? ¿Fiebre?", time: "09:19" },
       {
-        rol: "acudiente",
-        texto: "Tuvo gripe la semana pasada, sin fiebre ahora",
-        hora: "09:20",
+        role: "acudiente",
+        text: "Tuvo gripe la semana pasada, sin fiebre ahora",
+        time: "09:20",
       },
     ],
   },
 ];
 
 // ---------------- Pagos ----------------
-export type Pago = {
+export type Payment = {
   id: string; // identificador de transacción Stripe / Yappy
-  acudiente: string;
-  monto: number;
-  metodo: "Stripe" | "Yappy";
+  guardian: string;
+  amount: number;
+  method: "Stripe" | "Yappy";
   plan: "Premium Mensual" | "Premium Anual" | "Sesión adicional";
-  estado: "confirmado" | "pendiente" | "fallido" | "reembolsado";
-  fecha: string;
-  respuestaProveedor?: string;
-  tipoPago?: string;
+  status: "confirmado" | "pendiente" | "fallido" | "reembolsado";
+  date: string;
+  providerResponse?: string;
+  paymentType?: string;
 };
 
-export const pagos: Pago[] = [
+export const payments: Payment[] = [
   {
     id: "pi_3OqA1bKx_001",
-    acudiente: "María Mendoza",
-    monto: 9.99,
-    metodo: "Stripe",
+    guardian: "María Mendoza",
+    amount: 9.99,
+    method: "Stripe",
     plan: "Premium Mensual",
-    estado: "confirmado",
-    fecha: "2026-05-06 10:45",
-    respuestaProveedor: "succeeded",
-    tipoPago: "Crédito",
+    status: "confirmado",
+    date: "2026-05-06 10:45",
+    providerResponse: "succeeded",
+    paymentType: "Crédito",
   },
   {
     id: "yp_a98d2f12_002",
-    acudiente: "Luis Quintero",
-    monto: 9.99,
-    metodo: "Yappy",
+    guardian: "Luis Quintero",
+    amount: 9.99,
+    method: "Yappy",
     plan: "Premium Mensual",
-    estado: "confirmado",
-    fecha: "2026-05-06 10:32",
-    respuestaProveedor: "ok",
-    tipoPago: "Crédito",
+    status: "confirmado",
+    date: "2026-05-06 10:32",
+    providerResponse: "ok",
+    paymentType: "Crédito",
   },
   {
     id: "pi_3OqA2cKx_003",
-    acudiente: "Ana Castillo",
-    monto: 9.99,
-    metodo: "Stripe",
+    guardian: "Ana Castillo",
+    amount: 9.99,
+    method: "Stripe",
     plan: "Premium Mensual",
-    estado: "confirmado",
-    fecha: "2026-05-06 10:18",
-    respuestaProveedor: "succeeded",
-    tipoPago: "Crédito",
+    status: "confirmado",
+    date: "2026-05-06 10:18",
+    providerResponse: "succeeded",
+    paymentType: "Crédito",
   },
   {
     id: "yp_b12e44a1_004",
-    acudiente: "Carmen Rodríguez",
-    monto: 89.99,
-    metodo: "Yappy",
+    guardian: "Carmen Rodríguez",
+    amount: 89.99,
+    method: "Yappy",
     plan: "Premium Anual",
-    estado: "pendiente",
-    fecha: "2026-05-06 09:55",
-    respuestaProveedor: "pending_user_confirmation",
-    tipoPago: "Crédito",
+    status: "pendiente",
+    date: "2026-05-06 09:55",
+    providerResponse: "pending_user_confirmation",
+    paymentType: "Crédito",
   },
   {
     id: "pi_3OqA3dKx_005",
-    acudiente: "Roberto Pérez",
-    monto: 9.99,
-    metodo: "Stripe",
+    guardian: "Roberto Pérez",
+    amount: 9.99,
+    method: "Stripe",
     plan: "Premium Mensual",
-    estado: "fallido",
-    fecha: "2026-05-06 09:30",
-    respuestaProveedor: "card_declined",
-    tipoPago: "Crédito",
+    status: "fallido",
+    date: "2026-05-06 09:30",
+    providerResponse: "card_declined",
+    paymentType: "Crédito",
   },
   {
     id: "yp_c77f88b2_006",
-    acudiente: "Patricia Herrera",
-    monto: 9.99,
-    metodo: "Yappy",
+    guardian: "Patricia Herrera",
+    amount: 9.99,
+    method: "Yappy",
     plan: "Premium Mensual",
-    estado: "confirmado",
-    fecha: "2026-05-06 09:20",
-    respuestaProveedor: "ok",
-    tipoPago: "Crédito",
+    status: "confirmado",
+    date: "2026-05-06 09:20",
+    providerResponse: "ok",
+    paymentType: "Crédito",
   },
   {
     id: "pi_3OqA4eKx_007",
-    acudiente: "Jorge Vega",
-    monto: 89.99,
-    metodo: "Stripe",
+    guardian: "Jorge Vega",
+    amount: 89.99,
+    method: "Stripe",
     plan: "Premium Anual",
-    estado: "confirmado",
-    fecha: "2026-05-05 18:10",
-    respuestaProveedor: "succeeded",
-    tipoPago: "Crédito",
+    status: "confirmado",
+    date: "2026-05-05 18:10",
+    providerResponse: "succeeded",
+    paymentType: "Crédito",
   },
   {
     id: "yp_d22a11c3_008",
-    acudiente: "Laura Ortiz",
-    monto: 9.99,
-    metodo: "Yappy",
+    guardian: "Laura Ortiz",
+    amount: 9.99,
+    method: "Yappy",
     plan: "Premium Mensual",
-    estado: "reembolsado",
-    fecha: "2026-05-05 16:42",
-    respuestaProveedor: "refunded",
-    tipoPago: "Crédito",
+    status: "reembolsado",
+    date: "2026-05-05 16:42",
+    providerResponse: "refunded",
+    paymentType: "Crédito",
   },
 ];
 
 // ---------------- Catálogo de medicamentos ----------------
-export type Categoria =
+export type MedicationCategory =
   | "Analgésico"
   | "Antipirético"
   | "Antihistamínico"
@@ -986,296 +986,296 @@ export type Categoria =
   | "Antitusivo"
   | "Otros";
 
-export type Medicamento = {
+export type Medication = {
   id: string;
-  nombre: string;
-  generico: string;
-  marca?: string;
-  categoria: Categoria;
-  estado: "disponible" | "descontinuado";
-  recomendable: boolean;
-  dosisPorKg?: string; // ej. "10-15 mg/kg c/6h"
-  notas?: string;
+  name: string;
+  genericName: string;
+  brand?: string;
+  category: MedicationCategory;
+  status: "disponible" | "descontinuado";
+  recommendable: boolean;
+  dosePerKg?: string; // ej. "10-15 mg/kg c/6h"
+  notes?: string;
 };
 
-export const medicamentos: Medicamento[] = [
+export const medications: Medication[] = [
   {
     id: "MED-01",
-    nombre: "Acetaminofén",
-    generico: "Paracetamol",
-    marca: "Tempra",
-    categoria: "Antipirético",
-    estado: "disponible",
-    recomendable: true,
-    dosisPorKg: "10-15 mg/kg cada 6h",
-    notas: "Máx. 60 mg/kg/día",
+    name: "Acetaminofén",
+    genericName: "Paracetamol",
+    brand: "Tempra",
+    category: "Antipirético",
+    status: "disponible",
+    recommendable: true,
+    dosePerKg: "10-15 mg/kg cada 6h",
+    notes: "Máx. 60 mg/kg/día",
   },
   {
     id: "MED-02",
-    nombre: "Ibuprofeno",
-    generico: "Ibuprofeno",
-    marca: "Advil Niños",
-    categoria: "Analgésico",
-    estado: "disponible",
-    recomendable: true,
-    dosisPorKg: "5-10 mg/kg cada 8h",
-    notas: "Con alimentos. >6 meses",
+    name: "Ibuprofeno",
+    genericName: "Ibuprofeno",
+    brand: "Advil Niños",
+    category: "Analgésico",
+    status: "disponible",
+    recommendable: true,
+    dosePerKg: "5-10 mg/kg cada 8h",
+    notes: "Con alimentos. >6 meses",
   },
   {
     id: "MED-03",
-    nombre: "Loratadina",
-    generico: "Loratadina",
-    categoria: "Antihistamínico",
-    estado: "disponible",
-    recomendable: true,
-    dosisPorKg: "0.2 mg/kg/día",
-    notas: ">2 años",
+    name: "Loratadina",
+    genericName: "Loratadina",
+    category: "Antihistamínico",
+    status: "disponible",
+    recommendable: true,
+    dosePerKg: "0.2 mg/kg/día",
+    notes: ">2 años",
   },
   {
     id: "MED-04",
-    nombre: "Suero fisiológico nasal",
-    generico: "Cloruro de sodio 0.9%",
-    categoria: "Otros",
-    estado: "disponible",
-    recomendable: true,
-    notas: "Higiene nasal, sin restricción de edad",
+    name: "Suero fisiológico nasal",
+    genericName: "Cloruro de sodio 0.9%",
+    category: "Otros",
+    status: "disponible",
+    recommendable: true,
+    notes: "Higiene nasal, sin restricción de edad",
   },
   {
     id: "MED-05",
-    nombre: "Sales de rehidratación oral",
-    generico: "SRO OMS",
-    marca: "Pedialyte",
-    categoria: "Otros",
-    estado: "disponible",
-    recomendable: true,
-    notas: "Diarrea/deshidratación leve",
+    name: "Sales de rehidratación oral",
+    genericName: "SRO OMS",
+    brand: "Pedialyte",
+    category: "Otros",
+    status: "disponible",
+    recommendable: true,
+    notes: "Diarrea/deshidratación leve",
   },
   {
     id: "MED-06",
-    nombre: "Difenhidramina",
-    generico: "Difenhidramina",
-    categoria: "Antihistamínico",
-    estado: "descontinuado",
-    recomendable: false,
-    notas: "Retirado del catálogo: sedación",
+    name: "Difenhidramina",
+    genericName: "Difenhidramina",
+    category: "Antihistamínico",
+    status: "descontinuado",
+    recommendable: false,
+    notes: "Retirado del catálogo: sedación",
   },
   {
     id: "MED-07",
-    nombre: "Amoxicilina",
-    generico: "Amoxicilina",
-    categoria: "Antibiótico",
-    estado: "disponible",
-    recomendable: false,
-    notas: "Solo bajo prescripción médica",
+    name: "Amoxicilina",
+    genericName: "Amoxicilina",
+    category: "Antibiótico",
+    status: "disponible",
+    recommendable: false,
+    notes: "Solo bajo prescripción médica",
   },
 ];
 
 // ---------------- Auditoría ----------------
-export type LogAuditoria = {
+export type AuditLog = {
   id: string;
-  fecha: string;
-  usuario: string;
-  rol: "Admin" | "Médico";
-  accion: string;
-  recurso: string;
+  date: string;
+  user: string;
+  role: "Admin" | "Médico";
+  action: string;
+  resource: string;
   ip: string;
-  severidad: "info" | "advertencia" | "critico";
+  severity: "info" | "advertencia" | "critico";
 };
 
-export const logs: LogAuditoria[] = [
+export const auditLogs: AuditLog[] = [
   {
     id: "LOG-7821",
-    fecha: "2026-05-06 10:48",
-    usuario: "esanchez@lucera.pa",
-    rol: "Médico",
-    accion: "Acceso historial clínico",
-    recurso: "Niño N-1 (Sofía M.)",
+    date: "2026-05-06 10:48",
+    user: "esanchez@lucera.pa",
+    role: "Médico",
+    action: "Acceso historial clínico",
+    resource: "Niño N-1 (Sofía M.)",
     ip: "200.46.12.45",
-    severidad: "info",
+    severity: "info",
   },
   {
     id: "LOG-7822",
-    fecha: "2026-05-06 10:44",
-    usuario: "admin@lucera.pa",
-    rol: "Admin",
-    accion: "Edición de médico",
-    recurso: "Médico M-203",
+    date: "2026-05-06 10:44",
+    user: "admin@lucera.pa",
+    role: "Admin",
+    action: "Edición de médico",
+    resource: "Médico M-203",
     ip: "200.46.12.10",
-    severidad: "advertencia",
+    severity: "advertencia",
   },
   {
     id: "LOG-7823",
-    fecha: "2026-05-06 10:30",
-    usuario: "desconocido",
-    rol: "Admin",
-    accion: "Intento fallido de login (3x)",
-    recurso: "/login",
+    date: "2026-05-06 10:30",
+    user: "desconocido",
+    role: "Admin",
+    action: "Intento fallido de login (3x)",
+    resource: "/login",
     ip: "186.10.55.221",
-    severidad: "critico",
+    severity: "critico",
   },
   {
     id: "LOG-7824",
-    fecha: "2026-05-06 10:15",
-    usuario: "esanchez@lucera.pa",
-    rol: "Médico",
-    accion: "Revisión sesión emergencia",
-    recurso: "Sesión SES-9003",
+    date: "2026-05-06 10:15",
+    user: "esanchez@lucera.pa",
+    role: "Médico",
+    action: "Revisión sesión emergencia",
+    resource: "Sesión SES-9003",
     ip: "200.46.12.45",
-    severidad: "info",
+    severity: "info",
   },
   {
     id: "LOG-7825",
-    fecha: "2026-05-06 09:55",
-    usuario: "admin@lucera.pa",
-    rol: "Admin",
-    accion: "Exportación reporte planes",
-    recurso: "Reporte mensual",
+    date: "2026-05-06 09:55",
+    user: "admin@lucera.pa",
+    role: "Admin",
+    action: "Exportación reporte planes",
+    resource: "Reporte mensual",
     ip: "200.46.12.30",
-    severidad: "info",
+    severity: "info",
   },
   {
     id: "LOG-7826",
-    fecha: "2026-05-06 09:42",
-    usuario: "admin@lucera.pa",
-    rol: "Admin",
-    accion: "Configuración MFA actualizada",
-    recurso: "Sistema",
+    date: "2026-05-06 09:42",
+    user: "admin@lucera.pa",
+    role: "Admin",
+    action: "Configuración MFA actualizada",
+    resource: "Sistema",
     ip: "200.46.12.10",
-    severidad: "advertencia",
+    severity: "advertencia",
   },
   {
     id: "LOG-7827",
-    fecha: "2026-05-06 09:20",
-    usuario: "apinilla@lucera.pa",
-    rol: "Médico",
-    accion: "Marca disponibilidad",
-    recurso: "Calendario",
+    date: "2026-05-06 09:20",
+    user: "apinilla@lucera.pa",
+    role: "Médico",
+    action: "Marca disponibilidad",
+    resource: "Calendario",
     ip: "200.46.12.88",
-    severidad: "info",
+    severity: "info",
   },
   {
     id: "LOG-7828",
-    fecha: "2026-05-06 08:45",
-    usuario: "desconocido",
-    rol: "Admin",
-    accion: "Acceso denegado: rol insuficiente",
-    recurso: "/api/medicos",
+    date: "2026-05-06 08:45",
+    user: "desconocido",
+    role: "Admin",
+    action: "Acceso denegado: rol insuficiente",
+    resource: "/api/medicos",
     ip: "172.20.10.5",
-    severidad: "critico",
+    severity: "critico",
   },
 ];
 
 // ---------------- Disponibilidad médicos ----------------
-export type Disponibilidad = {
-  fecha: string;
+export type Availability = {
+  date: string;
   startHour: string;
   finishHour: string;
-  especialista: string;
-  estado: "disponible" | "reservado" | "cancelado";
-  modalidad?: Modalidad;
+  specialistName: string;
+  status: "disponible" | "reservado" | "cancelado";
+  mode?: ConsultationMode;
 };
 
 const today = new Date();
-const fmt = (d: Date) => d.toISOString().slice(0, 10);
-export const disponibilidad: Disponibilidad[] = [
+const formatDate = (d: Date) => d.toISOString().slice(0, 10);
+export const availability: Availability[] = [
   {
-    fecha: fmt(today),
+    date: formatDate(today),
     startHour: "08:00",
     finishHour: "10:00",
-    especialista: "Dra. Elena Sánchez",
-    estado: "reservado",
-    modalidad: "Virtual",
+    specialistName: "Dra. Elena Sánchez",
+    status: "reservado",
+    mode: "Virtual",
   },
   {
-    fecha: fmt(today),
+    date: formatDate(today),
     startHour: "08:00",
     finishHour: "10:00",
-    especialista: "Dra. Elena Sánchez",
-    estado: "disponible",
-    modalidad: "Virtual",
+    specialistName: "Dra. Elena Sánchez",
+    status: "disponible",
+    mode: "Virtual",
   },
   {
-    fecha: fmt(today),
+    date: formatDate(today),
     startHour: "08:00",
     finishHour: "10:00",
-    especialista: "Dr. Carlos Arosemena",
-    estado: "reservado",
-    modalidad: "Presencial",
+    specialistName: "Dr. Carlos Arosemena",
+    status: "reservado",
+    mode: "Presencial",
   },
   {
-    fecha: fmt(today),
+    date: formatDate(today),
     startHour: "08:00",
     finishHour: "10:00",
-    especialista: "Dr. Andrés Pinilla",
-    estado: "disponible",
-    modalidad: "Ambas",
+    specialistName: "Dr. Andrés Pinilla",
+    status: "disponible",
+    mode: "Ambas",
   },
   {
-    fecha: fmt(today),
+    date: formatDate(today),
     startHour: "08:00",
     finishHour: "10:00",
-    especialista: "Dra. Rocío Batista",
-    estado: "cancelado",
-    modalidad: "Virtual",
+    specialistName: "Dra. Rocío Batista",
+    status: "cancelado",
+    mode: "Virtual",
   },
   {
-    fecha: fmt(today),
+    date: formatDate(today),
     startHour: "08:00",
     finishHour: "10:00",
-    especialista: "Dra. Rocío Batista",
-    estado: "disponible",
-    modalidad: "Virtual",
+    specialistName: "Dra. Rocío Batista",
+    status: "disponible",
+    mode: "Virtual",
   },
   {
-    fecha: fmt(new Date(today.getTime() + 86400000)),
+    date: formatDate(new Date(today.getTime() + 86400000)),
     startHour: "08:00",
     finishHour: "10:00",
-    especialista: "Dra. Elena Sánchez",
-    estado: "disponible",
-    modalidad: "Virtual",
+    specialistName: "Dra. Elena Sánchez",
+    status: "disponible",
+    mode: "Virtual",
   },
   {
-    fecha: fmt(new Date(today.getTime() + 86400000)),
+    date: formatDate(new Date(today.getTime() + 86400000)),
     startHour: "08:00",
     finishHour: "10:00",
-    especialista: "Dr. Andrés Pinilla",
-    estado: "reservado",
-    modalidad: "Presencial",
+    specialistName: "Dr. Andrés Pinilla",
+    status: "reservado",
+    mode: "Presencial",
   },
   {
-    fecha: fmt(new Date(today.getTime() + 86400000)),
+    date: formatDate(new Date(today.getTime() + 86400000)),
     startHour: "08:00",
     finishHour: "10:00",
-    especialista: "Dr. Carlos Arosemena",
-    estado: "disponible",
-    modalidad: "Presencial",
+    specialistName: "Dr. Carlos Arosemena",
+    status: "disponible",
+    mode: "Presencial",
   },
   {
-    fecha: fmt(new Date(today.getTime() + 2 * 86400000)),
+    date: formatDate(new Date(today.getTime() + 2 * 86400000)),
     startHour: "08:00",
     finishHour: "10:00",
-    especialista: "Dra. Rocío Batista",
-    estado: "disponible",
-    modalidad: "Virtual",
+    specialistName: "Dra. Rocío Batista",
+    status: "disponible",
+    mode: "Virtual",
   },
   {
-    fecha: fmt(new Date(today.getTime() + 2 * 86400000)),
+    date: formatDate(new Date(today.getTime() + 2 * 86400000)),
     startHour: "08:00",
     finishHour: "10:00",
-    especialista: "Dra. Elena Sánchez",
-    estado: "disponible",
-    modalidad: "Ambas",
+    specialistName: "Dra. Elena Sánchez",
+    status: "disponible",
+    mode: "Ambas",
   },
 ];
 
 // KPIs principales (basados en informe Apollo)
-export const kpisGenerales = {
-  acudientesActivos: 3439,
-  ninosRegistrados: 4127,
-  sesionesMes: 1018,
-  conversionPremium: 17.4, // %
+export const generalKpis = {
+  activeGuardians: 3439,
+  registeredChildren: 4127,
+  sessionsThisMonth: 1018,
+  premiumConversion: 17.4, // %
   csat: 92, // % satisfacción ≥4/5
-  emergenciasDetectadas: 98,
-  derivacionesPresenciales: 750,
-  ingresosMes: 6_482.1, // USD
+  emergenciesDetected: 98,
+  inPersonReferrals: 750,
+  revenueThisMonth: 6_482.1, // USD
 };

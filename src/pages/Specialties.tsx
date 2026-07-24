@@ -39,8 +39,8 @@ import { Search, Stethoscope, Plus, Pencil, Trash2 } from "lucide-react";
 
 export default function Specialties() {
   const { user, token, getValidToken } = useAuth();
-  const isAdmin = user?.rol === "Admin";
-  const canEdit = user?.rol !== "Invitado" && isAdmin;
+  const isAdmin = user?.role === "Admin";
+  const canEdit = user?.role !== "Invitado" && isAdmin;
 
   // /api/specialties/all trae { id, name } (necesario para editar/eliminar);
   // /api/specialties (string[]) es solo para selects, no para administrar.

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
-import { Pago } from "@/lib/mockData";
+import { Payment } from "@/lib/mockData";
 import { useFetchAll } from "@/hooks/useFetchAll";
 import {
   paymentMethodToEs,
@@ -45,8 +45,8 @@ import { ExportButton } from "@/components/ExportButton";
 import { formatCurrency } from "@/lib/format";
 import { useAuth } from "@/lib/auth";
 
-const estadoStyle: Record<
-  Pago["estado"],
+const statusStyle: Record<
+  Payment["status"],
   { tone: string; label: string; Icon: typeof CheckCircle2 }
 > = {
   confirmado: { tone: "green", label: "Confirmado", Icon: CheckCircle2 },
@@ -63,32 +63,32 @@ type KpiProps = {
   fg: string;
 };
 
-type PagoRow = Pago & { seguro: string };
+type PaymentRow = Payment & { insurance: string };
 
 // El API de pagos no trae guardianId ni seguro directo, solo el nombre del
 // acudiente (p.guardian) — se cruza por nombre contra /api/guardians para
 // resolver la aseguradora. Puede fallar si dos acudientes comparten nombre.
-function paymentApiToPago(
+function paymentApiToRow(
   p: PaymentApi,
-  seguroByGuardianName: Record<string, string>
-): PagoRow {
+  insuranceByGuardianName: Record<string, string>
+): PaymentRow {
   return {
     id: p.id,
-    acudiente: p.guardian,
-    monto: p.amount,
-    metodo: paymentMethodToEs[p.method] ?? "Stripe",
-    plan: (paymentPlanToEs[p.plan] ?? p.plan) as Pago["plan"],
-    estado: paymentStatusToEs[p.status] ?? "pendiente",
-    fecha: p.date,
-    respuestaProveedor: p.providerResponse,
-    tipoPago: p.paymentType,
-    seguro: seguroByGuardianName[p.guardian] ?? "",
+    guardian: p.guardian,
+    amount: p.amount,
+    method: paymentMethodToEs[p.method] ?? "Stripe",
+    plan: (paymentPlanToEs[p.plan] ?? p.plan) as Payment["plan"],
+    status: paymentStatusToEs[p.status] ?? "pendiente",
+    date: p.date,
+    providerResponse: p.providerResponse,
+    paymentType: p.paymentType,
+    insurance: insuranceByGuardianName[p.guardian] ?? "",
   };
 }
 
 export default function Payments() {
   const { user, token } = useAuth();
-  const canExport = user?.rol !== "Invitado";
+  const canExport = user?.role !== "Invitado";
 
   const {
     data: paymentsData,
@@ -106,20 +106,20 @@ export default function Payments() {
     error: insurancesError,
   } = useFetchAll<InsuranceRef>(token ? "/api/insurances" : null);
 
-  const seguroByGuardianName = useMemo(
+  const insuranceByGuardianName = useMemo(
     () =>
       Object.fromEntries(
         (guardiansData?.items ?? []).map((g) => [g.name, g.insurance?.name ?? ""])
       ),
     [guardiansData]
   );
-  const seguros = useMemo(() => insurancesData?.items ?? [], [insurancesData]);
-  const pagos = useMemo(
+  const insurances = useMemo(() => insurancesData?.items ?? [], [insurancesData]);
+  const payments = useMemo(
     () =>
       (paymentsData?.items ?? []).map((p) =>
-        paymentApiToPago(p, seguroByGuardianName)
+        paymentApiToRow(p, insuranceByGuardianName)
       ),
-    [paymentsData, seguroByGuardianName]
+    [paymentsData, insuranceByGuardianName]
   );
 
   useEffect(() => {
@@ -130,69 +130,69 @@ export default function Payments() {
   }, [paymentsError, guardiansError, insurancesError]);
 
   const [q, setQ] = useState("");
-  const [fechaInicio, setFechaInicio] = useState("");
-  const [fechaFin, setFechaFin] = useState("");
-  const [metodo, setMetodo] = useState("todos");
-  const [estado, setEstado] = useState("todos");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
+  const [method, setMethod] = useState("todos");
+  const [status, setStatus] = useState("todos");
   const [planFilter, setPlanFilter] = useState("todos");
-  const [seguroFilter, setSeguroFilter] = useState("todos");
+  const [insuranceFilter, setInsuranceFilter] = useState("todos");
   const [page, setPage] = useState(1);
   const perPage = 10;
 
-  const planes = useMemo(
-    () => [...new Set(pagos.map((p) => p.plan))].sort(),
-    [pagos]
+  const plans = useMemo(
+    () => [...new Set(payments.map((p) => p.plan))].sort(),
+    [payments]
   );
 
   const filtered = useMemo(() => {
     setPage(1);
-    return pagos.filter((p) => {
-      const okQ = `${p.id} ${p.acudiente} ${p.plan}`
+    return payments.filter((p) => {
+      const okQ = `${p.id} ${p.guardian} ${p.plan}`
         .toLowerCase()
         .includes(q.toLowerCase());
-      // p.fecha viene como "YYYY-MM-DD HH:MM"; comparamos por prefijo de
+      // p.date viene como "YYYY-MM-DD HH:MM"; comparamos por prefijo de
       // fecha en vez de parsear a Date para evitar líos de zona horaria.
-      const fecha = p.fecha.slice(0, 10);
-      const okFechaInicio = !fechaInicio || fecha >= fechaInicio;
-      const okFechaFin = !fechaFin || fecha <= fechaFin;
-      const okM = metodo === "todos" || p.metodo === metodo;
-      const okE = estado === "todos" || p.estado === estado;
+      const date = p.date.slice(0, 10);
+      const okStartDate = !startDate || date >= startDate;
+      const okEndDate = !endDate || date <= endDate;
+      const okM = method === "todos" || p.method === method;
+      const okE = status === "todos" || p.status === status;
       const okP = planFilter === "todos" || p.plan === planFilter;
       const okS =
-        seguroFilter === "todos" ||
-        (seguroFilter === "sin_seguro" ? !p.seguro : p.seguro === seguroFilter);
+        insuranceFilter === "todos" ||
+        (insuranceFilter === "sin_seguro" ? !p.insurance : p.insurance === insuranceFilter);
       return (
         okQ &&
-        okFechaInicio &&
-        okFechaFin &&
+        okStartDate &&
+        okEndDate &&
         okM &&
         okE &&
         okP &&
         okS
       );
     });
-  }, [pagos, q, fechaInicio, fechaFin, metodo, estado, planFilter, seguroFilter]);
+  }, [payments, q, startDate, endDate, method, status, planFilter, insuranceFilter]);
 
   const totalPages = Math.ceil(filtered.length / perPage);
   const paginated = filtered.slice((page - 1) * perPage, page * perPage);
 
-  // p.fecha viene como "YYYY-MM-DD HH:MM"; comparamos por prefijo de fecha
+  // p.date viene como "YYYY-MM-DD HH:MM"; comparamos por prefijo de fecha
   // en vez de parsear a Date para evitar líos de zona horaria.
   const now = Date.now();
   const todayStr = new Date(now).toISOString().slice(0, 10); // YYYY-MM-DD
   const monthStr = todayStr.slice(0, 7); // YYYY-MM
 
-  const ingresosHoy = filtered
-    .filter((p) => p.estado === "confirmado" && p.fecha.slice(0, 10) === todayStr)
-    .reduce((s, p) => s + p.monto, 0);
-  const ingresosMes = filtered
-    .filter((p) => p.estado === "confirmado" && p.fecha.slice(0, 7) === monthStr)
-    .reduce((s, p) => s + p.monto, 0);
-  const pendientes = filtered.filter((p) => p.estado === "pendiente").length;
-  const fallidos24h = filtered.filter(
+  const revenueToday = filtered
+    .filter((p) => p.status === "confirmado" && p.date.slice(0, 10) === todayStr)
+    .reduce((s, p) => s + p.amount, 0);
+  const revenueMonth = filtered
+    .filter((p) => p.status === "confirmado" && p.date.slice(0, 7) === monthStr)
+    .reduce((s, p) => s + p.amount, 0);
+  const pending = filtered.filter((p) => p.status === "pendiente").length;
+  const failed24h = filtered.filter(
     (p) =>
-      p.estado === "fallido" &&
-      now - new Date(p.fecha.replace(" ", "T")).getTime() <= 24 * 60 * 60 * 1000
+      p.status === "fallido" &&
+      now - new Date(p.date.replace(" ", "T")).getTime() <= 24 * 60 * 60 * 1000
   ).length;
 
   const Kpi = ({ icon: I, label, value, bg, fg }: KpiProps) => (
@@ -236,28 +236,28 @@ export default function Payments() {
         <Kpi
           icon={DollarSign}
           label="Ingresos hoy"
-          value={formatCurrency(ingresosHoy)}
+          value={formatCurrency(revenueToday)}
           bg="naranja.50"
           fg="naranja.500"
         />
         <Kpi
           icon={DollarSign}
           label="Ingresos del mes"
-          value={formatCurrency(ingresosMes)}
+          value={formatCurrency(revenueMonth)}
           bg="vino.50"
           fg="vino.500"
         />
         <Kpi
           icon={Clock}
           label="Pendientes"
-          value={pendientes}
+          value={pending}
           bg="amarillo.50"
           fg="amarillo.700"
         />
         <Kpi
           icon={XCircle}
           label="Fallidos (24h)"
-          value={fallidos24h}
+          value={failed24h}
           bg="peligro.500"
           fg="white"
         />
@@ -287,9 +287,9 @@ export default function Payments() {
             <Input
               type="date"
               w={{ base: "100%", md: "160px" }}
-              value={fechaInicio}
-              max={fechaFin || undefined}
-              onChange={(e) => setFechaInicio(e.target.value)}
+              value={startDate}
+              max={endDate || undefined}
+              onChange={(e) => setStartDate(e.target.value)}
             />
           </Box>
           <Box>
@@ -299,9 +299,9 @@ export default function Payments() {
             <Input
               type="date"
               w={{ base: "100%", md: "160px" }}
-              value={fechaFin}
-              min={fechaInicio || undefined}
-              onChange={(e) => setFechaFin(e.target.value)}
+              value={endDate}
+              min={startDate || undefined}
+              onChange={(e) => setEndDate(e.target.value)}
             />
           </Box>
           <Box>
@@ -310,8 +310,8 @@ export default function Payments() {
             </Text>
             <Select
               w={{ base: "100%", md: "180px" }}
-              value={metodo}
-              onChange={(e) => setMetodo(e.target.value)}
+              value={method}
+              onChange={(e) => setMethod(e.target.value)}
             >
               <option value="todos">Todos los métodos</option>
               <option value="Stripe">Stripe</option>
@@ -324,8 +324,8 @@ export default function Payments() {
             </Text>
             <Select
               w={{ base: "100%", md: "180px" }}
-              value={estado}
-              onChange={(e) => setEstado(e.target.value)}
+              value={status}
+              onChange={(e) => setStatus(e.target.value)}
             >
               <option value="todos">Todos los estados</option>
               <option value="confirmado">Confirmado</option>
@@ -344,7 +344,7 @@ export default function Payments() {
               onChange={(e) => setPlanFilter(e.target.value)}
             >
               <option value="todos">Todos los planes</option>
-              {planes.map((p) => (
+              {plans.map((p) => (
                 <option key={p} value={p}>
                   {p}
                 </option>
@@ -357,12 +357,12 @@ export default function Payments() {
             </Text>
             <Select
               w={{ base: "100%", md: "180px" }}
-              value={seguroFilter}
-              onChange={(e) => setSeguroFilter(e.target.value)}
+              value={insuranceFilter}
+              onChange={(e) => setInsuranceFilter(e.target.value)}
             >
               <option value="todos">Todos los seguros</option>
               <option value="sin_seguro">Sin seguro</option>
-              {seguros.map((s) => (
+              {insurances.map((s) => (
                 <option key={s.id} value={s.name}>
                   {s.name}
                 </option>
@@ -378,13 +378,13 @@ export default function Payments() {
             sheetName="Pagos"
             data={filtered.map((p) => ({
               ID: p.id,
-              Acudiente: p.acudiente,
+              Acudiente: p.guardian,
               Plan: p.plan,
-              Método: p.metodo,
-              Monto: p.monto,
-              Estado: p.estado,
-              Seguro: p.seguro,
-              Fecha: p.fecha,
+              Método: p.method,
+              Monto: p.amount,
+              Estado: p.status,
+              Seguro: p.insurance,
+              Fecha: p.date,
             }))}
           />
         </Flex>
@@ -414,14 +414,14 @@ export default function Payments() {
             </Thead>
             <Tbody>
               {paginated.map((p) => {
-                const { tone, label, Icon } = estadoStyle[p.estado];
+                const { tone, label, Icon } = statusStyle[p.status];
                 return (
                   <Tr key={p.id} _hover={{ bg: "crema.50" }}>
                     <Td fontFamily="mono" fontSize="xs">
                       {p.id}
                     </Td>
                     <Td fontSize="sm" fontWeight={600}>
-                      {p.acudiente}
+                      {p.guardian}
                     </Td>
                     <Td
                       display={{ base: "none", md: "table-cell" }}
@@ -434,12 +434,12 @@ export default function Payments() {
                       <Badge variant="outline">
                         <HStack spacing={1}>
                           <CreditCard size={10} />
-                          <Text>{p.metodo}</Text>
+                          <Text>{p.method}</Text>
                         </HStack>
                       </Badge>
                     </Td>
                     <Td isNumeric fontWeight={700}>
-                      {formatCurrency(p.monto)}
+                      {formatCurrency(p.amount)}
                     </Td>
                     <Td>
                       <Badge colorScheme={tone}>
@@ -454,7 +454,7 @@ export default function Payments() {
                       fontSize="xs"
                       color="lucera.textMuted"
                     >
-                      {p.fecha}
+                      {p.date}
                     </Td>
                   </Tr>
                 );
@@ -463,7 +463,7 @@ export default function Payments() {
           </Table>
         </TableContainer>
         <Text mt={3} fontSize="xs" color="lucera.textMuted">
-          {filtered.length} de {pagos.length} transacciones
+          {filtered.length} de {payments.length} transacciones
         </Text>
         <Pagination
           page={page}

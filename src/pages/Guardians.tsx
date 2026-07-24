@@ -1,6 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
-import { Acudiente, NinoPaciente, Relacion, EstadoCuenta, paisesCiudades } from "@/lib/mockData";
+import {
+  Guardian,
+  Child,
+  Relationship,
+  AccountStatus,
+  countriesCities,
+} from "@/lib/mockData";
 import { useAuth } from "@/lib/auth";
 import { useFetchAll } from "@/hooks/useFetchAll";
 import { apiFetch } from "@/lib/apiClient";
@@ -13,12 +20,14 @@ import {
   planToApi,
   countryApiToEs,
   countryEsToApi,
+  chatTriageToLevel,
 } from "@/lib/apiMappings";
 import type {
   GuardianApi,
   GuardianPatchPayload,
   GuardianCreatePayload,
   InsuranceRef,
+  ChatApi,
   PlanApi,
   DeleteResponse,
 } from "@/lib/apiTypes";
@@ -27,6 +36,7 @@ import {
   Button,
   Flex,
   HStack,
+  VStack,
   Input,
   InputGroup,
   InputLeftElement,
@@ -39,6 +49,7 @@ import {
   Td,
   IconButton,
   Badge,
+  Divider,
   Modal,
   ModalBody,
   ModalCloseButton,
@@ -62,7 +73,11 @@ import {
   Phone,
   Mail,
   Baby,
+  MapPin,
+  MessageSquare,
+  ChevronRight,
 } from "lucide-react";
+import { TriageBadge } from "@/components/TriageBadge";
 import { StatCard } from "@/components/StatCard";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { Pagination } from "@/components/Pagination";
@@ -70,32 +85,32 @@ import { LoadingState } from "@/components/LoadingState";
 import { ExportButton } from "@/components/ExportButton";
 import { toast } from "@/lib/toast";
 
-const estadoTone = (e: Acudiente["estado"]) =>
-  e === "activa" ? "green" : e === "suspendida" ? "yellow" : "red";
+const statusTone = (status: Guardian["status"]) =>
+  status === "activa" ? "green" : status === "suspendida" ? "yellow" : "red";
 
-function guardianToAcudiente(g: GuardianApi): Acudiente {
+function guardianApiToRow(g: GuardianApi): Guardian {
   return {
     id: g.id,
-    telefono: g.phone,
+    phone: g.phone,
     email: g.email,
-    nombre: g.name,
-    relacion: relationToEs[g.relationship] ?? "Tutor",
-    pais: countryApiToEs[g.country] ?? g.country,
-    ciudad: g.city,
-    seguro: g.insurance?.name as Acudiente["seguro"],
-    seguroId: g.insurance ? String(g.insurance.id) : undefined,
-    estado: statusToEs[g.status] ?? "activa",
+    name: g.name,
+    relationship: relationToEs[g.relationship] ?? "Tutor",
+    country: countryApiToEs[g.country] ?? g.country,
+    city: g.city,
+    insurance: g.insurance?.name as Guardian["insurance"],
+    policyNumber: g.insurance ? String(g.insurance.id) : undefined,
+    status: statusToEs[g.status] ?? "activa",
     plan: planToEs[g.plan] ?? "Gratuito",
-    registrado: g.registeredAt,
-    ninos: g.children.map(
-      (c): NinoPaciente => ({
+    registeredAt: g.registeredAt,
+    children: g.children.map(
+      (c): Child => ({
         id: c.id,
-        nombre: c.name,
-        fechaNacimiento: c.birthDate,
-        tipoSangre: (c.bloodType ?? undefined) as NinoPaciente["tipoSangre"],
-        pesoKg: c.weightKg ?? undefined,
-        condiciones: c.conditions,
-        alergias: c.allergies,
+        name: c.name,
+        birthDate: c.birthDate,
+        bloodType: (c.bloodType ?? undefined) as Child["bloodType"],
+        weightKg: c.weightKg ?? undefined,
+        conditions: c.conditions,
+        allergies: c.allergies,
       })
     ),
   };
@@ -104,8 +119,8 @@ function guardianToAcudiente(g: GuardianApi): Acudiente {
 export default function Guardians() {
   const { user, token, getValidToken } = useAuth();
   // Solo Admin crea/edita/elimina; el resto (Ventas, Médico) es solo lectura.
-  const canEdit = user?.rol === "Admin";
-  const canExport = user?.rol !== "Invitado";
+  const canEdit = user?.role === "Admin";
+  const canExport = user?.role !== "Invitado";
   const {
     data: guardiansData,
     loading: guardiansLoading,
@@ -115,11 +130,26 @@ export default function Guardians() {
   const { data: insurancesData } = useFetchAll<InsuranceRef>(
     token ? "/api/insurances" : null
   );
-  const seguros = useMemo(() => insurancesData?.items ?? [], [insurancesData]);
+  const { data: chatsData } = useFetchAll<ChatApi>(token ? "/api/chats" : null);
+  const insurances = useMemo(
+    () => insurancesData?.items ?? [],
+    [insurancesData]
+  );
   const data = useMemo(
-    () => (guardiansData?.items ?? []).map(guardianToAcudiente),
+    () => (guardiansData?.items ?? []).map(guardianApiToRow),
     [guardiansData]
   );
+
+  // Los chats de cada acudiente se agrupan por su teléfono.
+  const chatsByPhone = useMemo(() => {
+    const map = new Map<string, ChatApi[]>();
+    (chatsData?.items ?? []).forEach((c) => {
+      if (!map.has(c.phone)) map.set(c.phone, []);
+      map.get(c.phone)!.push(c);
+    });
+    return map;
+  }, [chatsData]);
+  const chatCountOf = (g: Guardian) => (chatsByPhone.get(g.phone) ?? []).length;
 
   useEffect(() => {
     if (guardiansError) {
@@ -130,40 +160,55 @@ export default function Guardians() {
   }, [guardiansError]);
 
   const [q, setQ] = useState("");
-  const [estado, setEstado] = useState("todos");
-  const [paisFilter, setPaisFilter] = useState("todos");
+  const [status, setStatus] = useState("todos");
+  const [countryFilter, setCountryFilter] = useState("todos");
   const [planFilter, setPlanFilter] = useState("todos");
-  const [seguroFilter, setSeguroFilter] = useState("todos");
+  const [insuranceFilter, setInsuranceFilter] = useState("todos");
   const [page, setPage] = useState(1);
   const perPage = 10;
   const { isOpen, onOpen, onClose } = useDisclosure();
-  const [editing, setEditing] = useState<Acudiente | null>(null);
-  const [toDelete, setToDelete] = useState<Acudiente | null>(null);
-  const [pais, setPais] = useState("");
+  const navigate = useNavigate();
+  const [editing, setEditing] = useState<Guardian | null>(null);
+  const [toDelete, setToDelete] = useState<Guardian | null>(null);
+  const [detail, setDetail] = useState<Guardian | null>(null);
+  const [country, setCountry] = useState("");
   const [saving, setSaving] = useState(false);
+
+  const detailChats = useMemo(
+    () =>
+      detail
+        ? (chatsByPhone.get(detail.phone) ?? [])
+            .slice()
+            .sort((a, b) => b.startedAt.localeCompare(a.startedAt))
+        : [],
+    [detail, chatsByPhone]
+  );
 
   const filtered = useMemo(() => {
     setPage(1);
-    return data.filter((a) => {
-      const okQ = `${a.nombre} ${a.id} ${a.email} ${a.telefono} ${a.ciudad}`
+    return data.filter((g) => {
+      const okQ = `${g.name} ${g.id} ${g.email} ${g.phone} ${g.city}`
         .toLowerCase()
         .includes(q.toLowerCase());
-      const okE = estado === "todos" || a.estado === estado;
-      const okPais = paisFilter === "todos" || a.pais === paisFilter;
-      const okPlan = planFilter === "todos" || a.plan === planFilter;
-      const okSeguro =
-        seguroFilter === "todos" ||
-        (seguroFilter === "sin_seguro" ? !a.seguro : a.seguro === seguroFilter);
-      return okQ && okE && okPais && okPlan && okSeguro;
+      const okStatus = status === "todos" || g.status === status;
+      const okCountry =
+        countryFilter === "todos" || g.country === countryFilter;
+      const okPlan = planFilter === "todos" || g.plan === planFilter;
+      const okInsurance =
+        insuranceFilter === "todos" ||
+        (insuranceFilter === "sin_seguro"
+          ? !g.insurance
+          : g.insurance === insuranceFilter);
+      return okQ && okStatus && okCountry && okPlan && okInsurance;
     });
-  }, [data, q, estado, paisFilter, planFilter, seguroFilter]);
+  }, [data, q, status, countryFilter, planFilter, insuranceFilter]);
 
   const totalPages = Math.ceil(filtered.length / perPage);
   const paginated = filtered.slice((page - 1) * perPage, page * perPage);
 
-  const openEdit = (a: Acudiente | null) => {
-    setEditing(a);
-    setPais(a?.pais ?? "");
+  const openEdit = (g: Guardian | null) => {
+    setEditing(g);
+    setCountry(g?.country ?? "");
     onOpen();
   };
 
@@ -173,21 +218,21 @@ export default function Guardians() {
     if (!editing) {
       // name/phone/email son obligatorios; el resto es opcional. Si "plan"
       // es un plan pago, el backend registra el pago correspondiente.
-      const seguroIdNew = String(fd.get("seguro") || "");
+      const insuranceIdNew = String(fd.get("insurance") || "");
       const policyNumberNew = String(fd.get("policyNumber") || "");
       const payload: GuardianCreatePayload = {
-        name: String(fd.get("nombre")),
-        phone: String(fd.get("telefono")),
+        name: String(fd.get("name")),
+        phone: String(fd.get("phone")),
         email: String(fd.get("email")),
-        relationship: relationToApi[fd.get("relacion") as Relacion],
-        country: pais || undefined,
-        city: String(fd.get("ciudad") || "") || undefined,
-        province: pais || undefined,
-        status: statusToApi[fd.get("estado") as EstadoCuenta],
+        relationship: relationToApi[fd.get("relationship") as Relationship],
+        country: country || undefined,
+        city: String(fd.get("city") || "") || undefined,
+        province: country || undefined,
+        status: statusToApi[fd.get("status") as AccountStatus],
         plan: (String(fd.get("plan") || "") || undefined) as
           | PlanApi
           | undefined,
-        insuranceId: seguroIdNew ? Number(seguroIdNew) : undefined,
+        insuranceId: insuranceIdNew ? Number(insuranceIdNew) : undefined,
         policyNumber: policyNumberNew || undefined,
       };
 
@@ -220,19 +265,17 @@ export default function Guardians() {
 
     // El PATCH manda todos los campos que tenemos, tal como los acepta el
     // backend (no incluye "phone": no es editable vía API).
-    const seguroId = String(fd.get("seguro") || "");
+    const insuranceId = String(fd.get("insurance") || "");
     const policyNumber = String(fd.get("policyNumber") || "");
     const payload: GuardianPatchPayload = {
-      name: String(fd.get("nombre")),
+      name: String(fd.get("name")),
       email: String(fd.get("email")),
-      country: countryEsToApi[pais] ?? (pais || undefined),
-      city: String(fd.get("ciudad")),
-      relationship: relationToApi[fd.get("relacion") as Relacion],
-      status: statusToApi[fd.get("estado") as EstadoCuenta],
-      plan: (String(fd.get("plan") || "") || undefined) as
-        | PlanApi
-        | undefined,
-      insuranceId: seguroId ? Number(seguroId) : undefined,
+      country: countryEsToApi[country] ?? (country || undefined),
+      city: String(fd.get("city")),
+      relationship: relationToApi[fd.get("relationship") as Relationship],
+      status: statusToApi[fd.get("status") as AccountStatus],
+      plan: (String(fd.get("plan") || "") || undefined) as PlanApi | undefined,
+      insuranceId: insuranceId ? Number(insuranceId) : undefined,
       policyNumber: policyNumber || undefined,
     };
 
@@ -287,8 +330,8 @@ export default function Guardians() {
             </Text>
             <Select
               w={{ base: "100%", md: "160px" }}
-              value={estado}
-              onChange={(e) => setEstado(e.target.value)}
+              value={status}
+              onChange={(e) => setStatus(e.target.value)}
             >
               <option value="todos">Todos los estados</option>
               <option value="activa">Activos</option>
@@ -302,13 +345,13 @@ export default function Guardians() {
             </Text>
             <Select
               w={{ base: "100%", md: "160px" }}
-              value={paisFilter}
-              onChange={(e) => setPaisFilter(e.target.value)}
+              value={countryFilter}
+              onChange={(e) => setCountryFilter(e.target.value)}
             >
               <option value="todos">Todos los países</option>
-              {Object.keys(paisesCiudades).map((p) => (
-                <option key={p} value={p}>
-                  {p}
+              {Object.keys(countriesCities).map((c) => (
+                <option key={c} value={c}>
+                  {c}
                 </option>
               ))}
             </Select>
@@ -336,14 +379,14 @@ export default function Guardians() {
             </Text>
             <Select
               w={{ base: "100%", md: "180px" }}
-              value={seguroFilter}
-              onChange={(e) => setSeguroFilter(e.target.value)}
+              value={insuranceFilter}
+              onChange={(e) => setInsuranceFilter(e.target.value)}
             >
               <option value="todos">Todos los seguros</option>
               <option value="sin_seguro">Sin seguro</option>
-              {seguros.map((s) => (
-                <option key={s.id} value={s.name}>
-                  {s.name}
+              {insurances.map((i) => (
+                <option key={i.id} value={i.name}>
+                  {i.name}
                 </option>
               ))}
             </Select>
@@ -355,20 +398,21 @@ export default function Guardians() {
             isDisabled={!canExport}
             filename="acudientes-lucera"
             sheetName="Acudientes"
-            data={filtered.map((a) => ({
-              ID: a.id,
-              Nombre: a.nombre,
-              Email: a.email,
-              Teléfono: a.telefono,
-              Relación: a.relacion,
-              País: a.pais,
-              Ciudad: a.ciudad,
-              Seguro: a.seguro ?? "",
-              "ID Seguro": a.seguroId ?? "",
-              Plan: a.plan,
-              Estado: a.estado,
-              Niños: a.ninos.length,
-              Registrado: a.registrado,
+            data={filtered.map((g) => ({
+              ID: g.id,
+              Nombre: g.name,
+              Email: g.email,
+              Teléfono: g.phone,
+              Relación: g.relationship,
+              País: g.country,
+              Ciudad: g.city,
+              Seguro: g.insurance ?? "",
+              "ID Seguro": g.policyNumber ?? "",
+              Plan: g.plan,
+              Estado: g.status,
+              Niños: g.children.length,
+              Chats: chatCountOf(g),
+              Registrado: g.registeredAt,
             }))}
           />
           {canEdit && (
@@ -387,130 +431,349 @@ export default function Guardians() {
           <LoadingState label="Cargando acudientes…" />
         ) : (
           <>
-        <TableContainer
-          borderWidth="1px"
-          borderColor="lucera.border"
-          borderRadius="md"
-        >
-          <Table size="sm">
-            <Thead bg="crema.100">
-              <Tr>
-                <Th>Acudiente</Th>
-                <Th display={{ base: "none", md: "table-cell" }}>Contacto</Th>
-                <Th display={{ base: "none", lg: "table-cell" }}>País / Ciudad</Th>
-                <Th>Niños</Th>
-                <Th>Plan</Th>
-                <Th display={{ base: "none", md: "table-cell" }}>Seguro</Th>
-                <Th>Estado</Th>
-                {canEdit && <Th textAlign="right">Acciones</Th>}
-              </Tr>
-            </Thead>
-            <Tbody>
-              {paginated.map((a) => (
-                <Tr key={a.id} _hover={{ bg: "crema.50" }}>
-                  <Td>
-                    <HStack>
-                      <Flex
-                        h={8}
-                        w={8}
-                        borderRadius="full"
-                        bg="vino.50"
-                        align="center"
-                        justify="center"
+            <TableContainer
+              borderWidth="1px"
+              borderColor="lucera.border"
+              borderRadius="md"
+            >
+              <Table size="sm">
+                <Thead bg="crema.100">
+                  <Tr>
+                    <Th>ID</Th>
+                    <Th>Acudiente</Th>
+                    <Th display={{ base: "none", md: "table-cell" }}>
+                      Contacto
+                    </Th>
+                    <Th display={{ base: "none", lg: "table-cell" }}>
+                      País / Ciudad
+                    </Th>
+                    <Th display={{ base: "none", xl: "table-cell" }}>
+                      Dirección
+                    </Th>
+                    <Th>Niños</Th>
+                    <Th textAlign="center">Chats</Th>
+                    <Th>Plan</Th>
+                    <Th display={{ base: "none", md: "table-cell" }}>Seguro</Th>
+                    <Th>Estado</Th>
+                    {canEdit && <Th textAlign="right">Acciones</Th>}
+                  </Tr>
+                </Thead>
+                <Tbody>
+                  {paginated.map((g) => (
+                    <Tr key={g.id} _hover={{ bg: "crema.50" }}>
+                      <Td>
+                        <HStack
+                          as="button"
+                          type="button"
+                          onClick={() => setDetail(g)}
+                          _hover={{ color: "vino.500" }}
+                          textAlign="left"
+                        >
+                          <Box>
+                            <Text
+                              fontSize="sm"
+                              fontWeight={600}
+                              textDecoration="underline"
+                              textDecorationColor="lucera.border"
+                              textUnderlineOffset="2px"
+                            >
+                              {g.id}
+                            </Text>
+                          </Box>
+                        </HStack>
+                      </Td>
+                      <Td>
+                        <HStack
+                          as="button"
+                          type="button"
+                          onClick={() => setDetail(g)}
+                          _hover={{ color: "vino.500" }}
+                          textAlign="left"
+                        >
+                          <Flex
+                            h={8}
+                            w={8}
+                            borderRadius="full"
+                            bg="vino.50"
+                            align="center"
+                            justify="center"
+                            flexShrink={0}
+                          >
+                            <UsersIcon size={14} color="#6d122b" />
+                          </Flex>
+                          <Box>
+                            <Text
+                              fontSize="sm"
+                              fontWeight={600}
+                              textDecoration="underline"
+                              textDecorationColor="lucera.border"
+                              textUnderlineOffset="2px"
+                            >
+                              {g.name}
+                            </Text>
+                            <Text fontSize="xs" color="lucera.textMuted">
+                              {g.relationship}
+                            </Text>
+                          </Box>
+                        </HStack>
+                      </Td>
+                      <Td display={{ base: "none", md: "table-cell" }}>
+                        <HStack fontSize="xs">
+                          <Phone size={10} />
+                          <Text>{g.phone}</Text>
+                        </HStack>
+                        <HStack fontSize="xs" color="lucera.textMuted">
+                          <Mail size={10} />
+                          <Text>{g.email}</Text>
+                        </HStack>
+                      </Td>
+                      <Td
+                        display={{ base: "none", lg: "table-cell" }}
+                        fontSize="sm"
                       >
-                        <UsersIcon size={14} color="#6d122b" />
-                      </Flex>
-                      <Box>
-                        <Text fontSize="sm" fontWeight={600}>
-                          {a.nombre}
-                        </Text>
                         <Text fontSize="xs" color="lucera.textMuted">
-                          {a.relacion}
+                          {g.country}
                         </Text>
-                      </Box>
-                    </HStack>
-                  </Td>
-                  <Td display={{ base: "none", md: "table-cell" }}>
-                    <HStack fontSize="xs">
-                      <Phone size={10} />
-                      <Text>{a.telefono}</Text>
-                    </HStack>
-                    <HStack fontSize="xs" color="lucera.textMuted">
-                      <Mail size={10} />
-                      <Text>{a.email}</Text>
-                    </HStack>
-                  </Td>
-                  <Td
-                    display={{ base: "none", lg: "table-cell" }}
-                    fontSize="sm"
-                  >
-                    <Text fontSize="xs" color="lucera.textMuted">{a.pais}</Text>
-                    <Text>{a.ciudad}</Text>
-                  </Td>
-                  <Td>
-                    <Badge variant="outline">
-                      <HStack spacing={1}>
-                        <Baby size={10} />
-                        <Text>{a.ninos.length}</Text>
-                      </HStack>
-                    </Badge>
-                  </Td>
-                  <Td>
-                    <Badge variant="outline">{a.plan}</Badge>
-                  </Td>
-                  <Td display={{ base: "none", md: "table-cell" }} fontSize="xs">
-                    {a.seguro ? (
-                      <>
-                        <Text fontWeight={600}>{a.seguro}</Text>
-                        <Text color="lucera.textMuted">{a.seguroId}</Text>
-                      </>
-                    ) : (
-                      <Text color="lucera.textMuted">—</Text>
-                    )}
-                  </Td>
-                  <Td>
-                    <Badge
-                      colorScheme={estadoTone(a.estado)}
-                      textTransform="capitalize"
-                    >
-                      {a.estado}
-                    </Badge>
-                  </Td>
-                  {canEdit && (
-                    <Td textAlign="right">
-                      <IconButton
-                        aria-label="Editar"
-                        size="sm"
-                        variant="ghost"
-                        icon={<Pencil size={14} />}
-                        onClick={() => openEdit(a)}
-                      />
-                      <IconButton
-                        aria-label="Eliminar"
-                        size="sm"
-                        variant="ghost"
-                        color="peligro.500"
-                        icon={<Trash2 size={14} />}
-                        onClick={() => setToDelete(a)}
-                      />
-                    </Td>
-                  )}
-                </Tr>
-              ))}
-            </Tbody>
-          </Table>
-        </TableContainer>
-        <Text mt={3} fontSize="xs" color="lucera.textMuted">
-          {filtered.length} de {data.length} acudientes
-        </Text>
-        <Pagination
-          page={page}
-          totalPages={totalPages}
-          onPageChange={setPage}
-        />
+                        <Text>{g.city}</Text>
+                      </Td>
+                      <Td
+                        display={{ base: "none", xl: "table-cell" }}
+                        fontSize="xs"
+                        color="lucera.textMuted"
+                      >
+                        —
+                      </Td>
+                      <Td>
+                        <Badge variant="outline">
+                          <HStack spacing={1}>
+                            <Baby size={10} />
+                            <Text>{g.children.length}</Text>
+                          </HStack>
+                        </Badge>
+                      </Td>
+                      <Td textAlign="center">
+                        <Badge variant="outline">
+                          <HStack spacing={1}>
+                            <MessageSquare size={10} />
+                            <Text>{chatCountOf(g)}</Text>
+                          </HStack>
+                        </Badge>
+                      </Td>
+                      <Td>
+                        <Badge variant="outline">{g.plan}</Badge>
+                      </Td>
+                      <Td
+                        display={{ base: "none", md: "table-cell" }}
+                        fontSize="xs"
+                      >
+                        {g.insurance ? (
+                          <>
+                            <Text fontWeight={600}>{g.insurance}</Text>
+                          </>
+                        ) : (
+                          <Text color="lucera.textMuted">—</Text>
+                        )}
+                      </Td>
+                      <Td>
+                        <Badge
+                          colorScheme={statusTone(g.status)}
+                          textTransform="capitalize"
+                        >
+                          {g.status}
+                        </Badge>
+                      </Td>
+                      {canEdit && (
+                        <Td textAlign="right">
+                          <IconButton
+                            aria-label="Editar"
+                            size="sm"
+                            variant="ghost"
+                            icon={<Pencil size={14} />}
+                            onClick={() => openEdit(g)}
+                          />
+                          <IconButton
+                            aria-label="Eliminar"
+                            size="sm"
+                            variant="ghost"
+                            color="peligro.500"
+                            icon={<Trash2 size={14} />}
+                            onClick={() => setToDelete(g)}
+                          />
+                        </Td>
+                      )}
+                    </Tr>
+                  ))}
+                </Tbody>
+              </Table>
+            </TableContainer>
+            <Text mt={3} fontSize="xs" color="lucera.textMuted">
+              {filtered.length} de {data.length} acudientes
+            </Text>
+            <Pagination
+              page={page}
+              totalPages={totalPages}
+              onPageChange={setPage}
+            />
           </>
         )}
       </StatCard>
+
+      {/* Detalle del acudiente + cantidad de chats (clic → ver el chat) */}
+      <Modal
+        isOpen={!!detail}
+        onClose={() => setDetail(null)}
+        size="2xl"
+        scrollBehavior="inside"
+      >
+        <ModalOverlay />
+        <ModalContent>
+          <ModalHeader>
+            <HStack spacing={2}>
+              <UsersIcon size={18} color="#6d122b" />
+              <Text>{detail?.name}</Text>
+            </HStack>
+          </ModalHeader>
+          <ModalCloseButton />
+          <ModalBody pb={6}>
+            {detail && (
+              <>
+                <SimpleGrid columns={{ base: 2, md: 3 }} spacing={3} mb={4}>
+                  <Box>
+                    <Text
+                      fontSize="10px"
+                      textTransform="uppercase"
+                      color="lucera.textMuted"
+                      letterSpacing="wider"
+                    >
+                      Relación
+                    </Text>
+                    <Text fontWeight={600}>{detail.relationship}</Text>
+                  </Box>
+                  <Box>
+                    <Text
+                      fontSize="10px"
+                      textTransform="uppercase"
+                      color="lucera.textMuted"
+                      letterSpacing="wider"
+                    >
+                      Teléfono
+                    </Text>
+                    <Text fontWeight={600}>{detail.phone}</Text>
+                  </Box>
+                  <Box>
+                    <Text
+                      fontSize="10px"
+                      textTransform="uppercase"
+                      color="lucera.textMuted"
+                      letterSpacing="wider"
+                    >
+                      Email
+                    </Text>
+                    <Text fontWeight={600} noOfLines={1}>
+                      {detail.email}
+                    </Text>
+                  </Box>
+                  <Box>
+                    <Text
+                      fontSize="10px"
+                      textTransform="uppercase"
+                      color="lucera.textMuted"
+                      letterSpacing="wider"
+                    >
+                      País / Ciudad
+                    </Text>
+                    <Text fontWeight={600}>
+                      {detail.country} · {detail.city}
+                    </Text>
+                  </Box>
+                  <Box>
+                    <HStack spacing={1} color="lucera.textMuted">
+                      <MapPin size={11} />
+                      <Text
+                        fontSize="10px"
+                        textTransform="uppercase"
+                        letterSpacing="wider"
+                      >
+                        Dirección
+                      </Text>
+                    </HStack>
+                    <Text fontWeight={600}>—</Text>
+                  </Box>
+                  <Box>
+                    <Text
+                      fontSize="10px"
+                      textTransform="uppercase"
+                      color="lucera.textMuted"
+                      letterSpacing="wider"
+                    >
+                      Plan · Seguro
+                    </Text>
+                    <Text fontWeight={600}>
+                      {detail.plan} · {detail.insurance || "—"}
+                    </Text>
+                  </Box>
+                </SimpleGrid>
+
+                <Divider mb={3} />
+                <HStack mb={3} spacing={2}>
+                  <MessageSquare size={15} color="#6d122b" />
+                  <Text fontSize="sm" fontWeight={700}>
+                    Chats del acudiente ({detailChats.length})
+                  </Text>
+                </HStack>
+
+                {detailChats.length === 0 ? (
+                  <Text fontSize="sm" color="lucera.textMuted">
+                    Este acudiente aún no tiene chats registrados.
+                  </Text>
+                ) : (
+                  <VStack align="stretch" spacing={2}>
+                    {detailChats.map((c) => (
+                      <Flex
+                        key={c.id}
+                        as="button"
+                        type="button"
+                        onClick={() => navigate(`/chats?chat=${c.id}`)}
+                        align="center"
+                        gap={3}
+                        textAlign="left"
+                        borderWidth="1px"
+                        borderColor="lucera.border"
+                        borderRadius="md"
+                        p={3}
+                        _hover={{ bg: "crema.50", borderColor: "vino.500" }}
+                        transition="all 120ms"
+                      >
+                        <Box flex={1} minW={0}>
+                          <HStack spacing={2} mb={1}>
+                            <TriageBadge level={chatTriageToLevel[c.triage]} />
+                            <Text fontSize="xs" color="lucera.textMuted">
+                              {c.patient}
+                            </Text>
+                          </HStack>
+                          <Text fontSize="sm" noOfLines={1}>
+                            {c.lastMessage}
+                          </Text>
+                        </Box>
+                        <VStack spacing={0} align="flex-end" flexShrink={0}>
+                          <Text
+                            fontSize="10px"
+                            color="lucera.textMuted"
+                            sx={{ fontVariantNumeric: "tabular-nums" }}
+                          >
+                            {c.startedAt.slice(0, 10)}
+                          </Text>
+                          <ChevronRight size={16} color="#7b5a48" />
+                        </VStack>
+                      </Flex>
+                    ))}
+                  </VStack>
+                )}
+              </>
+            )}
+          </ModalBody>
+        </ModalContent>
+      </Modal>
 
       <Modal isOpen={isOpen} onClose={onClose} size="xl">
         <ModalOverlay />
@@ -529,13 +792,13 @@ export default function Guardians() {
               <SimpleGrid columns={2} spacing={3}>
                 <FormControl gridColumn="span 2" isRequired>
                   <FormLabel>Nombre completo</FormLabel>
-                  <Input name="nombre" defaultValue={editing?.nombre} />
+                  <Input name="name" defaultValue={editing?.name} />
                 </FormControl>
                 <FormControl isRequired>
                   <FormLabel>Teléfono (WhatsApp)</FormLabel>
                   <Input
-                    name="telefono"
-                    defaultValue={editing?.telefono}
+                    name="phone"
+                    defaultValue={editing?.phone}
                     isReadOnly={!!editing}
                     bg={editing ? "crema.50" : undefined}
                   />
@@ -556,8 +819,8 @@ export default function Guardians() {
                 <FormControl>
                   <FormLabel>Relación</FormLabel>
                   <Select
-                    name="relacion"
-                    defaultValue={editing?.relacion ?? "Madre"}
+                    name="relationship"
+                    defaultValue={editing?.relationship ?? "Madre"}
                   >
                     {["Madre", "Padre", "Tutor", "Abuelo/a"].map((r) => (
                       <option key={r} value={r}>
@@ -569,59 +832,67 @@ export default function Guardians() {
                 <FormControl isRequired>
                   <FormLabel>País</FormLabel>
                   <Select
-                    name="pais"
-                    value={pais}
-                    onChange={(e) => setPais(e.target.value)}
+                    name="country"
+                    value={country}
+                    onChange={(e) => setCountry(e.target.value)}
                     placeholder="Seleccionar país"
                   >
-                    {Object.keys(paisesCiudades).map((p) => (
-                      <option key={p} value={p}>{p}</option>
+                    {Object.keys(countriesCities).map((c) => (
+                      <option key={c} value={c}>
+                        {c}
+                      </option>
                     ))}
                   </Select>
                 </FormControl>
                 <FormControl isRequired>
                   <FormLabel>Ciudad</FormLabel>
                   <Select
-                    name="ciudad"
-                    defaultValue={editing?.ciudad}
+                    name="city"
+                    defaultValue={editing?.city}
                     placeholder="Seleccionar ciudad"
                   >
-                    {(paisesCiudades[pais] ?? []).map((c) => (
-                      <option key={c} value={c}>{c}</option>
+                    {(countriesCities[country] ?? []).map((c) => (
+                      <option key={c} value={c}>
+                        {c}
+                      </option>
                     ))}
                   </Select>
                 </FormControl>
                 <FormControl>
                   <FormLabel>Seguro médico</FormLabel>
                   <Select
-                    name="seguro"
-                    defaultValue={editing?.seguroId ?? ""}
+                    name="insurance"
+                    defaultValue={editing?.policyNumber ?? ""}
                     placeholder="Sin seguro"
                   >
-                    {seguros.map((s) => (
-                      <option key={s.id} value={s.id}>{s.name}</option>
+                    {insurances.map((i) => (
+                      <option key={i.id} value={i.id}>
+                        {i.name}
+                      </option>
                     ))}
                   </Select>
                 </FormControl>
                 <FormControl>
                   <FormLabel>Número de póliza</FormLabel>
-                  <Input name="policyNumber" placeholder="Opcional" defaultValue={editing ? undefined : ""} />
+                  <Input
+                    name="policyNumber"
+                    placeholder="Opcional"
+                    defaultValue={editing ? undefined : ""}
+                  />
                 </FormControl>
                 <FormControl>
                   <FormLabel>Plan</FormLabel>
                   <Select
                     name="plan"
-                    defaultValue={
-                      editing ? planToApi[editing.plan] : "free"
-                    }
+                    defaultValue={editing ? planToApi[editing.plan] : "free"}
                   >
-                    {(["free", "premium_monthly", "premium_annual"] as const).map(
-                      (p) => (
-                        <option key={p} value={p}>
-                          {planToEs[p]}
-                        </option>
-                      )
-                    )}
+                    {(
+                      ["free", "premium_monthly", "premium_annual"] as const
+                    ).map((p) => (
+                      <option key={p} value={p}>
+                        {planToEs[p]}
+                      </option>
+                    ))}
                   </Select>
                   <Text fontSize="xs" color="lucera.textMuted" mt={1}>
                     Un plan pago registra el pago correspondiente.
@@ -630,8 +901,8 @@ export default function Guardians() {
                 <FormControl>
                   <FormLabel>Estado</FormLabel>
                   <Select
-                    name="estado"
-                    defaultValue={editing?.estado ?? "activa"}
+                    name="status"
+                    defaultValue={editing?.status ?? "activa"}
                   >
                     <option value="activa">Activa</option>
                     <option value="suspendida">Suspendida</option>
@@ -641,7 +912,12 @@ export default function Guardians() {
               </SimpleGrid>
             </ModalBody>
             <ModalFooter>
-              <Button variant="outline" onClick={onClose} mr={2} isDisabled={saving}>
+              <Button
+                variant="outline"
+                onClick={onClose}
+                mr={2}
+                isDisabled={saving}
+              >
                 Cancelar
               </Button>
               <Button type="submit" colorScheme="vino" isLoading={saving}>
@@ -658,7 +934,7 @@ export default function Guardians() {
         title="Eliminar acudiente"
         description={
           <>
-            ¿Seguro que deseas eliminar a <strong>{toDelete?.nombre}</strong>?
+            ¿Seguro que deseas eliminar a <strong>{toDelete?.name}</strong>?
             Esta acción desactiva la cuenta: deja de aparecer en el listado,
             pero conserva su historial de chats y pagos.
           </>
