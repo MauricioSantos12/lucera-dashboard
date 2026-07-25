@@ -13,6 +13,7 @@ import {
   UserCog,
   Heart,
   BarChart3,
+  Gauge,
   Cpu,
   type LucideIcon,
 } from "lucide-react";
@@ -48,6 +49,12 @@ const allItems: Item[] = [
     title: "Estadísticas",
     url: "/statistics",
     icon: BarChart3,
+    roles: ["Admin", "Ventas", "Invitado"],
+  },
+  {
+    title: "Desempeño",
+    url: "/performance",
+    icon: Gauge,
     roles: ["Admin", "Ventas", "Invitado"],
   },
   {

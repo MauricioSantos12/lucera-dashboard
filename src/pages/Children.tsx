@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Child } from "@/lib/mockData";
 import { useFetchAll } from "@/hooks/useFetchAll";
@@ -58,6 +59,7 @@ import {
   Pencil,
   Trash2,
   MessageSquare,
+  ChevronRight,
 } from "lucide-react";
 import { StatCard } from "@/components/StatCard";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
@@ -112,6 +114,7 @@ function patientToRow(
 
 export default function Children() {
   const { user, token, getValidToken } = useAuth();
+  const navigate = useNavigate();
   // Solo Admin crea/edita/elimina; el resto (Ventas, Médico) es solo lectura.
   const canEdit = user?.role === "Admin";
   const canExport = user?.role !== "Invitado";
@@ -780,33 +783,46 @@ export default function Children() {
                 ) : (
                   <VStack align="stretch" spacing={2}>
                     {detailChats.map((c) => (
-                      <Box
+                      <Flex
                         key={c.id}
+                        as="button"
+                        type="button"
+                        onClick={() => navigate(`/chats?chat=${c.id}`)}
+                        align="stretch"
+                        gap={3}
+                        textAlign="left"
                         borderWidth="1px"
                         borderColor="lucera.border"
                         borderRadius="md"
                         p={3}
+                        _hover={{ bg: "crema.50", borderColor: "vino.500" }}
+                        transition="all 120ms"
                       >
-                        <Flex justify="space-between" align="center" mb={1} gap={2}>
-                          <HStack spacing={2}>
-                            <TriageBadge level={chatTriageToLevel[c.triage]} />
-                            <Badge textTransform="capitalize" variant="outline">
-                              {chatStatusLabel[c.status] ?? c.status}
-                            </Badge>
-                          </HStack>
-                          <Text fontSize="xs" color="lucera.textMuted" sx={{ fontVariantNumeric: "tabular-nums" }}>
-                            {c.startedAt}
+                        <Box flex={1} minW={0}>
+                          <Flex justify="space-between" align="center" mb={1} gap={2}>
+                            <HStack spacing={2}>
+                              <TriageBadge level={chatTriageToLevel[c.triage]} />
+                              <Badge textTransform="capitalize" variant="outline">
+                                {chatStatusLabel[c.status] ?? c.status}
+                              </Badge>
+                            </HStack>
+                            <Text fontSize="xs" color="lucera.textMuted" sx={{ fontVariantNumeric: "tabular-nums" }}>
+                              {c.startedAt}
+                            </Text>
+                          </Flex>
+                          <Text fontSize="sm" noOfLines={2}>
+                            {c.lastMessage}
                           </Text>
+                          {c.aiSummary && (
+                            <Text fontSize="xs" color="lucera.textMuted" mt={1} noOfLines={2}>
+                              IA: {c.aiSummary}
+                            </Text>
+                          )}
+                        </Box>
+                        <Flex align="center" flexShrink={0}>
+                          <ChevronRight size={16} color="#7b5a48" />
                         </Flex>
-                        <Text fontSize="sm" noOfLines={2}>
-                          {c.lastMessage}
-                        </Text>
-                        {c.aiSummary && (
-                          <Text fontSize="xs" color="lucera.textMuted" mt={1} noOfLines={2}>
-                            IA: {c.aiSummary}
-                          </Text>
-                        )}
-                      </Box>
+                      </Flex>
                     ))}
                   </VStack>
                 )}

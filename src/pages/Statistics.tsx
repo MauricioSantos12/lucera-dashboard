@@ -1,12 +1,9 @@
-import { useState, useMemo, useEffect } from "react";
+import { useMemo, useEffect } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
-import { useAuth } from "@/lib/auth";
 import {
   Activity,
-  Search,
   Users,
   Users2,
-  UserCheck,
   UserX,
   Crown,
   Baby,
@@ -15,12 +12,6 @@ import {
   CheckCircle2,
   CircleDot,
   CircleSlash,
-  Ban,
-  ClipboardCheck,
-  Timer,
-  Clock,
-  Unplug,
-  TrendingDown,
   type LucideIcon,
 } from "lucide-react";
 import {
@@ -41,13 +32,8 @@ import {
   ResponsiveContainer,
   LabelList,
 } from "recharts";
-import { useFetchAll } from "@/hooks/useFetchAll";
-import type {
-  ChatApi,
-  GuardianApi,
-  PatientApi,
-  InsuranceRef,
-} from "@/lib/apiTypes";
+import { useStatsFilters } from "@/hooks/useStatsFilters";
+import { StatsFilterBar } from "@/components/StatsFilterBar";
 import {
   Box,
   Flex,
@@ -56,16 +42,12 @@ import {
   SimpleGrid,
   Text,
   Heading,
-  Input,
-  Select,
-  Button,
   Icon,
 } from "@chakra-ui/react";
 import { StatCard } from "@/components/StatCard";
 import { LoadingState } from "@/components/LoadingState";
 import { ExportButton } from "@/components/ExportButton";
 import { formatNumber } from "@/lib/format";
-import { toast } from "@/lib/toast";
 import { motion } from "framer-motion";
 
 const MotionBox = motion(Box);
@@ -207,47 +189,21 @@ const tooltipStyle = {
 };
 
 export default function Statistics() {
-  const { user, token } = useAuth();
+  const stats = useStatsFilters();
   const {
-    data: chatsData,
-    loading: chatsLoading,
-    error: chatsError,
-  } = useFetchAll<ChatApi>(token ? "/api/chats" : null);
-  const {
-    data: guardiansData,
-    loading: guardiansLoading,
-    error: guardiansError,
-  } = useFetchAll<GuardianApi>(token ? "/api/guardians" : null);
-  const {
-    data: patientsData,
-    loading: patientsLoading,
-    error: patientsError,
-  } = useFetchAll<PatientApi>(token ? "/api/patients" : null);
-  const {
-    data: insurancesData,
-    loading: insurancesLoading,
-    error: insurancesError,
-  } = useFetchAll<InsuranceRef>(token ? "/api/insurances" : null);
-
-  const statsLoading =
-    chatsLoading || guardiansLoading || patientsLoading || insurancesLoading;
-
-  useEffect(() => {
-    const err =
-      chatsError || guardiansError || patientsError || insurancesError;
-    if (err) {
-      toast.error("No se pudieron cargar las estadísticas", {
-        description: err,
-      });
-    }
-  }, [chatsError, guardiansError, patientsError, insurancesError]);
-
-  const chats = useMemo(() => chatsData?.items ?? [], [chatsData]);
-  const realGuardians = useMemo(
-    () => guardiansData?.items ?? [],
-    [guardiansData]
-  );
-  const realPatients = useMemo(() => patientsData?.items ?? [], [patientsData]);
+    user,
+    chats,
+    realPatients,
+    statsLoading,
+    applied,
+    searchTick,
+    snapshot,
+    filteredGuardians,
+    filteredPatients,
+    filteredChats,
+    activeUsers,
+    canExport,
+  } = stats;
 
   // Distribución de attentionType en los chats: cuántos hay de cada tipo y
   // cuántos tipos distintos existen realmente en la data.
@@ -267,113 +223,6 @@ export default function Statistics() {
       chats.length
     );
   }, [chats]);
-
-  // Por defecto: mes actual (desde el día 1 hasta hoy), calculado con Date.now().
-  const defaultEndDate = useMemo(
-    () => new Date(Date.now()).toISOString().slice(0, 10),
-    []
-  );
-  const defaultStartDate = useMemo(() => {
-    const d = new Date(Date.now());
-    d.setDate(1);
-    return d.toISOString().slice(0, 10);
-  }, []);
-
-  const [startDate, setStartDate] = useState(defaultStartDate);
-  const [endDate, setEndDate] = useState(defaultEndDate);
-  const [country, setCountry] = useState("");
-  const [insurance, setInsurance] = useState("");
-  const [guardianFilter, setGuardianFilter] = useState("");
-  const [applied, setApplied] = useState(true);
-  // Se incrementa en cada "Buscar" para re-montar los resultados y disparar la
-  // animación de entrada (más dinámico al aplicar filtros).
-  const [searchTick, setSearchTick] = useState(0);
-  const [snapshot, setSnapshot] = useState({
-    startDate: defaultStartDate,
-    endDate: defaultEndDate,
-    country: "",
-    insurance: "",
-    guardian: "",
-  });
-
-  // Opciones de los selects, derivadas de la data real (no de listas mock).
-  const countryOptions = useMemo(
-    () => [...new Set(realGuardians.map((g) => g.country))].sort(),
-    [realGuardians]
-  );
-  const insurances = useMemo(
-    () => insurancesData?.items ?? [],
-    [insurancesData]
-  );
-  const insuranceOptions = useMemo(
-    () => [...insurances].sort((a, b) => a.name.localeCompare(b.name)),
-    [insurances]
-  );
-  const guardianOptions = useMemo(
-    () => [...realGuardians].sort((a, b) => a.name.localeCompare(b.name)),
-    [realGuardians]
-  );
-
-  // Acudientes que pasan los filtros de país/seguro/acudiente (SIN acotar por
-  // fecha). Es la base para los chats: una consulta del período puede venir de
-  // una cuenta registrada antes del rango.
-  const scopedGuardians = useMemo(() => {
-    if (!applied) return [];
-    return realGuardians.filter((g) => {
-      const okCountry =
-        !snapshot.country ||
-        snapshot.country === "todos" ||
-        g.country === snapshot.country;
-      const okInsurance =
-        !snapshot.insurance ||
-        snapshot.insurance === "todos" ||
-        g.insurance?.name === snapshot.insurance;
-      const okGuardian =
-        !snapshot.guardian ||
-        snapshot.guardian === "todos" ||
-        g.id === snapshot.guardian;
-      return okCountry && okInsurance && okGuardian;
-    });
-  }, [applied, snapshot, realGuardians]);
-
-  const scopedGuardianPhones = useMemo(
-    () => new Set(scopedGuardians.map((g) => g.phone)),
-    [scopedGuardians]
-  );
-
-  // Cuentas del rango: además del scope, registradas dentro de [inicio, fin].
-  // Todas las métricas de la sección Cuentas (activas, Free, Premium, niños…)
-  // se derivan de aquí, así que responden también al filtro de fecha.
-  const filteredGuardians = useMemo(() => {
-    return scopedGuardians.filter((g) => {
-      const date = g.registeredAt.slice(0, 10);
-      const okStart = !snapshot.startDate || date >= snapshot.startDate;
-      const okEnd = !snapshot.endDate || date <= snapshot.endDate;
-      return okStart && okEnd;
-    });
-  }, [scopedGuardians, snapshot]);
-
-  const filteredGuardianIds = useMemo(
-    () => new Set(filteredGuardians.map((g) => g.id)),
-    [filteredGuardians]
-  );
-
-  const filteredPatients = useMemo(
-    () => realPatients.filter((p) => filteredGuardianIds.has(p.guardianId)),
-    [realPatients, filteredGuardianIds]
-  );
-
-  // Actividad (chats) del período seleccionado, acotada por el rango de fechas
-  // sobre startedAt y por el scope de cuentas (no por su fecha de registro).
-  const filteredChats = useMemo(() => {
-    return chats.filter((c) => {
-      if (!scopedGuardianPhones.has(c.phone)) return false;
-      const date = c.startedAt.slice(0, 10);
-      const okStart = !snapshot.startDate || date >= snapshot.startDate;
-      const okEnd = !snapshot.endDate || date <= snapshot.endDate;
-      return okStart && okEnd;
-    });
-  }, [chats, scopedGuardianPhones, snapshot]);
 
   // -------------------- CUENTAS --------------------
 
@@ -568,10 +417,6 @@ export default function Statistics() {
       .sort((a, b) => b.value - a.value);
   }, [filteredChats, filteredGuardians]);
 
-  const activeUsers = useMemo(() => {
-    const phones = new Set(filteredChats.map((c) => c.phone));
-    return filteredGuardians.filter((g) => phones.has(g.phone)).length;
-  }, [filteredChats, filteredGuardians]);
   const chatStatus = useMemo(
     () => ({
       closed: filteredChats.filter((c) => c.status === "closed").length,
@@ -585,116 +430,7 @@ export default function Statistics() {
   console.log({ filteredChats });
   console.log({ chatStatus });
 
-  // -------------------- DESEMPEÑO (derivado de la data filtrada) --------------------
-  // No hay endpoints dedicados para estas métricas; se calculan sobre la data
-  // ya filtrada, con proxies documentados donde el API no expone el dato exacto
-  // (churn = bajas/suspendidas, onboarding = cuentas con ≥1 niño, interrumpidas
-  // = sesiones sin cerrar).
-  const performanceMetrics = useMemo(() => {
-    const parseDate = (s: string) =>
-      new Date((s.length <= 10 ? `${s} 00:00` : s).replace(" ", "T")).getTime();
-    const total = filteredGuardians.length;
-
-    // Límite Free sin conversión (proxy): cuentas Free vigentes.
-    const freeCount = filteredGuardians.filter((g) => g.plan === "free").length;
-    const freePct = total > 0 ? Math.round((freeCount / total) * 100) : 0;
-
-    // Onboarding completo (proxy): cuentas con al menos un niño registrado.
-    const withChildren = filteredGuardians.filter(
-      (g) => (g.children?.length ?? 0) > 0
-    ).length;
-    const onboarding = total > 0 ? Math.round((withChildren / total) * 100) : 0;
-
-    // Active account rate: cuentas con al menos una consulta.
-    const activeRate = total > 0 ? Math.round((activeUsers / total) * 100) : 0;
-
-    // Time to first consult: primer chat de cada acudiente − su registro.
-    const firstChatByPhone = new Map<string, number>();
-    filteredChats.forEach((c) => {
-      const t = parseDate(c.startedAt);
-      const prev = firstChatByPhone.get(c.phone);
-      if (prev == null || t < prev) firstChatByPhone.set(c.phone, t);
-    });
-    const ttfcHours: number[] = [];
-    filteredGuardians.forEach((g) => {
-      const first = firstChatByPhone.get(g.phone);
-      if (first == null) return;
-      const diff = (first - parseDate(g.registeredAt)) / 3_600_000;
-      if (Number.isFinite(diff) && diff >= 0) ttfcHours.push(diff);
-    });
-    const avgTtfc = ttfcHours.length
-      ? ttfcHours.reduce((a, b) => a + b, 0) / ttfcHours.length
-      : null;
-
-    // Sesiones interrumpidas (proxy): chats en estado "waiting" (sin cerrar).
-    const interrupted = filteredChats.filter(
-      (c) => c.status === "waiting"
-    ).length;
-    const interruptedPct =
-      filteredChats.length > 0
-        ? Math.round((interrupted / filteredChats.length) * 1000) / 10
-        : 0;
-
-    // Time to resolution: promedio (cierre − inicio) de los chats cerrados.
-    const ttrMin: number[] = [];
-    filteredChats.forEach((c) => {
-      if (c.status !== "closed" || !c.closedAt) return;
-      const diff = (parseDate(c.closedAt) - parseDate(c.startedAt)) / 60_000;
-      if (Number.isFinite(diff) && diff >= 0) ttrMin.push(diff);
-    });
-    const avgTtr = ttrMin.length
-      ? ttrMin.reduce((a, b) => a + b, 0) / ttrMin.length
-      : null;
-
-    // Churn por segmento (proxy): cuentas dadas de baja/suspendidas.
-    const churnFor = (subset: typeof filteredGuardians) => {
-      if (subset.length === 0) return 0;
-      const inactive = subset.filter((g) => g.status !== "active").length;
-      return Math.round((inactive / subset.length) * 1000) / 10;
-    };
-    const churn = [
-      {
-        segment: "Free",
-        value: churnFor(filteredGuardians.filter((g) => g.plan === "free")),
-      },
-      {
-        segment: "Premium",
-        value: churnFor(filteredGuardians.filter((g) => g.plan !== "free")),
-      },
-      { segment: "Global", value: churnFor(filteredGuardians) },
-    ];
-
-    const fmtHours = (h: number) =>
-      h >= 48 ? `${(h / 24).toFixed(1)} d` : `${h.toFixed(1)} h`;
-    const fmtMin = (m: number) =>
-      m >= 60 ? `${(m / 60).toFixed(1)} h` : `${m.toFixed(1)} min`;
-
-    return {
-      freeLimitNoConversion: { count: freeCount, pct: freePct },
-      onboardingCompletionRate: onboarding,
-      timeToFirstConsult: avgTtfc == null ? "—" : fmtHours(avgTtfc),
-      activeAccountRate: activeRate,
-      interruptedSessions: { count: interrupted, pct: interruptedPct },
-      timeToResolution: avgTtr == null ? "—" : fmtMin(avgTtr),
-      churn,
-    };
-  }, [filteredGuardians, filteredChats, activeUsers]);
-
   if (!user) return null;
-
-  const canExport = user.role !== "Invitado";
-
-  const handleSearch = () => {
-    setSnapshot({
-      startDate,
-      endDate,
-      country,
-      insurance,
-      guardian: guardianFilter,
-    });
-    setApplied(true);
-    setSearchTick((t) => t + 1);
-  };
 
   // -------------------- Escalares derivados --------------------
   const totalAccounts = filteredGuardians.length;
@@ -724,109 +460,24 @@ export default function Statistics() {
       title="Estadísticas"
       subtitle="Indicadores operativos del chatbot pediátrico Lucera"
     >
-      {/* Filtros */}
-      <StatCard mb={2}>
-        <Flex
-          direction={{ base: "column", md: "row" }}
-          gap={3}
-          align={{ md: "end" }}
-          wrap="wrap"
-        >
-          <Box>
-            <Text fontSize="xs" fontWeight={600} mb={1}>
-              Fecha inicio
-            </Text>
-            <Input
-              type="date"
-              size="sm"
-              value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
-            />
-          </Box>
-          <Box>
-            <Text fontSize="xs" fontWeight={600} mb={1}>
-              Fecha fin
-            </Text>
-            <Input
-              type="date"
-              size="sm"
-              value={endDate}
-              onChange={(e) => setEndDate(e.target.value)}
-            />
-          </Box>
-          <Box>
-            <Text fontSize="xs" fontWeight={600} mb={1}>
-              País
-            </Text>
-            <Select
-              size="sm"
-              placeholder="Seleccionar opción"
-              value={country}
-              onChange={(e) => setCountry(e.target.value)}
-            >
-              <option value="todos">Todos</option>
-              {countryOptions.map((p) => (
-                <option key={p} value={p}>
-                  {p}
-                </option>
-              ))}
-            </Select>
-          </Box>
-          <Box>
-            <Text fontSize="xs" fontWeight={600} mb={1}>
-              Seguro médico
-            </Text>
-            <Select
-              size="sm"
-              placeholder="Seleccionar opción"
-              value={insurance}
-              onChange={(e) => setInsurance(e.target.value)}
-            >
-              <option value="todos">Todos</option>
-              {insuranceOptions.map((s) => (
-                <option key={s.id} value={s.name}>
-                  {s.name}
-                </option>
-              ))}
-            </Select>
-          </Box>
-          <Box>
-            <Text fontSize="xs" fontWeight={600} mb={1}>
-              Acudiente
-            </Text>
-            <Select
-              size="sm"
-              placeholder="Seleccionar opción"
-              value={guardianFilter}
-              onChange={(e) => setGuardianFilter(e.target.value)}
-            >
-              <option value="todos">Todos</option>
-              {guardianOptions.map((g) => (
-                <option key={g.id} value={g.id}>
-                  {g.name}
-                </option>
-              ))}
-            </Select>
-          </Box>
-        </Flex>
-
-        <Flex gap={3} mt={4} justify="flex-end" wrap="wrap">
-          <Button
-            colorScheme="vino"
-            size="sm"
-            leftIcon={<Search size={14} />}
-            onClick={handleSearch}
-            isDisabled={
-              !startDate &&
-              !endDate &&
-              !country &&
-              !insurance &&
-              !guardianFilter
-            }
-          >
-            Buscar
-          </Button>
-          {applied && (
+      {/* Filtros (compartidos con la página de Desempeño) */}
+      <StatsFilterBar
+        startDate={stats.startDate}
+        setStartDate={stats.setStartDate}
+        endDate={stats.endDate}
+        setEndDate={stats.setEndDate}
+        country={stats.country}
+        setCountry={stats.setCountry}
+        insurance={stats.insurance}
+        setInsurance={stats.setInsurance}
+        guardianFilter={stats.guardianFilter}
+        setGuardianFilter={stats.setGuardianFilter}
+        countryOptions={stats.countryOptions}
+        insuranceOptions={stats.insuranceOptions}
+        guardianOptions={stats.guardianOptions}
+        onSearch={stats.handleSearch}
+        rightSlot={
+          applied && (
             <ExportButton
               size="sm"
               isDisabled={!canExport}
@@ -846,9 +497,9 @@ export default function Statistics() {
                 Registrado: g.registeredAt,
               }))}
             />
-          )}
-        </Flex>
-      </StatCard>
+          )
+        }
+      />
 
       {/* Sin filtros aplicados */}
       {!applied && (
@@ -1569,124 +1220,6 @@ export default function Statistics() {
                   No hay consultas en el rango seleccionado.
                 </Text>
               )}
-            </StatCard>
-          </SimpleGrid>
-
-          {/* ==================== DESEMPEÑO ==================== */}
-          <SectionTitle hint="Calculado sobre la data filtrada. Algunas métricas usan proxies: churn = bajas/suspendidas · onboarding = cuentas con ≥1 niño · interrumpidas = sesiones sin cerrar.">
-            Desempeño
-          </SectionTitle>
-
-          <SimpleGrid columns={{ base: 1, sm: 2, lg: 4 }} spacing={4} mb={4}>
-            <Stat
-              icon={Ban}
-              label="Límite Free sin conversión"
-              value={formatNumber(
-                performanceMetrics.freeLimitNoConversion.count
-              )}
-              accent={{ bg: "peligro.500", fg: "white" }}
-              sub={`${performanceMetrics.freeLimitNoConversion.pct}% del total Free`}
-            />
-            <Stat
-              icon={ClipboardCheck}
-              label="Onboarding Completion Rate"
-              value={`${performanceMetrics.onboardingCompletionRate}%`}
-              accent={{ bg: "exito.500", fg: "white" }}
-              sub="Registro completado"
-            />
-            <Stat
-              icon={Timer}
-              label="Time to first consult"
-              value={performanceMetrics.timeToFirstConsult}
-              accent={{ bg: "naranja.50", fg: "naranja.500" }}
-              sub="Registro → 1ª consulta"
-            />
-            <Stat
-              icon={UserCheck}
-              label="Active Account Rate"
-              value={`${performanceMetrics.activeAccountRate}%`}
-              accent={{ bg: "vino.50", fg: "vino.500" }}
-              sub="Cuentas activas / total"
-            />
-          </SimpleGrid>
-
-          <SimpleGrid columns={{ base: 1, sm: 2 }} spacing={4}>
-            <SimpleGrid
-              columns={{ base: 1, sm: 2 }}
-              spacing={4}
-              alignContent="start"
-            >
-              <Stat
-                icon={Unplug}
-                label="Sesiones interrumpidas"
-                value={formatNumber(
-                  performanceMetrics.interruptedSessions.count
-                )}
-                accent={{ bg: "amarillo.50", fg: "amarillo.700" }}
-                sub={`Fallos técnicos · ${performanceMetrics.interruptedSessions.pct}%`}
-              />
-              <Stat
-                icon={Clock}
-                label="Time to Resolution"
-                value={performanceMetrics.timeToResolution}
-                accent={{ bg: "vino.50", fg: "vino.500" }}
-                sub="Duración media de sesión"
-              />
-            </SimpleGrid>
-
-            <StatCard>
-              <HStack mb={1} spacing={2}>
-                <Icon as={TrendingDown} boxSize={4} color="peligro.500" />
-                <Heading size="sm" fontFamily="heading">
-                  Churn rate por segmento
-                </Heading>
-              </HStack>
-              <Text fontSize="xs" color="lucera.textMuted" mb={4}>
-                Tasa de abandono en Free, Premium y global.
-              </Text>
-              <ResponsiveContainer width="100%" height={220}>
-                <BarChart
-                  data={performanceMetrics.churn}
-                  margin={{ top: 20, left: 0 }}
-                >
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e9d2b1" />
-                  <XAxis
-                    dataKey="segment"
-                    tick={{ fontSize: 11, fill: "#7b5a48" }}
-                  />
-                  <YAxis
-                    domain={[0, (max: number) => Math.ceil((max || 1) * 1.25)]}
-                    tick={{ fontSize: 11, fill: "#7b5a48" }}
-                    tickFormatter={(v: number) => `${v}%`}
-                  />
-                  <Tooltip
-                    cursor={{ fill: "rgba(185,28,28,0.06)" }}
-                    contentStyle={tooltipStyle}
-                    formatter={(v: number) => [`${v}%`, "Churn"]}
-                  />
-                  <Bar
-                    dataKey="value"
-                    radius={[6, 6, 0, 0]}
-                    maxBarSize={70}
-                    animationDuration={700}
-                  >
-                    {performanceMetrics.churn.map((_, i) => (
-                      <Cell
-                        key={i}
-                        fill={brandColors[i % brandColors.length]}
-                      />
-                    ))}
-                    <LabelList
-                      dataKey="value"
-                      position="top"
-                      formatter={(v: number) => `${v}%`}
-                      fontSize={11}
-                      fontWeight={700}
-                      fill="#3a2a1f"
-                    />
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
             </StatCard>
           </SimpleGrid>
         </MotionBox>

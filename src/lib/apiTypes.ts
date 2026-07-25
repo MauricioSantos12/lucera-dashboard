@@ -136,6 +136,7 @@ export interface GuardianPatchPayload {
   country?: string;
   city?: string;
   province?: string;
+  address?: string;
   relationship?: GuardianRelationship;
   status?: GuardianStatus;
   plan?: PlanApi;

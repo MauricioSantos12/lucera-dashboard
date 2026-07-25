@@ -228,6 +228,7 @@ export default function Guardians() {
         country: country || undefined,
         city: String(fd.get("city") || "") || undefined,
         province: country || undefined,
+        address: String(fd.get("address") || "") || undefined,
         status: statusToApi[fd.get("status") as AccountStatus],
         plan: (String(fd.get("plan") || "") || undefined) as
           | PlanApi
@@ -267,11 +268,12 @@ export default function Guardians() {
     // backend (no incluye "phone": no es editable vía API).
     const insuranceId = String(fd.get("insurance") || "");
     const policyNumber = String(fd.get("policyNumber") || "");
+    // El email no se puede editar → no viaja en el PATCH.
     const payload: GuardianPatchPayload = {
       name: String(fd.get("name")),
-      email: String(fd.get("email")),
       country: countryEsToApi[country] ?? (country || undefined),
       city: String(fd.get("city")),
+      address: String(fd.get("address") || "") || undefined,
       relationship: relationToApi[fd.get("relationship") as Relationship],
       status: statusToApi[fd.get("status") as AccountStatus],
       plan: (String(fd.get("plan") || "") || undefined) as PlanApi | undefined,
@@ -814,7 +816,14 @@ export default function Guardians() {
                     name="email"
                     type="email"
                     defaultValue={editing?.email}
+                    isReadOnly={!!editing}
+                    bg={editing ? "crema.50" : undefined}
                   />
+                  {editing && (
+                    <Text fontSize="xs" color="lucera.textMuted" mt={1}>
+                      El correo no se puede editar.
+                    </Text>
+                  )}
                 </FormControl>
                 <FormControl>
                   <FormLabel>Relación</FormLabel>
@@ -857,6 +866,13 @@ export default function Guardians() {
                       </option>
                     ))}
                   </Select>
+                </FormControl>
+                <FormControl gridColumn="span 2">
+                  <FormLabel>Dirección</FormLabel>
+                  <Input
+                    name="address"
+                    placeholder="Calle, edificio, referencia…"
+                  />
                 </FormControl>
                 <FormControl>
                   <FormLabel>Seguro médico</FormLabel>
