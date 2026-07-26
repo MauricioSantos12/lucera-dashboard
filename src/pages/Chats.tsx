@@ -24,12 +24,14 @@ import {
   Text,
   Avatar,
   Badge,
+  Divider,
   Menu,
   MenuButton,
   MenuList,
   MenuItem,
   type BadgeProps,
 } from "@chakra-ui/react";
+import { StatCard } from "@/components/StatCard";
 import {
   Search,
   Baby,
@@ -56,6 +58,59 @@ const statusTone: Record<ChatSession["status"], BadgeProps["colorScheme"]> = {
   esperando: "yellow",
   cerrada: "gray",
 };
+
+// Etiqueta compacta para cada grupo de filtros.
+function FilterLabel({ children }: { children: ReactNode }) {
+  return (
+    <Text
+      fontSize="10px"
+      fontWeight={700}
+      textTransform="uppercase"
+      letterSpacing="wider"
+      color="lucera.textMuted"
+      mb={2}
+    >
+      {children}
+    </Text>
+  );
+}
+
+// Pastilla (pill) de filtro reutilizable, con color activo configurable.
+function FilterPill({
+  active,
+  activeColor,
+  onClick,
+  children,
+}: {
+  active: boolean;
+  activeColor: string;
+  onClick: () => void;
+  children: ReactNode;
+}) {
+  return (
+    <Box
+      as="button"
+      type="button"
+      onClick={onClick}
+      px={3}
+      py={1.5}
+      borderRadius="full"
+      fontSize="xs"
+      fontWeight={600}
+      borderWidth="1px"
+      whiteSpace="nowrap"
+      bg={active ? activeColor : "white"}
+      borderColor={active ? activeColor : "lucera.border"}
+      color={active ? "white" : "lucera.textMuted"}
+      _hover={
+        active ? undefined : { bg: "crema.50", borderColor: "lucera.textMuted" }
+      }
+      transition="all 120ms"
+    >
+      {children}
+    </Box>
+  );
+}
 
 function chatApiToSession(c: ChatApi): ChatSession {
   return {
@@ -273,23 +328,15 @@ export default function Chats() {
           : "Conversaciones de WhatsApp"
       }
     >
-      <Flex
-        direction={"column"}
-        gap={3}
-        mb={4}
-        align={{ md: "start" }}
-        wrap="wrap"
-      >
+      <StatCard mb={4}>
+        {/* Búsqueda + rango de fechas */}
         <Flex
           direction={{ base: "column", md: "row" }}
-          gap={1}
-          align={"start"}
-          justify={"start"}
+          gap={3}
+          align={{ md: "flex-end" }}
         >
-          <Box flex={1} minW={{ md: "320px" }}>
-            <Text fontSize="xs" fontWeight={600} mb={1}>
-              Buscar
-            </Text>
+          <Box flex={1} minW={{ md: "240px" }}>
+            <FilterLabel>Buscar</FilterLabel>
             <InputGroup size="sm">
               <InputLeftElement pointerEvents="none">
                 <Search size={14} />
@@ -301,41 +348,24 @@ export default function Chats() {
               />
             </InputGroup>
           </Box>
-          <HStack
-            spacing={2}
-            flexDir={"row"}
-            alignItems={"flex-start"}
-            flexWrap={"wrap"}
-          >
-            <Box flex={1}>
-              <Text
-                fontSize="xs"
-                fontWeight={600}
-                mb={1}
-                color="lucera.textMuted"
-              >
-                Desde
-              </Text>
+          <HStack spacing={3} align="flex-end">
+            <Box>
+              <FilterLabel>Desde</FilterLabel>
               <Input
                 type="date"
                 size="sm"
+                w={{ base: "100%", md: "150px" }}
                 value={startDate}
                 max={endDate || undefined}
                 onChange={(e) => setStartDate(e.target.value)}
               />
             </Box>
-            <Box flex={1}>
-              <Text
-                fontSize="xs"
-                fontWeight={600}
-                mb={1}
-                color="lucera.textMuted"
-              >
-                Hasta
-              </Text>
+            <Box>
+              <FilterLabel>Hasta</FilterLabel>
               <Input
                 type="date"
                 size="sm"
+                w={{ base: "100%", md: "150px" }}
                 value={endDate}
                 min={startDate || undefined}
                 onChange={(e) => setEndDate(e.target.value)}
@@ -343,87 +373,78 @@ export default function Chats() {
             </Box>
           </HStack>
         </Flex>
-        <Flex direction={"column"} gap={1} align={{ md: "start" }}>
-          <Text fontSize="xs" fontWeight={600}>
-            Por estado
-          </Text>
-          <HStack spacing={1} wrap="wrap">
-            {(
-              [
-                { key: "todas", label: "Todas", count: counts.total },
-                { key: "activas", label: "Activas", count: counts.activas },
-                {
-                  key: "cerradas",
-                  label: "Cerradas",
-                  count: counts.cerradas,
-                },
-              ] as const
-            ).map((t) => (
-              <Box
-                key={t.key}
-                as="button"
-                type="button"
-                onClick={() => setTab(t.key)}
-                px={3}
-                py={1.5}
-                borderRadius="full"
-                fontSize="xs"
-                fontWeight={600}
-                bg={tab === t.key ? "exito.500" : "crema.100"}
-                color={tab === t.key ? "white" : "lucera.textMuted"}
-                transition="all 120ms"
-              >
-                {t.label} ({t.count})
-              </Box>
-            ))}
-          </HStack>
+
+        <Divider my={4} borderColor="lucera.borderSoft" />
+
+        {/* Filtros por estado y clasificación */}
+        <Flex
+          direction={{ base: "column", md: "row" }}
+          gap={{ base: 4, md: 10 }}
+          wrap="wrap"
+        >
+          <Box>
+            <FilterLabel>Estado</FilterLabel>
+            <HStack spacing={2} wrap="wrap">
+              {(
+                [
+                  { key: "todas", label: "Todas", count: counts.total },
+                  { key: "activas", label: "Activas", count: counts.activas },
+                  {
+                    key: "cerradas",
+                    label: "Cerradas",
+                    count: counts.cerradas,
+                  },
+                ] as const
+              ).map((t) => (
+                <FilterPill
+                  key={t.key}
+                  active={tab === t.key}
+                  activeColor="exito.500"
+                  onClick={() => setTab(t.key)}
+                >
+                  {t.label} ({t.count})
+                </FilterPill>
+              ))}
+            </HStack>
+          </Box>
+
+          <Box>
+            <FilterLabel>Clasificación</FilterLabel>
+            <HStack spacing={2} wrap="wrap">
+              {(
+                [
+                  { key: "todas", label: "Todas" },
+                  {
+                    key: "urgencias",
+                    label: "Urgencias",
+                    count: dispositionCounts.urgencias,
+                  },
+                  {
+                    key: "casa",
+                    label: "Casa",
+                    count: dispositionCounts.casa,
+                  },
+                  {
+                    key: "derivacion",
+                    label: "Derivación",
+                    count: dispositionCounts.derivacion,
+                  },
+                ] as const
+              ).map((d) => (
+                <FilterPill
+                  key={d.key}
+                  active={disposition === d.key}
+                  activeColor="vino.500"
+                  onClick={() => setDisposition(d.key)}
+                >
+                  {d.label}
+                  {"count" in d ? ` (${d.count})` : ""}
+                </FilterPill>
+              ))}
+            </HStack>
+          </Box>
         </Flex>
-        <Flex direction={"column"} gap={1} align={{ md: "start" }}>
-          <Text fontSize="xs" fontWeight={600}>
-            Por clasificación
-          </Text>
-          <HStack spacing={1} wrap="wrap">
-            {(
-              [
-                { key: "todas", label: "Todas" },
-                {
-                  key: "urgencias",
-                  label: "Urgencias",
-                  count: dispositionCounts.urgencias,
-                },
-                {
-                  key: "casa",
-                  label: "Casa",
-                  count: dispositionCounts.casa,
-                },
-                {
-                  key: "derivacion",
-                  label: "Derivación",
-                  count: dispositionCounts.derivacion,
-                },
-              ] as const
-            ).map((d) => (
-              <Box
-                key={d.key}
-                as="button"
-                type="button"
-                onClick={() => setDisposition(d.key)}
-                px={3}
-                py={1.5}
-                borderRadius="full"
-                fontSize="xs"
-                fontWeight={600}
-                bg={disposition === d.key ? "vino.500" : "crema.100"}
-                color={disposition === d.key ? "white" : "lucera.textMuted"}
-                transition="all 120ms"
-              >
-                {d.label}
-                {"count" in d ? ` (${d.count})` : ""}
-              </Box>
-            ))}
-          </HStack>
-        </Flex>
-      </Flex>
+      </StatCard>
       <Flex
         direction={{ base: "column", lg: "row" }}
         h={{ base: "auto", lg: "calc(100vh - 220px)" }}

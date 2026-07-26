@@ -8,6 +8,7 @@ import LandingPage from "./pages/LandingPage";
 import Register from "./pages/Register";
 import Statistics from "./pages/Statistics";
 import Performance from "./pages/Performance";
+import BotStatus from "./pages/BotStatus";
 import Guardians from "./pages/Guardians";
 import Children from "./pages/Children";
 // import Specialists from "./pages/Specialists"; // oculto temporalmente
@@ -44,6 +45,7 @@ const App = () => (
           <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
           <Route path="/statistics" element={<ProtectedRoute><RoleRoute roles={["Admin","Ventas","Invitado"]}><Statistics /></RoleRoute></ProtectedRoute>} />
           <Route path="/performance" element={<ProtectedRoute><RoleRoute roles={["Admin","Ventas","Invitado"]}><Performance /></RoleRoute></ProtectedRoute>} />
+          <Route path="/bot-status" element={<ProtectedRoute><RoleRoute roles={["Admin","Ventas","Médico","Invitado"]}><BotStatus /></RoleRoute></ProtectedRoute>} />
 
           <Route path="/guardians" element={<ProtectedRoute><RoleRoute roles={["Admin","Ventas","Médico","Invitado"]}><Guardians /></RoleRoute></ProtectedRoute>} />
           <Route path="/children" element={<ProtectedRoute><RoleRoute roles={["Admin","Ventas","Médico","Invitado"]}><Children /></RoleRoute></ProtectedRoute>} />

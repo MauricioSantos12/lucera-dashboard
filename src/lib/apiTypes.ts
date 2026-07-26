@@ -24,6 +24,18 @@ export interface KpisResponse {
   revenueThisMonth: number;
 }
 
+// GET /api/bot-status → estado del bot de WhatsApp. Siempre responde 200
+// (salvo 401): el estado real va en el JSON, no en el status HTTP.
+export interface BotStatusResponse {
+  bot: "up" | "down";
+  ready: boolean;
+  checks: Record<string, boolean>; // mysql, redis, rag · {} si el bot no respondió
+  latency_ms: number;
+  checked_at: string; // ISO-8601 UTC
+  url: string;
+  error?: string; // solo cuando bot === "down"
+}
+
 export interface PaginatedResponse<T> {
   items: T[];
   page: number;

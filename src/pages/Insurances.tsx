@@ -19,6 +19,7 @@ import {
   Box,
   Button,
   Flex,
+  HStack,
   Heading,
   Icon,
   IconButton,
@@ -36,9 +37,15 @@ import {
   FormLabel,
   Select,
   SimpleGrid,
+  Table,
+  Thead,
+  Tbody,
+  Tr,
+  Th,
+  Td,
+  TableContainer,
   Text,
   useDisclosure,
-  Stack,
 } from "@chakra-ui/react";
 import {
   BarChart,
@@ -155,6 +162,17 @@ export default function Insurances() {
     return [...byInsurer.values()].sort((a, b) => b.total - a.total);
   }, [chats, insuranceByPhone, analyticsInsurance, startDate, endDate]);
 
+  // Consultas totales por aseguradora (todo el histórico, sin los filtros de
+  // fecha/seguro de arriba), para la columna "Consultas" de la tabla.
+  const consultationsByInsurance = useMemo(() => {
+    const m = new Map<string, number>();
+    chats.forEach((c) => {
+      const name = insuranceByPhone.get(c.phone) ?? "Sin seguro";
+      m.set(name, (m.get(name) ?? 0) + 1);
+    });
+    return m;
+  }, [chats, insuranceByPhone]);
+
   // -------- CRUD (directorio de aseguradoras) --------
   const [q, setQ] = useState("");
   const [page, setPage] = useState(1);
@@ -236,101 +254,138 @@ export default function Insurances() {
       ) : (
         <>
           {/* ==================== DIRECTORIO (CRUD) ==================== */}
-          <Flex gap={3} mb={4} align="end" wrap="wrap">
-            <Box flex={1} minW={{ md: "220px" }} maxW={{ md: "360px" }}>
-              <Text fontSize="xs" fontWeight={600} mb={1}>
-                Buscar
-              </Text>
-              <InputGroup>
-                <InputLeftElement pointerEvents="none">
-                  <Search size={16} />
-                </InputLeftElement>
-                <Input
-                  placeholder="Nombre del seguro médico…"
-                  value={q}
-                  onChange={(e) => setQ(e.target.value)}
-                  bg="lucera.surface"
-                />
-              </InputGroup>
-            </Box>
-            {canEdit && (
-              <Button
-                colorScheme="vino"
-                leftIcon={<Plus size={16} />}
-                onClick={() => openEdit(null)}
-              >
-                Nuevo seguro
-              </Button>
-            )}
-          </Flex>
-          <SimpleGrid columns={{ base: 1, sm: 2, md: 3, lg: 4 }} spacing={3}>
-            {paginated.map((i) => (
-              <StatCard key={i.id} p={3}>
-                <Flex align="center" gap={3}>
-                  <Flex
-                    h={9}
-                    w={9}
-                    flexShrink={0}
-                    borderRadius="lg"
-                    align="center"
-                    justify="center"
-                    bg="vino.50"
-                    color="vino.500"
-                  >
-                    <Icon as={ShieldCheck} boxSize={4} />
-                  </Flex>
-                  <Box minW={0} flex={1}>
-                    <Text fontSize="sm" fontWeight={700} noOfLines={2}>
-                      {i.name}
-                    </Text>
-                  </Box>
-                  {canEdit && (
-                    <Flex flexShrink={0} gap={0.5}>
-                      <IconButton
-                        aria-label="Editar"
-                        size="xs"
-                        variant="ghost"
-                        icon={<Pencil size={12} />}
-                        onClick={() => openEdit(i)}
-                      />
-                      <IconButton
-                        aria-label="Eliminar"
-                        size="xs"
-                        variant="ghost"
-                        color="peligro.500"
-                        icon={<Trash2 size={12} />}
-                        onClick={() => setToDelete(i)}
-                      />
-                    </Flex>
-                  )}
-                </Flex>
-              </StatCard>
-            ))}
-          </SimpleGrid>
-          {filtered.length === 0 && (
-            <Text
-              mt={6}
-              fontSize="sm"
-              color="lucera.textMuted"
-              textAlign="center"
+          <StatCard mb={4}>
+            <Flex
+              direction={{ base: "column", sm: "row" }}
+              gap={3}
+              align={{ sm: "center" }}
+              justify="space-between"
+              mb={4}
             >
-              No hay resultados.
-            </Text>
-          )}
-          <Text mt={4} fontSize="xs" color="lucera.textMuted">
-            {filtered.length} de {insurances.length} seguros médicos
-          </Text>
-          <Stack mb={4}>
-            {" "}
+              <Box>
+                <Heading size="sm" fontFamily="heading">
+                  Directorio de seguros
+                </Heading>
+                <Text fontSize="xs" color="lucera.textMuted">
+                  {filtered.length} de {insurances.length} aseguradoras
+                </Text>
+              </Box>
+              <HStack gap={3} w={{ base: "100%", sm: "auto" }}>
+                <InputGroup size="sm" maxW={{ sm: "260px" }}>
+                  <InputLeftElement pointerEvents="none">
+                    <Search size={14} />
+                  </InputLeftElement>
+                  <Input
+                    placeholder="Buscar seguro médico…"
+                    value={q}
+                    onChange={(e) => setQ(e.target.value)}
+                  />
+                </InputGroup>
+                {canEdit && (
+                  <Button
+                    size="sm"
+                    colorScheme="vino"
+                    leftIcon={<Plus size={16} />}
+                    onClick={() => openEdit(null)}
+                    flexShrink={0}
+                  >
+                    Nuevo
+                  </Button>
+                )}
+              </HStack>
+            </Flex>
+
+            <TableContainer
+              borderWidth="1px"
+              borderColor="lucera.border"
+              borderRadius="md"
+            >
+              <Table size="sm">
+                <Thead bg="crema.100">
+                  <Tr>
+                    <Th>Seguro médico</Th>
+                    <Th isNumeric>Consultas</Th>
+                    {canEdit && <Th textAlign="right">Acciones</Th>}
+                  </Tr>
+                </Thead>
+                <Tbody>
+                  {paginated.map((i) => (
+                    <Tr key={i.id} _hover={{ bg: "crema.50" }}>
+                      <Td>
+                        <HStack spacing={3}>
+                          <Flex
+                            h={8}
+                            w={8}
+                            flexShrink={0}
+                            borderRadius="lg"
+                            align="center"
+                            justify="center"
+                            bg="vino.50"
+                            color="vino.500"
+                          >
+                            <Icon as={ShieldCheck} boxSize={4} />
+                          </Flex>
+                          <Text fontSize="sm" fontWeight={600}>
+                            {i.name}
+                          </Text>
+                        </HStack>
+                      </Td>
+                      <Td isNumeric fontWeight={600}>
+                        {formatNumber(consultationsByInsurance.get(i.name) ?? 0)}
+                      </Td>
+                      {canEdit && (
+                        <Td textAlign="right">
+                          <IconButton
+                            aria-label="Editar"
+                            size="sm"
+                            variant="ghost"
+                            icon={<Pencil size={14} />}
+                            onClick={() => openEdit(i)}
+                          />
+                          <IconButton
+                            aria-label="Eliminar"
+                            size="sm"
+                            variant="ghost"
+                            color="peligro.500"
+                            icon={<Trash2 size={14} />}
+                            onClick={() => setToDelete(i)}
+                          />
+                        </Td>
+                      )}
+                    </Tr>
+                  ))}
+                </Tbody>
+              </Table>
+            </TableContainer>
+
+            {filtered.length === 0 && (
+              <Text
+                mt={6}
+                fontSize="sm"
+                color="lucera.textMuted"
+                textAlign="center"
+              >
+                No hay resultados.
+              </Text>
+            )}
+
             <Pagination
               page={page}
               totalPages={totalPages}
               onPageChange={setPage}
             />
-          </Stack>
+          </StatCard>
 
           {/* ==================== INDICADORES POR ASEGURADORA ==================== */}
           <StatCard mb={4}>
+            <Box mb={4}>
+              <Heading size="sm" fontFamily="heading">
+                Indicadores por aseguradora
+              </Heading>
+              <Text fontSize="xs" color="lucera.textMuted">
+                Consultas y disposición de los chats por seguro médico.
+              </Text>
+            </Box>
             <Flex
               direction={{ base: "column", md: "row" }}
               gap={3}

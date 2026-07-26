@@ -15,6 +15,7 @@ import {
   BarChart3,
   Gauge,
   Cpu,
+  Bot,
   type LucideIcon,
 } from "lucide-react";
 import {
@@ -112,6 +113,12 @@ const allItems: Item[] = [
     url: "/usage",
     icon: Cpu,
     roles: ["Admin", "Ventas", "Invitado"],
+  },
+  {
+    title: "Estado del bot",
+    url: "/bot-status",
+    icon: Bot,
+    roles: ["Admin", "Ventas", "Médico", "Invitado"],
   },
   // { title: "Mi agenda", url: "/schedule", icon: CalendarDays, roles: ["Médico"] }, // oculto temporalmente
   {

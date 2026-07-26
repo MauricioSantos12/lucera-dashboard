@@ -17,6 +17,8 @@ import {
   Box,
   Button,
   Flex,
+  HStack,
+  Heading,
   Icon,
   IconButton,
   Input,
@@ -31,7 +33,13 @@ import {
   ModalOverlay,
   FormControl,
   FormLabel,
-  SimpleGrid,
+  Table,
+  Thead,
+  Tbody,
+  Tr,
+  Th,
+  Td,
+  TableContainer,
   Text,
   useDisclosure,
 } from "@chakra-ui/react";
@@ -133,102 +141,129 @@ export default function Specialties() {
       title="Especialidades"
       subtitle="Especialidades médicas soportadas por el triaje"
     >
-      <Flex gap={3} mb={4} align="end" wrap="wrap">
-        <Box flex={1} minW={{ md: "220px" }} maxW={{ md: "360px" }}>
-          <Text fontSize="xs" fontWeight={600} mb={1}>
-            Buscar
-          </Text>
-          <InputGroup>
-            <InputLeftElement pointerEvents="none">
-              <Search size={16} />
-            </InputLeftElement>
-            <Input
-              placeholder="Nombre de la especialidad…"
-              value={q}
-              onChange={(e) => setQ(e.target.value)}
-              bg="lucera.surface"
-            />
-          </InputGroup>
-        </Box>
-        {canEdit && (
-          <Button
-            colorScheme="vino"
-            leftIcon={<Plus size={16} />}
-            onClick={() => openEdit(null)}
-          >
-            Nueva especialidad
-          </Button>
-        )}
-      </Flex>
-
-      {loading && !specialtiesData ? (
-        <LoadingState label="Cargando especialidades…" />
-      ) : (
-        <>
-          <SimpleGrid columns={{ base: 1, sm: 2, md: 3, lg: 4 }} spacing={3}>
-            {paginated.map((s) => (
-              <StatCard key={s.id} p={3}>
-                <Flex align="center" gap={3}>
-                  <Flex
-                    h={9}
-                    w={9}
-                    flexShrink={0}
-                    borderRadius="lg"
-                    align="center"
-                    justify="center"
-                    bg="naranja.50"
-                    color="naranja.500"
-                  >
-                    <Icon as={Stethoscope} boxSize={4} />
-                  </Flex>
-                  <Box minW={0} flex={1}>
-                    <Text fontSize="sm" fontWeight={700} noOfLines={2}>
-                      {s.name}
-                    </Text>
-                  </Box>
-                  {canEdit && (
-                    <Flex flexShrink={0} gap={0.5}>
-                      <IconButton
-                        aria-label="Editar"
-                        size="xs"
-                        variant="ghost"
-                        icon={<Pencil size={12} />}
-                        onClick={() => openEdit(s)}
-                      />
-                      <IconButton
-                        aria-label="Eliminar"
-                        size="xs"
-                        variant="ghost"
-                        color="peligro.500"
-                        icon={<Trash2 size={12} />}
-                        onClick={() => setToDelete(s)}
-                      />
-                    </Flex>
-                  )}
-                </Flex>
-              </StatCard>
-            ))}
-          </SimpleGrid>
-          {filtered.length === 0 && (
-            <Text
-              mt={6}
-              fontSize="sm"
-              color="lucera.textMuted"
-              textAlign="center"
-            >
-              No hay resultados.
+      <StatCard>
+        <Flex
+          direction={{ base: "column", sm: "row" }}
+          gap={3}
+          align={{ sm: "center" }}
+          justify="space-between"
+          mb={4}
+        >
+          <Box>
+            <Heading size="sm" fontFamily="heading">
+              Directorio de especialidades
+            </Heading>
+            <Text fontSize="xs" color="lucera.textMuted">
+              {filtered.length} de {specialties.length} especialidades
             </Text>
-          )}
-          <Text mt={4} fontSize="xs" color="lucera.textMuted">
-            {filtered.length} de {specialties.length} especialidades
-          </Text>
-          <Pagination
-            page={page}
-            totalPages={totalPages}
-            onPageChange={setPage}
-          />
-        </>
-      )}
+          </Box>
+          <HStack gap={3} w={{ base: "100%", sm: "auto" }}>
+            <InputGroup size="sm" maxW={{ sm: "260px" }}>
+              <InputLeftElement pointerEvents="none">
+                <Search size={14} />
+              </InputLeftElement>
+              <Input
+                placeholder="Buscar especialidad…"
+                value={q}
+                onChange={(e) => setQ(e.target.value)}
+              />
+            </InputGroup>
+            {canEdit && (
+              <Button
+                size="sm"
+                colorScheme="vino"
+                leftIcon={<Plus size={16} />}
+                onClick={() => openEdit(null)}
+                flexShrink={0}
+              >
+                Nueva
+              </Button>
+            )}
+          </HStack>
+        </Flex>
+
+        {loading && !specialtiesData ? (
+          <LoadingState label="Cargando especialidades…" />
+        ) : (
+          <>
+            <TableContainer
+              borderWidth="1px"
+              borderColor="lucera.border"
+              borderRadius="md"
+            >
+              <Table size="sm">
+                <Thead bg="crema.100">
+                  <Tr>
+                    <Th>Especialidad</Th>
+                    {canEdit && <Th textAlign="right">Acciones</Th>}
+                  </Tr>
+                </Thead>
+                <Tbody>
+                  {paginated.map((s) => (
+                    <Tr key={s.id} _hover={{ bg: "crema.50" }}>
+                      <Td>
+                        <HStack spacing={3}>
+                          <Flex
+                            h={8}
+                            w={8}
+                            flexShrink={0}
+                            borderRadius="lg"
+                            align="center"
+                            justify="center"
+                            bg="naranja.50"
+                            color="naranja.500"
+                          >
+                            <Icon as={Stethoscope} boxSize={4} />
+                          </Flex>
+                          <Text fontSize="sm" fontWeight={600}>
+                            {s.name}
+                          </Text>
+                        </HStack>
+                      </Td>
+                      {canEdit && (
+                        <Td textAlign="right">
+                          <IconButton
+                            aria-label="Editar"
+                            size="sm"
+                            variant="ghost"
+                            icon={<Pencil size={14} />}
+                            onClick={() => openEdit(s)}
+                          />
+                          <IconButton
+                            aria-label="Eliminar"
+                            size="sm"
+                            variant="ghost"
+                            color="peligro.500"
+                            icon={<Trash2 size={14} />}
+                            onClick={() => setToDelete(s)}
+                          />
+                        </Td>
+                      )}
+                    </Tr>
+                  ))}
+                </Tbody>
+              </Table>
+            </TableContainer>
+
+            {filtered.length === 0 && (
+              <Text
+                mt={6}
+                fontSize="sm"
+                color="lucera.textMuted"
+                textAlign="center"
+              >
+                No hay resultados.
+              </Text>
+            )}
+
+            <Pagination
+              page={page}
+              totalPages={totalPages}
+              onPageChange={setPage}
+            />
+          </>
+        )}
+      </StatCard>
 
       <Modal isOpen={isOpen} onClose={onClose} isCentered size="sm">
         <ModalOverlay />
