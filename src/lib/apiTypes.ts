@@ -284,6 +284,26 @@ export interface AccountApi {
   subscriptionState: string;
 }
 
+// GET /api/users → usuarios del panel (staff: admin, médico, ventas), no
+// acudientes. dashboardRole es el rol legible; role es el interno del backend.
+export interface UserApi {
+  id: string;
+  name: string;
+  email: string;
+  phone: string;
+  role: string; // interno: "admin" | "doctor" | "marketing" | ...
+  dashboardRole: string; // "Admin" | "Doctor" | "Sales" | ...
+  status: string; // "active" | "inactive"
+  isActive: boolean;
+  dashboardAccess: boolean;
+  hasPassword: boolean;
+  mustChangePassword: boolean;
+  idNumber: string | null;
+  licenseId: string | null;
+  specialty: string | null;
+  createdAt: string;
+}
+
 export type BloodType = "A+" | "A-" | "B+" | "B-" | "AB+" | "AB-" | "O+" | "O-";
 
 export interface PatientApi {

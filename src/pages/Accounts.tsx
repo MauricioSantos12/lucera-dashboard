@@ -2,8 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { useAuth } from "@/lib/auth";
 import { useFetchAll } from "@/hooks/useFetchAll";
-import { countryApiToEs } from "@/lib/apiMappings";
-import type { AccountApi, GuardianApi } from "@/lib/apiTypes";
+import type { UserApi } from "@/lib/apiTypes";
 import {
   Box,
   Flex,
@@ -18,135 +17,86 @@ import {
   Tr,
   Th,
   Td,
-  IconButton,
   Badge,
   Text,
   TableContainer,
 } from "@chakra-ui/react";
-import {
-  Search,
-  Pencil,
-  Phone,
-  Mail,
-  Baby,
-  MessageSquare,
-} from "lucide-react";
+import { Search, Mail, CheckCircle2, XCircle } from "lucide-react";
 import { StatCard } from "@/components/StatCard";
 import { Pagination } from "@/components/Pagination";
 import { LoadingState } from "@/components/LoadingState";
 import { ExportButton } from "@/components/ExportButton";
-import { GuardianEditModal } from "@/components/GuardianEditModal";
 import { toast } from "@/lib/toast";
 
-// Etiquetas legibles de los planes que devuelve /api/accounts.
-const planLabel: Record<string, string> = {
-  free: "Gratuito",
-  validacion_full: "Validación full",
-  "1_hijo": "1 hijo",
-  "2_hijos": "2 hijos",
-  premium_monthly: "Premium Mensual",
-  premium_annual: "Premium Anual",
+// Rol del panel a etiqueta legible en español.
+const roleLabel: Record<string, string> = {
+  Admin: "Admin",
+  Doctor: "Médico",
+  Sales: "Ventas",
+  Guest: "Invitado",
 };
 
 const PER_PAGE = 12;
 
 export default function Accounts() {
   const { user, token } = useAuth();
-  const canEdit = user?.role === "Admin";
   const canExport = user?.role !== "Invitado";
 
+  // Solo lectura: se muestra lo que devuelve GET /api/users.
   const {
-    data: accountsData,
+    data: usersData,
     loading,
     error,
-    refetch,
-  } = useFetchAll<AccountApi>(token ? "/api/accounts" : null);
-
-  // Se cargan los acudientes para poder abrir el modal de edición (que trabaja
-  // sobre GuardianApi). account.id === guardian.id, así que se cruza por id.
-  const { data: guardiansData, refetch: refetchGuardians } =
-    useFetchAll<GuardianApi>(canEdit && token ? "/api/guardians" : null);
+  } = useFetchAll<UserApi>(token ? "/api/users" : null);
 
   useEffect(() => {
     if (error) {
-      toast.error("No se pudieron cargar las cuentas", { description: error });
+      toast.error("No se pudieron cargar los usuarios", { description: error });
     }
   }, [error]);
 
-  const accounts = useMemo(
-    () => accountsData?.items ?? [],
-    [accountsData]
-  );
-  const guardians = useMemo(
-    () => guardiansData?.items ?? [],
-    [guardiansData]
-  );
+  const users = useMemo(() => usersData?.items ?? [], [usersData]);
 
   const [q, setQ] = useState("");
-  const [countryFilter, setCountryFilter] = useState("todos");
-  const [insuranceFilter, setInsuranceFilter] = useState("todos");
+  const [roleFilter, setRoleFilter] = useState("todos");
+  const [statusFilter, setStatusFilter] = useState("todos");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [page, setPage] = useState(1);
-  const [editing, setEditing] = useState<GuardianApi | null>(null);
 
-  // Opciones de los selects, derivadas de la data real.
-  const countryOptions = useMemo(
-    () =>
-      [...new Set(accounts.map((a) => a.country).filter(Boolean))].sort() as string[],
-    [accounts]
-  );
-  const insuranceOptions = useMemo(
-    () =>
-      [
-        ...new Set(accounts.map((a) => a.insurance).filter(Boolean)),
-      ].sort() as string[],
-    [accounts]
+  // Opciones de rol derivadas de la data real.
+  const roleOptions = useMemo(
+    () => [...new Set(users.map((u) => u.dashboardRole).filter(Boolean))].sort(),
+    [users]
   );
 
   const filtered = useMemo(() => {
-    return accounts.filter((a) => {
-      const okQ = `${a.guardian} ${a.email} ${a.phone} ${a.accountCode}`
+    return users.filter((u) => {
+      const okQ = `${u.name} ${u.email} ${u.idNumber ?? ""}`
         .toLowerCase()
         .includes(q.trim().toLowerCase());
-      const okCountry =
-        countryFilter === "todos"
-          ? true
-          : countryFilter === "sin_pais"
-          ? !a.country
-          : a.country === countryFilter;
-      const okInsurance =
-        insuranceFilter === "todos"
-          ? true
-          : insuranceFilter === "sin_seguro"
-          ? !a.insurance
-          : a.insurance === insuranceFilter;
-      const dateStr = a.createdAt?.slice(0, 10) ?? "";
+      const okRole =
+        roleFilter === "todos" || u.dashboardRole === roleFilter;
+      const okStatus =
+        statusFilter === "todos" ||
+        (statusFilter === "activo" ? u.isActive : !u.isActive);
+      const dateStr = u.createdAt?.slice(0, 10) ?? "";
       const okFrom = !dateFrom || dateStr >= dateFrom;
       const okTo = !dateTo || dateStr <= dateTo;
-      return okQ && okCountry && okInsurance && okFrom && okTo;
+      return okQ && okRole && okStatus && okFrom && okTo;
     });
-  }, [accounts, q, countryFilter, insuranceFilter, dateFrom, dateTo]);
+  }, [users, q, roleFilter, statusFilter, dateFrom, dateTo]);
 
   // Al cambiar cualquier filtro, se vuelve a la primera página.
   useEffect(() => {
     setPage(1);
-  }, [q, countryFilter, insuranceFilter, dateFrom, dateTo]);
+  }, [q, roleFilter, statusFilter, dateFrom, dateTo]);
 
   const totalPages = Math.ceil(filtered.length / PER_PAGE);
   const paginated = filtered.slice((page - 1) * PER_PAGE, page * PER_PAGE);
 
-  const openEdit = (a: AccountApi) => {
-    const guardian = guardians.find((g) => g.id === a.id);
-    if (!guardian) {
-      toast.error("No se encontró la cuenta del acudiente para editar");
-      return;
-    }
-    setEditing(guardian);
-  };
-
   return (
-    <DashboardLayout title="Cuentas" subtitle="Cuentas titulares registradas">
+    <DashboardLayout title="Cuentas" subtitle="Usuarios del panel">
       <StatCard>
         <Flex
           direction={{ base: "column", md: "row" }}
@@ -164,7 +114,7 @@ export default function Accounts() {
                 <Search size={16} />
               </InputLeftElement>
               <Input
-                placeholder="Nombre, email, teléfono, código…"
+                placeholder="Nombre, email, cédula…"
                 value={q}
                 onChange={(e) => setQ(e.target.value)}
               />
@@ -196,71 +146,61 @@ export default function Accounts() {
           </Box>
           <Box>
             <Text fontSize="xs" fontWeight={600} mb={1}>
-              País
+              Rol
             </Text>
             <Select
               w={{ base: "100%", md: "160px" }}
-              value={countryFilter}
-              onChange={(e) => setCountryFilter(e.target.value)}
+              value={roleFilter}
+              onChange={(e) => setRoleFilter(e.target.value)}
             >
-              <option value="todos">Todos los países</option>
-              {countryOptions.map((c) => (
-                <option key={c} value={c}>
-                  {countryApiToEs[c] ?? c}
+              <option value="todos">Todos los roles</option>
+              {roleOptions.map((r) => (
+                <option key={r} value={r}>
+                  {roleLabel[r] ?? r}
                 </option>
               ))}
-              <option value="sin_pais">Sin país</option>
             </Select>
           </Box>
           <Box>
             <Text fontSize="xs" fontWeight={600} mb={1}>
-              Aseguradora
+              Estado
             </Text>
             <Select
-              w={{ base: "100%", md: "180px" }}
-              value={insuranceFilter}
-              onChange={(e) => setInsuranceFilter(e.target.value)}
+              w={{ base: "100%", md: "150px" }}
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
             >
-              <option value="todos">Todas las aseguradoras</option>
-              {insuranceOptions.map((i) => (
-                <option key={i} value={i}>
-                  {i}
-                </option>
-              ))}
-              <option value="sin_seguro">Sin seguro</option>
+              <option value="todos">Todos</option>
+              <option value="activo">Activos</option>
+              <option value="inactivo">Inactivos</option>
             </Select>
           </Box>
         </Flex>
 
         <Flex gap={3} mb={4} justify="space-between" align="center" wrap="wrap">
           <Text fontSize="sm" color="lucera.textMuted">
-            {filtered.length} cuenta{filtered.length === 1 ? "" : "s"}
+            {filtered.length} usuario{filtered.length === 1 ? "" : "s"}
           </Text>
           <ExportButton
             isDisabled={!canExport}
-            filename="cuentas-lucera"
-            sheetName="Cuentas"
-            data={filtered.map((a) => ({
-              Código: a.accountCode,
-              Titular: a.guardian,
-              Email: a.email,
-              Teléfono: a.phone,
-              País: a.country ? countryApiToEs[a.country] ?? a.country : "",
-              Provincia: a.province ?? "",
-              Ciudad: a.city ?? "",
-              Aseguradora: a.insurance ?? "",
-              Plan: planLabel[a.plan] ?? a.plan,
-              Estado: a.status === "active" ? "Activa" : "Inactiva",
-              Pago: a.paymentStatus ?? "",
-              Niños: a.children,
-              Chats: a.chats,
-              "Fecha de registro": a.createdAt,
+            filename="usuarios-lucera"
+            sheetName="Usuarios"
+            data={filtered.map((u) => ({
+              Nombre: u.name,
+              Email: u.email,
+              Rol: roleLabel[u.dashboardRole] ?? u.dashboardRole,
+              Estado: u.isActive ? "Activo" : "Inactivo",
+              "Acceso al panel": u.dashboardAccess ? "Sí" : "No",
+              Especialidad: u.specialty ?? "",
+              Cédula: u.idNumber ?? "",
+              Licencia: u.licenseId ?? "",
+              "Fecha de registro": u.createdAt,
             }))}
           />
         </Flex>
 
-        {loading && !accountsData ? (
-          <LoadingState label="Cargando cuentas…" />
+        {loading && !usersData ? (
+          <LoadingState label="Cargando usuarios…" />
         ) : (
           <>
             <TableContainer
@@ -271,99 +211,85 @@ export default function Accounts() {
               <Table size="sm">
                 <Thead bg="crema.100">
                   <Tr>
-                    <Th>Código</Th>
-                    <Th>Titular</Th>
-                    <Th display={{ base: "none", md: "table-cell" }}>
-                      Contacto
-                    </Th>
-                    <Th display={{ base: "none", lg: "table-cell" }}>
-                      País / Ciudad
-                    </Th>
-                    <Th display={{ base: "none", md: "table-cell" }}>
-                      Aseguradora
-                    </Th>
-                    <Th>Plan</Th>
+                    <Th>Nombre</Th>
+                    <Th display={{ base: "none", md: "table-cell" }}>Email</Th>
+                    <Th>Rol</Th>
                     <Th>Estado</Th>
-                    <Th textAlign="center">Niños</Th>
-                    <Th textAlign="center">Chats</Th>
+                    <Th textAlign="center">Acceso al panel</Th>
+                    <Th display={{ base: "none", lg: "table-cell" }}>
+                      Especialidad
+                    </Th>
+                    <Th display={{ base: "none", xl: "table-cell" }}>Cédula</Th>
+                    <Th display={{ base: "none", xl: "table-cell" }}>
+                      Licencia
+                    </Th>
                     <Th display={{ base: "none", lg: "table-cell" }}>
                       Registro
                     </Th>
-                    {canEdit && <Th textAlign="right">Acciones</Th>}
                   </Tr>
                 </Thead>
                 <Tbody>
-                  {paginated.map((a) => (
-                    <Tr key={a.id} _hover={{ bg: "crema.50" }}>
-                      <Td
-                        fontFamily="mono"
-                        fontSize="xs"
-                        fontWeight={600}
-                        color="lucera.textMuted"
-                      >
-                        {a.accountCode}
-                      </Td>
+                  {paginated.map((u) => (
+                    <Tr key={u.id} _hover={{ bg: "crema.50" }}>
                       <Td>
                         <Text fontSize="sm" fontWeight={600}>
-                          {a.guardian}
+                          {u.name}
                         </Text>
                       </Td>
                       <Td display={{ base: "none", md: "table-cell" }}>
-                        <HStack fontSize="xs">
-                          <Phone size={10} />
-                          <Text>{a.phone}</Text>
-                        </HStack>
                         <HStack fontSize="xs" color="lucera.textMuted">
                           <Mail size={10} />
-                          <Text>{a.email}</Text>
+                          <Text>{u.email}</Text>
                         </HStack>
+                      </Td>
+                      <Td>
+                        <Badge variant="outline">
+                          {roleLabel[u.dashboardRole] ?? u.dashboardRole}
+                        </Badge>
+                      </Td>
+                      <Td>
+                        <Badge colorScheme={u.isActive ? "green" : "gray"}>
+                          {u.isActive ? "Activo" : "Inactivo"}
+                        </Badge>
+                      </Td>
+                      <Td textAlign="center">
+                        {u.dashboardAccess ? (
+                          <CheckCircle2
+                            size={16}
+                            color="#2f855a"
+                            style={{ display: "inline" }}
+                          />
+                        ) : (
+                          <XCircle
+                            size={16}
+                            color="#a0aec0"
+                            style={{ display: "inline" }}
+                          />
+                        )}
                       </Td>
                       <Td
                         display={{ base: "none", lg: "table-cell" }}
-                        fontSize="sm"
-                      >
-                        <Text fontSize="xs" color="lucera.textMuted">
-                          {a.country ? countryApiToEs[a.country] ?? a.country : "—"}
-                        </Text>
-                        <Text>{a.city || "—"}</Text>
-                      </Td>
-                      <Td
-                        display={{ base: "none", md: "table-cell" }}
                         fontSize="xs"
                       >
-                        {a.insurance || (
+                        {u.specialty || (
                           <Text as="span" color="lucera.textMuted">
-                            Sin seguro
+                            —
                           </Text>
                         )}
                       </Td>
-                      <Td>
-                        <Badge variant="outline">
-                          {planLabel[a.plan] ?? a.plan}
-                        </Badge>
+                      <Td
+                        display={{ base: "none", xl: "table-cell" }}
+                        fontSize="xs"
+                        color="lucera.textMuted"
+                      >
+                        {u.idNumber || "—"}
                       </Td>
-                      <Td>
-                        <Badge
-                          colorScheme={a.status === "active" ? "green" : "gray"}
-                        >
-                          {a.status === "active" ? "Activa" : "Inactiva"}
-                        </Badge>
-                      </Td>
-                      <Td textAlign="center">
-                        <Badge variant="outline">
-                          <HStack spacing={1}>
-                            <Baby size={10} />
-                            <Text>{a.children}</Text>
-                          </HStack>
-                        </Badge>
-                      </Td>
-                      <Td textAlign="center">
-                        <Badge variant="outline">
-                          <HStack spacing={1}>
-                            <MessageSquare size={10} />
-                            <Text>{a.chats}</Text>
-                          </HStack>
-                        </Badge>
+                      <Td
+                        display={{ base: "none", xl: "table-cell" }}
+                        fontSize="xs"
+                        color="lucera.textMuted"
+                      >
+                        {u.licenseId || "—"}
                       </Td>
                       <Td
                         display={{ base: "none", lg: "table-cell" }}
@@ -371,31 +297,20 @@ export default function Accounts() {
                         color="lucera.textMuted"
                         sx={{ fontVariantNumeric: "tabular-nums" }}
                       >
-                        {a.createdAt}
+                        {u.createdAt}
                       </Td>
-                      {canEdit && (
-                        <Td textAlign="right">
-                          <IconButton
-                            aria-label="Editar cuenta"
-                            icon={<Pencil size={14} />}
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => openEdit(a)}
-                          />
-                        </Td>
-                      )}
                     </Tr>
                   ))}
                   {paginated.length === 0 && (
                     <Tr>
-                      <Td colSpan={canEdit ? 11 : 10}>
+                      <Td colSpan={9}>
                         <Text
                           fontSize="sm"
                           color="lucera.textMuted"
                           textAlign="center"
                           py={4}
                         >
-                          No hay cuentas que coincidan con los filtros.
+                          No hay usuarios que coincidan con los filtros.
                         </Text>
                       </Td>
                     </Tr>
@@ -414,17 +329,6 @@ export default function Accounts() {
           </>
         )}
       </StatCard>
-
-      {canEdit && (
-        <GuardianEditModal
-          guardian={editing}
-          onClose={() => setEditing(null)}
-          onSaved={() => {
-            refetch();
-            refetchGuardians();
-          }}
-        />
-      )}
     </DashboardLayout>
   );
 }
