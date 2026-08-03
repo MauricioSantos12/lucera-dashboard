@@ -13,6 +13,7 @@ import {
   UserCog,
   Heart,
   BarChart3,
+  Activity,
   Gauge,
   Cpu,
   Bot,
@@ -53,9 +54,21 @@ const allItems: Item[] = [
     roles: ["Admin", "Ventas", "Invitado"],
   },
   {
+    title: "Uso",
+    url: "/uses",
+    icon: Activity,
+    roles: ["Admin", "Ventas", "Invitado"],
+  },
+  {
     title: "Desempeño",
     url: "/performance",
     icon: Gauge,
+    roles: ["Admin", "Ventas", "Invitado"],
+  },
+  {
+    title: "Cuentas",
+    url: "/accounts",
+    icon: UserCog,
     roles: ["Admin", "Ventas", "Invitado"],
   },
   {
@@ -99,7 +112,7 @@ const allItems: Item[] = [
     title: "Sesiones (Chats)",
     url: "/chats",
     icon: MessageSquare,
-    roles: ["Admin", "Ventas", "Médico", "Invitado"],
+    roles: ["Admin", "Médico", "Invitado"],
   },
   // { title: "Medicamentos", url: "/medications", icon: Pill, roles: ["Admin", "Invitado"] }, // oculto temporalmente
   {
@@ -118,7 +131,7 @@ const allItems: Item[] = [
     title: "Estado del bot",
     url: "/bot-status",
     icon: Bot,
-    roles: ["Admin", "Ventas", "Médico", "Invitado"],
+    roles: ["Admin"],
   },
   // { title: "Mi agenda", url: "/schedule", icon: CalendarDays, roles: ["Médico"] }, // oculto temporalmente
   {
@@ -218,7 +231,15 @@ function SidebarBody({ onNav }: { onNav?: () => void }) {
       bg="lucera.sidebar"
       color="lucera.sidebarFg"
     >
-      <HStack as={RouterNavLink} to="/" p={4} borderBottomWidth="1px" borderColor="vino.600" spacing={3} style={{ textDecoration: "none" }}>
+      <HStack
+        as={RouterNavLink}
+        to="/"
+        p={4}
+        borderBottomWidth="1px"
+        borderColor="vino.600"
+        spacing={3}
+        style={{ textDecoration: "none" }}
+      >
         <Box
           h={10}
           w={10}
@@ -285,7 +306,6 @@ function SidebarBody({ onNav }: { onNav?: () => void }) {
             />
           ))}
         </VStack>
-
       </Box>
 
       <Box

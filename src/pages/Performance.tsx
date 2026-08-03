@@ -1,21 +1,14 @@
-import { useMemo } from "react";
+import { useEffect } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
-import { useStatsFilters } from "@/hooks/useStatsFilters";
-import { StatsFilterBar } from "@/components/StatsFilterBar";
+import { useAuth } from "@/lib/auth";
+import { useFetch } from "@/hooks/useFetch";
 import { StatCard } from "@/components/StatCard";
 import { LoadingState } from "@/components/LoadingState";
 import { formatNumber } from "@/lib/format";
+import { toast } from "@/lib/toast";
+import type { StatsPerformanceResponse } from "@/lib/apiTypes";
+import { Box, Flex, Heading, Text, Icon, SimpleGrid } from "@chakra-ui/react";
 import {
-  Box,
-  Flex,
-  HStack,
-  Heading,
-  Text,
-  Icon,
-  SimpleGrid,
-} from "@chakra-ui/react";
-import {
-  Activity,
   Ban,
   ClipboardCheck,
   Timer,
@@ -25,27 +18,9 @@ import {
   TrendingDown,
   type LucideIcon,
 } from "lucide-react";
-import {
-  BarChart,
-  Bar,
-  Cell,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  LabelList,
-} from "recharts";
 import { motion } from "framer-motion";
 
 const MotionBox = motion(Box);
-const brandColors = ["#6d122b", "#ef7d54", "#f8cc37"];
-const tooltipStyle = {
-  background: "white",
-  border: "1px solid #e9d2b1",
-  borderRadius: 8,
-  fontSize: 12,
-};
 
 interface StatProps {
   icon: LucideIcon;
@@ -99,269 +74,100 @@ function Stat({ icon, label, value, accent, sub }: StatProps) {
   );
 }
 
+// Formatea minutos a la unidad más legible (min / h / d).
+const fmtMinutes = (m: number | null): string => {
+  if (m == null) return "—";
+  if (m >= 1440) return `${(m / 1440).toFixed(1)} d`;
+  if (m >= 60) return `${(m / 60).toFixed(1)} h`;
+  return `${Math.round(m * 10) / 10} min`;
+};
+
+const pct = (v: number | null): string => (v == null ? "—" : `${v}%`);
+
 export default function Performance() {
-  const stats = useStatsFilters();
+  const { user, token } = useAuth();
   const {
-    filteredGuardians,
-    filteredChats,
-    activeUsers,
-    applied,
-    searchTick,
-    statsLoading,
-  } = stats;
+    data: perf,
+    loading,
+    error,
+  } = useFetch<StatsPerformanceResponse>(
+    token ? "/api/stats/performance" : null
+  );
 
-  // Métricas de desempeño derivadas de la data ya filtrada, con proxies
-  // documentados donde el API no expone el dato exacto (churn = bajas/
-  // suspendidas, onboarding = cuentas con ≥1 niño, interrumpidas = sesiones
-  // sin cerrar).
-  const performanceMetrics = useMemo(() => {
-    const parseDate = (s: string) =>
-      new Date((s.length <= 10 ? `${s} 00:00` : s).replace(" ", "T")).getTime();
-    const total = filteredGuardians.length;
+  useEffect(() => {
+    if (error) {
+      toast.error("No se pudo cargar el desempeño", { description: error });
+    }
+  }, [error]);
 
-    const freeCount = filteredGuardians.filter((g) => g.plan === "free").length;
-    const freePct = total > 0 ? Math.round((freeCount / total) * 100) : 0;
-
-    const withChildren = filteredGuardians.filter(
-      (g) => (g.children?.length ?? 0) > 0
-    ).length;
-    const onboarding = total > 0 ? Math.round((withChildren / total) * 100) : 0;
-
-    const activeRate = total > 0 ? Math.round((activeUsers / total) * 100) : 0;
-
-    const firstChatByPhone = new Map<string, number>();
-    filteredChats.forEach((c) => {
-      const t = parseDate(c.startedAt);
-      const prev = firstChatByPhone.get(c.phone);
-      if (prev == null || t < prev) firstChatByPhone.set(c.phone, t);
-    });
-    const ttfcHours: number[] = [];
-    filteredGuardians.forEach((g) => {
-      const first = firstChatByPhone.get(g.phone);
-      if (first == null) return;
-      const diff = (first - parseDate(g.registeredAt)) / 3_600_000;
-      if (Number.isFinite(diff) && diff >= 0) ttfcHours.push(diff);
-    });
-    const avgTtfc = ttfcHours.length
-      ? ttfcHours.reduce((a, b) => a + b, 0) / ttfcHours.length
-      : null;
-
-    const interrupted = filteredChats.filter(
-      (c) => c.status === "waiting"
-    ).length;
-    const interruptedPct =
-      filteredChats.length > 0
-        ? Math.round((interrupted / filteredChats.length) * 1000) / 10
-        : 0;
-
-    const ttrMin: number[] = [];
-    filteredChats.forEach((c) => {
-      if (c.status !== "closed" || !c.closedAt) return;
-      const diff = (parseDate(c.closedAt) - parseDate(c.startedAt)) / 60_000;
-      if (Number.isFinite(diff) && diff >= 0) ttrMin.push(diff);
-    });
-    const avgTtr = ttrMin.length
-      ? ttrMin.reduce((a, b) => a + b, 0) / ttrMin.length
-      : null;
-
-    const churnFor = (subset: typeof filteredGuardians) => {
-      if (subset.length === 0) return 0;
-      const inactive = subset.filter((g) => g.status !== "active").length;
-      return Math.round((inactive / subset.length) * 1000) / 10;
-    };
-    const churn = [
-      {
-        segment: "Free",
-        value: churnFor(filteredGuardians.filter((g) => g.plan === "free")),
-      },
-      {
-        segment: "Premium",
-        value: churnFor(filteredGuardians.filter((g) => g.plan !== "free")),
-      },
-      { segment: "Global", value: churnFor(filteredGuardians) },
-    ];
-
-    const fmtHours = (h: number) =>
-      h >= 48 ? `${(h / 24).toFixed(1)} d` : `${h.toFixed(1)} h`;
-    const fmtMin = (m: number) =>
-      m >= 60 ? `${(m / 60).toFixed(1)} h` : `${m.toFixed(1)} min`;
-
-    return {
-      freeLimitNoConversion: { count: freeCount, pct: freePct },
-      onboardingCompletionRate: onboarding,
-      timeToFirstConsult: avgTtfc == null ? "—" : fmtHours(avgTtfc),
-      activeAccountRate: activeRate,
-      interruptedSessions: { count: interrupted, pct: interruptedPct },
-      timeToResolution: avgTtr == null ? "—" : fmtMin(avgTtr),
-      churn,
-    };
-  }, [filteredGuardians, filteredChats, activeUsers]);
-
-  if (!stats.user) return null;
+  if (!user) return null;
 
   return (
     <DashboardLayout
       title="Desempeño"
       subtitle="Indicadores de rendimiento del servicio"
     >
-      <StatsFilterBar
-        startDate={stats.startDate}
-        setStartDate={stats.setStartDate}
-        endDate={stats.endDate}
-        setEndDate={stats.setEndDate}
-        country={stats.country}
-        setCountry={stats.setCountry}
-        insurance={stats.insurance}
-        setInsurance={stats.setInsurance}
-        guardianFilter={stats.guardianFilter}
-        setGuardianFilter={stats.setGuardianFilter}
-        countryOptions={stats.countryOptions}
-        insuranceOptions={stats.insuranceOptions}
-        guardianOptions={stats.guardianOptions}
-        onSearch={stats.handleSearch}
-      />
-
-      {!applied && (
-        <Flex
-          direction="column"
-          align="center"
-          justify="center"
-          py={20}
-          color="lucera.textMuted"
-        >
-          <Icon as={Activity} boxSize={10} mb={3} opacity={0.4} />
-          <Text fontSize="sm">
-            Selecciona los filtros y presiona "Buscar" para ver el desempeño.
-          </Text>
-        </Flex>
-      )}
-
-      {applied && statsLoading && <LoadingState label="Cargando desempeño…" />}
-
-      {applied && !statsLoading && (
+      {loading && !perf ? (
+        <LoadingState label="Cargando desempeño…" />
+      ) : !perf ? null : (
         <MotionBox
-          key={searchTick}
           initial={{ opacity: 0, y: 14 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4, ease: "easeOut" }}
         >
-          <Box mt={2} mb={3}>
-            <Text fontSize="xs" color="lucera.textMuted">
-              Calculado sobre la data filtrada. Algunas métricas usan proxies:
-              churn = bajas/suspendidas · onboarding = cuentas con ≥1 niño ·
-              interrumpidas = sesiones sin cerrar.
-            </Text>
-          </Box>
-
           <SimpleGrid columns={{ base: 1, sm: 2, lg: 4 }} spacing={4} mb={4}>
-            <Stat
-              icon={Ban}
-              label="Límite Free sin conversión"
-              value={formatNumber(
-                performanceMetrics.freeLimitNoConversion.count
-              )}
-              accent={{ bg: "peligro.500", fg: "white" }}
-              sub={`${performanceMetrics.freeLimitNoConversion.pct}% del total Free`}
-            />
-            <Stat
-              icon={ClipboardCheck}
-              label="Onboarding Completion Rate"
-              value={`${performanceMetrics.onboardingCompletionRate}%`}
-              accent={{ bg: "exito.500", fg: "white" }}
-              sub="Registro completado"
-            />
             <Stat
               icon={Timer}
               label="Time to first consult"
-              value={performanceMetrics.timeToFirstConsult}
+              value={fmtMinutes(perf.timeToFirstConsultMin)}
               accent={{ bg: "naranja.50", fg: "naranja.500" }}
               sub="Registro → 1ª consulta"
             />
             <Stat
+              icon={Clock}
+              label="Time to Resolution"
+              value={fmtMinutes(perf.timeToResolutionMin)}
+              accent={{ bg: "vino.50", fg: "vino.500" }}
+              sub="Duración media de sesión"
+            />
+            <Stat
               icon={UserCheck}
               label="Active Account Rate"
-              value={`${performanceMetrics.activeAccountRate}%`}
-              accent={{ bg: "vino.50", fg: "vino.500" }}
+              value={pct(perf.activeAccountRate)}
+              accent={{ bg: "exito.500", fg: "white" }}
               sub="Cuentas activas / total"
+            />
+            <Stat
+              icon={TrendingDown}
+              label="Churn Rate"
+              value={pct(perf.churnRate)}
+              accent={{ bg: "peligro.500", fg: "white" }}
+              sub="Cuentas inactivas (~60 días)"
             />
           </SimpleGrid>
 
-          <SimpleGrid columns={{ base: 1, sm: 2 }} spacing={4}>
-            <SimpleGrid
-              columns={{ base: 1, sm: 2 }}
-              spacing={4}
-              alignContent="start"
-            >
-              <Stat
-                icon={Unplug}
-                label="Sesiones interrumpidas"
-                value={formatNumber(
-                  performanceMetrics.interruptedSessions.count
-                )}
-                accent={{ bg: "amarillo.50", fg: "amarillo.700" }}
-                sub={`Fallos técnicos · ${performanceMetrics.interruptedSessions.pct}%`}
-              />
-              <Stat
-                icon={Clock}
-                label="Time to Resolution"
-                value={performanceMetrics.timeToResolution}
-                accent={{ bg: "vino.50", fg: "vino.500" }}
-                sub="Duración media de sesión"
-              />
-            </SimpleGrid>
-
-            <StatCard>
-              <HStack mb={1} spacing={2}>
-                <Icon as={TrendingDown} boxSize={4} color="peligro.500" />
-                <Heading size="sm" fontFamily="heading">
-                  Churn rate por segmento
-                </Heading>
-              </HStack>
-              <Text fontSize="xs" color="lucera.textMuted" mb={4}>
-                Tasa de abandono en Free, Premium y global.
-              </Text>
-              <ResponsiveContainer width="100%" height={220}>
-                <BarChart
-                  data={performanceMetrics.churn}
-                  margin={{ top: 20, left: 0 }}
-                >
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e9d2b1" />
-                  <XAxis
-                    dataKey="segment"
-                    tick={{ fontSize: 11, fill: "#7b5a48" }}
-                  />
-                  <YAxis
-                    domain={[0, (max: number) => Math.ceil((max || 1) * 1.25)]}
-                    tick={{ fontSize: 11, fill: "#7b5a48" }}
-                    tickFormatter={(v: number) => `${v}%`}
-                  />
-                  <Tooltip
-                    cursor={{ fill: "rgba(185,28,28,0.06)" }}
-                    contentStyle={tooltipStyle}
-                    formatter={(v: number) => [`${v}%`, "Churn"]}
-                  />
-                  <Bar
-                    dataKey="value"
-                    radius={[6, 6, 0, 0]}
-                    maxBarSize={70}
-                    animationDuration={700}
-                  >
-                    {performanceMetrics.churn.map((_, i) => (
-                      <Cell key={i} fill={brandColors[i % brandColors.length]} />
-                    ))}
-                    <LabelList
-                      dataKey="value"
-                      position="top"
-                      formatter={(v: number) => `${v}%`}
-                      fontSize={11}
-                      fontWeight={700}
-                      fill="#3a2a1f"
-                    />
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-            </StatCard>
+          <SimpleGrid columns={{ base: 1, sm: 2, lg: 4 }} spacing={4}>
+            <Stat
+              icon={Ban}
+              label="Límite Free sin conversión"
+              value={formatNumber(perf.freeLimitNoConversion)}
+              accent={{ bg: "amarillo.50", fg: "amarillo.700" }}
+              sub="Cuentas Free en el tope"
+            />
+            <Stat
+              icon={Unplug}
+              label="Sesiones con fallo técnico"
+              value={formatNumber(perf.techFailureSessions)}
+              accent={{ bg: "peligro.500", fg: "white" }}
+              sub={`${pct(perf.techFailureRate)} de las sesiones`}
+            />
           </SimpleGrid>
+
+          {perf.note && (
+            <Text fontSize="xs" color="lucera.textMuted" mt={4}>
+              {perf.note}
+            </Text>
+          )}
         </MotionBox>
       )}
     </DashboardLayout>

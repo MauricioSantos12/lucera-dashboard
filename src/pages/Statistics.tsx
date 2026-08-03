@@ -64,6 +64,12 @@ const dispositionColors = {
   casa: "#2f9e6b",
 };
 
+const planDistributionLabel: Record<string, string> = {
+  free: "Gratuito",
+  premium_annual: "Anual",
+  premium_monthly: "Mensual",
+};
+
 // Deja ~18% de espacio arriba de la barra más alta para que la etiqueta
 // (número sobre cada barra) nunca se recorte contra el borde superior.
 const yAxisDomain: [number, (dataMax: number) => number] = [
@@ -214,14 +220,6 @@ export default function Statistics() {
       const key = String(c.attentionType);
       counts[key] = (counts[key] ?? 0) + 1;
     });
-    console.log(
-      "[Lucera] attentionType de los chats →",
-      counts,
-      "· tipos distintos:",
-      Object.keys(counts).length,
-      "· total chats:",
-      chats.length
-    );
   }, [chats]);
 
   // -------------------- CUENTAS --------------------
@@ -244,7 +242,10 @@ export default function Statistics() {
     filteredGuardians.forEach((g) => {
       counts.set(g.plan, (counts.get(g.plan) ?? 0) + 1);
     });
-    return [...counts.entries()].map(([plan, users]) => ({ plan, users }));
+    return [...counts.entries()].map(([plan, users]) => ({
+      plan: planDistributionLabel[plan] ?? plan,
+      users,
+    }));
   }, [filteredGuardians]);
 
   const insuranceStats = useMemo(() => {
@@ -268,15 +269,17 @@ export default function Statistics() {
       .sort((a, b) => b.value - a.value);
   }, [filteredGuardians]);
 
-  // Género derivado de la relación (la API no expone género): mother→Femenino,
-  // father→Masculino, guardian/grandparent→No especificado.
+  // Género del acudiente, usando el campo real `gender` del API. Se normaliza
+  // porque puede venir en distintos formatos (o null → "No especificado").
   const genderStats = useMemo(() => {
     let femenino = 0;
     let masculino = 0;
     let noEspecificado = 0;
     filteredGuardians.forEach((g) => {
-      if (g.relationship === "mother") femenino++;
-      else if (g.relationship === "father") masculino++;
+      const v = (g.gender ?? "").toString().trim().toLowerCase();
+      if (["female", "f", "femenino", "femenina", "mujer"].includes(v))
+        femenino++;
+      else if (["male", "m", "masculino", "hombre"].includes(v)) masculino++;
       else noEspecificado++;
     });
     const total = filteredGuardians.length || 1;
@@ -336,107 +339,10 @@ export default function Statistics() {
     return rows;
   }, [filteredPatients]);
 
-  // -------------------- USO --------------------
-
-  // Uso (chats) por fecha dentro del rango.
-  const chatsByDate = useMemo(() => {
-    const counts = new Map<string, number>();
-    filteredChats.forEach((c) => {
-      const date = c.startedAt.slice(0, 10);
-      counts.set(date, (counts.get(date) ?? 0) + 1);
-    });
-    return [...counts.entries()]
-      .map(([date, value]) => ({ date, value }))
-      .sort((a, b) => a.date.localeCompare(b.date));
-  }, [filteredChats]);
-
-  // Disposición del paciente por sesión (mutuamente excluyente):
-  // urgencias (triaje emergencia) → citas (presencial) → casa (virtual).
-  const dispositionStats = useMemo(() => {
-    let urgencias = 0;
-    let citas = 0;
-    let casa = 0;
-    filteredChats.forEach((c) => {
-      if (c.triage === "emergency") urgencias++;
-      else if (c.attentionType === "in_person") citas++;
-      else casa++;
-    });
-    const total = filteredChats.length || 1;
-    return [
-      {
-        label: "Urgencias",
-        value: urgencias,
-        pct: Math.round((urgencias / total) * 100),
-        color: dispositionColors.urgencias,
-      },
-      {
-        label: "Citas",
-        value: citas,
-        pct: Math.round((citas / total) * 100),
-        color: dispositionColors.citas,
-      },
-      {
-        label: "Casa",
-        value: casa,
-        pct: Math.round((casa / total) * 100),
-        color: dispositionColors.casa,
-      },
-    ];
-  }, [filteredChats]);
-
-  // Tendencia de la disposición por fecha (3 curvas).
-  const dispositionByDate = useMemo(() => {
-    const map = new Map<
-      string,
-      { date: string; urgencias: number; citas: number; casa: number }
-    >();
-    filteredChats.forEach((c) => {
-      const date = c.startedAt.slice(0, 10);
-      if (!map.has(date))
-        map.set(date, { date, urgencias: 0, citas: 0, casa: 0 });
-      const entry = map.get(date)!;
-      if (c.triage === "emergency") entry.urgencias++;
-      else if (c.attentionType === "in_person") entry.citas++;
-      else entry.casa++;
-    });
-    return [...map.values()].sort((a, b) => a.date.localeCompare(b.date));
-  }, [filteredChats]);
-
-  // Consultas por aseguradora (chat → acudiente por teléfono → seguro).
-  const chatsByInsurance = useMemo(() => {
-    const insByPhone = new Map(
-      filteredGuardians.map((g) => [g.phone, g.insurance?.name ?? "Sin seguro"])
-    );
-    const counts = new Map<string, number>();
-    filteredChats.forEach((c) => {
-      const name = insByPhone.get(c.phone) ?? "Sin seguro";
-      counts.set(name, (counts.get(name) ?? 0) + 1);
-    });
-    return [...counts.entries()]
-      .map(([name, value]) => ({ name, value }))
-      .sort((a, b) => b.value - a.value);
-  }, [filteredChats, filteredGuardians]);
-
-  const chatStatus = useMemo(
-    () => ({
-      closed: filteredChats.filter((c) => c.status === "closed").length,
-      active: filteredChats.filter((c) => c.status === "active").length,
-      waiting: filteredChats.filter((c) => c.status === "waiting").length,
-      total: filteredChats.length,
-    }),
-    [filteredChats]
-  );
-
-  console.log({ filteredChats });
-  console.log({ chatStatus });
-
   if (!user) return null;
 
   // -------------------- Escalares derivados --------------------
   const totalAccounts = filteredGuardians.length;
-  const activeAccounts = filteredGuardians.filter(
-    (g) => g.status === "active"
-  ).length;
   const freeAccounts = filteredGuardians.filter(
     (g) => g.plan === "free"
   ).length;
@@ -446,14 +352,6 @@ export default function Statistics() {
   const totalChildren = filteredPatients.length;
   const childrenPerAccount =
     totalAccounts > 0 ? totalChildren / totalAccounts : 0;
-
-  const totalChats = filteredChats.length;
-  const chatsPerAccount = totalAccounts > 0 ? totalChats / totalAccounts : 0;
-  const emergencyChats = filteredChats.filter(
-    (c) => c.triage === "emergency"
-  ).length;
-  const emergenciesPerAccount =
-    totalAccounts > 0 ? emergencyChats / totalAccounts : 0;
 
   return (
     <DashboardLayout
@@ -781,7 +679,7 @@ export default function Statistics() {
                 Género de los acudientes
               </Heading>
               <Text fontSize="xs" color="lucera.textMuted" mb={4}>
-                Derivado de la relación con el niño (la API no registra género).
+                Según el campo de género del acudiente en el sistema.
               </Text>
               <ResponsiveContainer width="100%" height={200}>
                 <PieChart>
@@ -933,293 +831,6 @@ export default function Statistics() {
                   />
                 </ComposedChart>
               </ResponsiveContainer>
-            </StatCard>
-          </SimpleGrid>
-
-          {/* ==================== USO ==================== */}
-          <SectionTitle hint="Actividad de chats dentro del filtro seleccionado.">
-            Uso
-          </SectionTitle>
-
-          <SimpleGrid columns={{ base: 1, sm: 3 }} spacing={4} mb={4}>
-            <Stat
-              icon={MessageSquare}
-              label="Total de chats"
-              value={formatNumber(totalChats)}
-              accent={{ bg: "vino.50", fg: "vino.500" }}
-              sub="Consultas en el filtro"
-            />
-            <Stat
-              icon={Activity}
-              label="Consultas por cuenta"
-              value={chatsPerAccount.toFixed(1)}
-              accent={{ bg: "naranja.50", fg: "naranja.500" }}
-              sub="Promedio (chats / cuentas)"
-            />
-            <Stat
-              icon={Siren}
-              label="Urgencias por cuenta"
-              value={emergenciesPerAccount.toFixed(1)}
-              accent={{ bg: "peligro.500", fg: "white" }}
-              sub="Promedio"
-            />
-          </SimpleGrid>
-
-          {/* Chats por estado */}
-          <SimpleGrid columns={{ base: 2, lg: 4 }} spacing={4} mb={4}>
-            <Stat
-              icon={CheckCircle2}
-              label="Cerradas"
-              value={formatNumber(chatStatus.closed)}
-              accent={{ bg: "exito.500", fg: "white" }}
-            />
-            <Stat
-              icon={CircleDot}
-              label="Abiertas"
-              value={formatNumber(chatStatus.active)}
-              accent={{ bg: "vino.50", fg: "vino.500" }}
-            />
-            <Stat
-              icon={CircleSlash}
-              label="Abandonadas"
-              value={formatNumber(chatStatus.waiting)}
-              accent={{ bg: "amarillo.50", fg: "amarillo.700" }}
-            />
-            <Stat
-              icon={MessageSquare}
-              label="Total"
-              value={formatNumber(chatStatus.total)}
-              accent={{ bg: "crema.100", fg: "lucera.textMuted" }}
-            />
-          </SimpleGrid>
-
-          <SimpleGrid columns={{ base: 1, lg: 2 }} spacing={4}>
-            <StatCard>
-              <Heading size="sm" fontFamily="heading" mb={1}>
-                Chats
-              </Heading>
-              <Text fontSize="xs" color="lucera.textMuted" mb={4}>
-                Volumen de consultas en el rango seleccionado.
-              </Text>
-              <ResponsiveContainer width="100%" height={220}>
-                <BarChart data={chatsByDate} margin={{ top: 20, left: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e9d2b1" />
-                  <XAxis
-                    dataKey="date"
-                    tick={{ fontSize: 10, fill: "#7b5a48" }}
-                  />
-                  <YAxis
-                    allowDecimals={false}
-                    domain={yAxisDomain}
-                    tick={{ fontSize: 11, fill: "#7b5a48" }}
-                  />
-                  <Tooltip
-                    cursor={{ fill: "rgba(109,18,43,0.06)" }}
-                    contentStyle={tooltipStyle}
-                  />
-                  <Bar
-                    dataKey="value"
-                    radius={[6, 6, 0, 0]}
-                    maxBarSize={50}
-                    fill={brandColors[0]}
-                    animationDuration={700}
-                  >
-                    <LabelList
-                      dataKey="value"
-                      position="top"
-                      formatter={(v: number) => formatNumber(v)}
-                      fontSize={11}
-                      fontWeight={700}
-                      fill="#3a2a1f"
-                    />
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-              {chatsByDate.length === 0 && (
-                <Text
-                  mt={2}
-                  fontSize="sm"
-                  color="lucera.textMuted"
-                  textAlign="center"
-                >
-                  No hay chats en el rango seleccionado.
-                </Text>
-              )}
-            </StatCard>
-
-            <StatCard>
-              <Heading size="sm" fontFamily="heading" mb={1}>
-                Disposición: Urgencias · Citas · Casa
-              </Heading>
-              <Text fontSize="xs" color="lucera.textMuted" mb={4}>
-                Número y % de sesiones por tipo de resolución.
-              </Text>
-              <ResponsiveContainer width="100%" height={200}>
-                <PieChart>
-                  <Pie
-                    data={dispositionStats}
-                    dataKey="value"
-                    nameKey="label"
-                    innerRadius={35}
-                    outerRadius={85}
-                    paddingAngle={3}
-                    cornerRadius={6}
-                    label={renderPieValueLabel}
-                    labelLine={false}
-                    animationDuration={700}
-                  >
-                    {dispositionStats.map((e, i) => (
-                      <Cell
-                        key={i}
-                        fill={e.color}
-                        stroke="white"
-                        strokeWidth={2}
-                      />
-                    ))}
-                  </Pie>
-                  <Tooltip contentStyle={tooltipStyle} />
-                </PieChart>
-              </ResponsiveContainer>
-              <VStack align="stretch" spacing={1.5} mt={2}>
-                {dispositionStats.map((d) => (
-                  <HStack key={d.label} fontSize="xs">
-                    <Box h="10px" w="10px" borderRadius="full" bg={d.color} />
-                    <Text color="lucera.textMuted" flex={1}>
-                      {d.label}
-                    </Text>
-                    <Text
-                      fontWeight={700}
-                      sx={{ fontVariantNumeric: "tabular-nums" }}
-                    >
-                      {d.value} · {d.pct}%
-                    </Text>
-                  </HStack>
-                ))}
-              </VStack>
-            </StatCard>
-
-            <StatCard gridColumn={{ lg: "span 2" }}>
-              <Heading size="sm" fontFamily="heading" mb={1}>
-                Tendencia: Urgencias · Casa · Citas
-              </Heading>
-              <Text fontSize="xs" color="lucera.textMuted" mb={4}>
-                Evolución de cada tipo de atención en el rango seleccionado.
-              </Text>
-              <ResponsiveContainer width="100%" height={280}>
-                <LineChart
-                  data={dispositionByDate}
-                  margin={{ top: 20, left: 0 }}
-                >
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e9d2b1" />
-                  <XAxis
-                    dataKey="date"
-                    tick={{ fontSize: 10, fill: "#7b5a48" }}
-                  />
-                  <YAxis
-                    allowDecimals={false}
-                    domain={yAxisDomain}
-                    tick={{ fontSize: 11, fill: "#7b5a48" }}
-                  />
-                  <Tooltip contentStyle={tooltipStyle} />
-                  <Legend wrapperStyle={{ fontSize: 12 }} />
-                  <Line
-                    type="monotone"
-                    dataKey="urgencias"
-                    name="Urgencias detectadas"
-                    stroke={dispositionColors.urgencias}
-                    strokeWidth={2}
-                    dot={false}
-                    animationDuration={700}
-                  />
-                  <Line
-                    type="monotone"
-                    dataKey="casa"
-                    name="Atenciones en casa"
-                    stroke={dispositionColors.casa}
-                    strokeWidth={2}
-                    dot={false}
-                    animationDuration={700}
-                  />
-                  <Line
-                    type="monotone"
-                    dataKey="citas"
-                    name="Atenciones derivadas (citas)"
-                    stroke={dispositionColors.citas}
-                    strokeWidth={2}
-                    dot={false}
-                    animationDuration={700}
-                  />
-                </LineChart>
-              </ResponsiveContainer>
-              {dispositionByDate.length === 0 && (
-                <Text
-                  mt={2}
-                  fontSize="sm"
-                  color="lucera.textMuted"
-                  textAlign="center"
-                >
-                  No hay atenciones en el rango seleccionado.
-                </Text>
-              )}
-            </StatCard>
-
-            <StatCard gridColumn={{ lg: "span 2" }}>
-              <Heading size="sm" fontFamily="heading" mb={4}>
-                Consultas por aseguradora
-              </Heading>
-              <ResponsiveContainer width="100%" height={240}>
-                <BarChart data={chatsByInsurance} margin={{ top: 20, left: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e9d2b1" />
-                  <XAxis
-                    dataKey="name"
-                    interval={0}
-                    angle={-20}
-                    textAnchor="end"
-                    height={60}
-                    tick={{ fontSize: 10, fill: "#7b5a48" }}
-                  />
-                  <YAxis
-                    allowDecimals={false}
-                    domain={yAxisDomain}
-                    tick={{ fontSize: 11, fill: "#7b5a48" }}
-                  />
-                  <Tooltip
-                    cursor={{ fill: "rgba(239,125,84,0.08)" }}
-                    contentStyle={tooltipStyle}
-                  />
-                  <Bar
-                    dataKey="value"
-                    radius={[6, 6, 0, 0]}
-                    maxBarSize={60}
-                    animationDuration={700}
-                  >
-                    {chatsByInsurance.map((_, i) => (
-                      <Cell
-                        key={i}
-                        fill={brandColors[i % brandColors.length]}
-                      />
-                    ))}
-                    <LabelList
-                      dataKey="value"
-                      position="top"
-                      formatter={(v: number) => formatNumber(v)}
-                      fontSize={11}
-                      fontWeight={700}
-                      fill="#3a2a1f"
-                    />
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-              {chatsByInsurance.length === 0 && (
-                <Text
-                  mt={2}
-                  fontSize="sm"
-                  color="lucera.textMuted"
-                  textAlign="center"
-                >
-                  No hay consultas en el rango seleccionado.
-                </Text>
-              )}
             </StatCard>
           </SimpleGrid>
         </MotionBox>

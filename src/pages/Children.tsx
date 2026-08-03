@@ -4,7 +4,12 @@ import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Child } from "@/lib/mockData";
 import { useFetchAll } from "@/hooks/useFetchAll";
 import { apiFetch } from "@/lib/apiClient";
-import { relationToEs, chatTriageToLevel } from "@/lib/apiMappings";
+import {
+  relationToEs,
+  chatTriageToLevel,
+  genderToValue,
+  genderLabel,
+} from "@/lib/apiMappings";
 import type {
   PatientApi,
   PatientCreatePayload,
@@ -60,6 +65,8 @@ import {
   Trash2,
   MessageSquare,
   ChevronRight,
+  Eye,
+  Users as UsersIcon,
 } from "lucide-react";
 import { StatCard } from "@/components/StatCard";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
@@ -79,9 +86,12 @@ type Row = Child & {
   country: string;
   insurance: string;
   chatCount: number;
+  address: string;
+  school: string;
+  accountCode: string;
 };
 
-const chatStatusLabel: Record<string, string> = {
+export const chatStatusLabel: Record<string, string> = {
   active: "activa",
   waiting: "esperando",
   closed: "cerrada",
@@ -91,7 +101,7 @@ function patientToRow(
   p: PatientApi,
   relationshipByGuardianId: Record<string, string>,
   countryByGuardianId: Record<string, string>,
-  chatCount: number
+  chatsByPatient: Map<string, ChatApi[]>
 ): Row {
   return {
     id: p.id,
@@ -101,6 +111,7 @@ function patientToRow(
     weightKg: p.weightKg ?? undefined,
     conditions: p.conditions,
     allergies: p.allergies,
+    gender: p.gender,
     age: p.age,
     guardianId: p.guardianId,
     guardianName: p.guardian,
@@ -108,7 +119,14 @@ function patientToRow(
     phone: p.phone,
     country: countryByGuardianId[p.guardianId] ?? "",
     insurance: p.insurance?.name ?? "",
-    chatCount,
+    // Se cuenta desde los chats reales (teléfono + nombre), la misma fuente que
+    // usa el modal de detalle, para que la columna y el modal siempre coincidan.
+    // El `p.chats` del backend queda mal atribuido cuando hay pacientes con el
+    // mismo nombre en distintas familias.
+    chatCount: chatsByPatient.get(`${p.phone}__${p.name}`)?.length ?? 0,
+    address: p.address ?? "",
+    school: p.school ?? "",
+    accountCode: p.accountCode ?? "",
   };
 }
 
@@ -171,19 +189,23 @@ export default function Children() {
           p,
           relationshipByGuardianId,
           countryByGuardianId,
-          (chatsByPatient.get(`${p.phone}__${p.name}`) ?? []).length
+          chatsByPatient
         )
       ),
     [patientsData, relationshipByGuardianId, countryByGuardianId, chatsByPatient]
   );
-  const insurances = useMemo(() => insurancesData?.items ?? [], [insurancesData]);
+  const insurances = useMemo(
+    () => insurancesData?.items ?? [],
+    [insurancesData]
+  );
   const countryOptions = useMemo(
     () => [...new Set(guardians.map((g) => g.country))].sort(),
     [guardians]
   );
 
   useEffect(() => {
-    const err = patientsError || guardiansError || insurancesError || chatsError;
+    const err =
+      patientsError || guardiansError || insurancesError || chatsError;
     if (err) {
       toast.error("No se pudieron cargar los niños", { description: err });
     }
@@ -203,8 +225,16 @@ export default function Children() {
   const [toDelete, setToDelete] = useState<Row | null>(null);
   const [detail, setDetail] = useState<Row | null>(null);
   const [saving, setSaving] = useState(false);
+  // Filtro por acudiente dentro del detalle del niño (null = "Todos").
+  const [selectedGuardian, setSelectedGuardian] = useState<string | null>(null);
 
-  const detailChats = useMemo(
+  // Al abrir el detalle de un niño, se reinicia el filtro a "Todos".
+  useEffect(() => {
+    setSelectedGuardian(null);
+  }, [detail]);
+
+  // Todos los chats del niño (por teléfono + nombre), ordenados por fecha.
+  const childChats = useMemo(
     () =>
       detail
         ? (chatsByPatient.get(`${detail.phone}__${detail.name}`) ?? [])
@@ -212,6 +242,28 @@ export default function Children() {
             .sort((a, b) => b.startedAt.localeCompare(a.startedAt))
         : [],
     [detail, chatsByPatient]
+  );
+
+  // Acudientes distintos asociados a los chats del niño, con su conteo (para
+  // los tags). La suma de los conteos cuadra con el total ("Todos").
+  const childGuardians = useMemo(() => {
+    const counts = new Map<string, number>();
+    childChats.forEach((c) => {
+      const name = c.guardian || "Sin acudiente";
+      counts.set(name, (counts.get(name) ?? 0) + 1);
+    });
+    return [...counts.entries()].map(([name, count]) => ({ name, count }));
+  }, [childChats]);
+
+  // Chats mostrados, filtrados por el acudiente seleccionado.
+  const detailChats = useMemo(
+    () =>
+      selectedGuardian
+        ? childChats.filter(
+            (c) => (c.guardian || "Sin acudiente") === selectedGuardian
+          )
+        : childChats,
+    [childChats, selectedGuardian]
   );
 
   const filtered = useMemo(() => {
@@ -246,10 +298,13 @@ export default function Children() {
         (conditionsFilter === "con"
           ? (r.conditions?.length ?? 0) > 0
           : (r.conditions?.length ?? 0) === 0);
-      const okCountry = countryFilter === "todos" || r.country === countryFilter;
+      const okCountry =
+        countryFilter === "todos" || r.country === countryFilter;
       const okInsurance =
         insuranceFilter === "todos" ||
-        (insuranceFilter === "sin_seguro" ? !r.insurance : r.insurance === insuranceFilter);
+        (insuranceFilter === "sin_seguro"
+          ? !r.insurance
+          : r.insurance === insuranceFilter);
       return (
         okQ &&
         okF &&
@@ -293,8 +348,10 @@ export default function Children() {
       .filter(Boolean);
     const birthDate = String(fd.get("birthDate"));
     const weightKg = Number(fd.get("weightKg")) || undefined;
-    const bloodType =
-      (fd.get("bloodType") as Child["bloodType"]) || undefined;
+    const bloodType = (fd.get("bloodType") as Child["bloodType"]) || undefined;
+    const address = String(fd.get("address") || "") || undefined;
+    const school = String(fd.get("school") || "") || undefined;
+    const gender = String(fd.get("gender") || "") || undefined;
 
     setSaving(true);
     try {
@@ -307,6 +364,9 @@ export default function Children() {
           bloodType: bloodType as BloodType | undefined,
           conditions: conditions,
           allergies: allergies,
+          address: address,
+          school: school,
+          gender: gender,
         };
         await apiFetch<PatientApi>(`/api/patients/${editing.id}`, freshToken, {
           method: "PATCH",
@@ -322,6 +382,9 @@ export default function Children() {
           bloodType: bloodType as BloodType | undefined,
           conditions: conditions,
           allergies: allergies,
+          address: address,
+          school: school,
+          gender: gender,
         };
         await apiFetch<PatientApi>("/api/patients", freshToken, {
           method: "POST",
@@ -334,7 +397,9 @@ export default function Children() {
       refetchPatients();
     } catch (err) {
       toast.error(
-        editing ? "No se pudo actualizar el niño" : "No se pudo registrar el niño",
+        editing
+          ? "No se pudo actualizar el niño"
+          : "No se pudo registrar el niño",
         { description: err instanceof Error ? err.message : undefined }
       );
     } finally {
@@ -515,199 +580,247 @@ export default function Children() {
           )}
         </Flex>
 
-        {(patientsLoading && !patientsData) || (guardiansLoading && !guardiansData) ? (
+        {(patientsLoading && !patientsData) ||
+        (guardiansLoading && !guardiansData) ? (
           <LoadingState label="Cargando niños…" />
         ) : (
           <>
-        <TableContainer
-          borderWidth="1px"
-          borderColor="lucera.border"
-          borderRadius="md"
-        >
-          <Table size="sm">
-            <Thead bg="crema.100">
-              <Tr>
-                <Th>Niño/a</Th>
-                <Th display={{ base: "none", md: "table-cell" }}>
-                  F. nacimiento
-                </Th>
-                <Th>Edad</Th>
-                <Th display={{ base: "none", md: "table-cell" }}>Peso</Th>
-                <Th display={{ base: "none", md: "table-cell" }}>Sangre</Th>
-                <Th display={{ base: "none", lg: "table-cell" }}>Seguro</Th>
-                <Th textAlign="center">Chats</Th>
-                <Th display={{ base: "none", xl: "table-cell" }}>Dirección</Th>
-                <Th display={{ base: "none", xl: "table-cell" }}>
-                  Centro educativo
-                </Th>
-                <Th display={{ base: "none", lg: "table-cell" }}>
-                  Alergias / Condiciones
-                </Th>
-                <Th>Acudiente</Th>
-                {canEdit && <Th textAlign="right">Acciones</Th>}
-              </Tr>
-            </Thead>
-            <Tbody>
-              {paginated.map((r) => (
-                <Tr key={r.id} _hover={{ bg: "crema.50" }}>
-                  <Td>
-                    <HStack
-                      as="button"
-                      type="button"
-                      onClick={() => setDetail(r)}
-                      _hover={{ color: "vino.500" }}
-                      textAlign="left"
-                    >
-                      <Flex
-                        h={8}
-                        w={8}
-                        borderRadius="full"
-                        bg="naranja.50"
-                        align="center"
-                        justify="center"
-                        flexShrink={0}
-                      >
-                        <Baby size={14} color="#ef7d54" />
-                      </Flex>
-                      <Text
-                        fontSize="sm"
-                        fontWeight={600}
-                        textDecoration="underline"
-                        textDecorationColor="lucera.border"
-                        textUnderlineOffset="2px"
-                      >
-                        {r.name}
-                      </Text>
-                    </HStack>
-                  </Td>
-                  <Td
-                    display={{ base: "none", md: "table-cell" }}
-                    fontSize="xs"
-                  >
-                    {r.birthDate}
-                  </Td>
-                  <Td fontSize="sm" textAlign="center">
-                    {r.age}
-                  </Td>
-                  <Td
-                    display={{ base: "none", md: "table-cell" }}
-                    fontSize="sm"
-                    textAlign="center"
-                  >
-                    {r.weightKg ? `${r.weightKg}` : "—"}
-                  </Td>
-                  <Td display={{ base: "none", md: "table-cell" }}>
-                    {r.bloodType ? (
-                      <Badge variant="outline">
-                        <HStack spacing={1}>
-                          <Droplet size={10} color="#b91c1c" />
-                          <Text fontFamily="mono">{r.bloodType}</Text>
-                        </HStack>
-                      </Badge>
-                    ) : (
-                      <Text fontSize="xs" color="lucera.textMuted">
-                        —
-                      </Text>
-                    )}
-                  </Td>
-                  <Td display={{ base: "none", lg: "table-cell" }} fontSize="xs">
-                    {r.insurance || (
-                      <Text as="span" color="lucera.textMuted">
-                        —
-                      </Text>
-                    )}
-                  </Td>
-                  <Td textAlign="center">
-                    <Badge variant="outline">
-                      <HStack spacing={1}>
-                        <MessageSquare size={10} />
-                        <Text>{r.chatCount}</Text>
-                      </HStack>
-                    </Badge>
-                  </Td>
-                  <Td
-                    display={{ base: "none", xl: "table-cell" }}
-                    fontSize="xs"
-                    color="lucera.textMuted"
-                  >
-                    —
-                  </Td>
-                  <Td
-                    display={{ base: "none", xl: "table-cell" }}
-                    fontSize="xs"
-                    color="lucera.textMuted"
-                  >
-                    —
-                  </Td>
-                  <Td display={{ base: "none", lg: "table-cell" }}>
-                    <Wrap spacing={1}>
-                      {(r.allergies ?? []).map((a) => (
-                        <WrapItem key={a}>
-                          <Badge colorScheme="amarillo">
+            <TableContainer
+              borderWidth="1px"
+              borderColor="lucera.border"
+              borderRadius="md"
+            >
+              <Table size="sm">
+                <Thead bg="crema.100">
+                  <Tr>
+                    <Th>#</Th>
+                    <Th>Niño/a</Th>
+                    <Th display={{ base: "none", md: "table-cell" }}>
+                      F. nacimiento
+                    </Th>
+                    <Th>Edad</Th>
+                    <Th display={{ base: "none", lg: "table-cell" }}>Género</Th>
+                    <Th display={{ base: "none", md: "table-cell" }}>Peso</Th>
+                    <Th display={{ base: "none", md: "table-cell" }}>Sangre</Th>
+                    <Th display={{ base: "none", lg: "table-cell" }}>Seguro</Th>
+                    <Th textAlign="center">Chats</Th>
+                    <Th display={{ base: "none", xl: "table-cell" }}>
+                      Dirección
+                    </Th>
+                    <Th display={{ base: "none", xl: "table-cell" }}>
+                      Centro educativo
+                    </Th>
+                    <Th display={{ base: "none", lg: "table-cell" }}>
+                      Alergias / Condiciones
+                    </Th>
+                    <Th>Acudiente</Th>
+                    <Th textAlign="right">Acciones</Th>
+                  </Tr>
+                </Thead>
+                <Tbody>
+                  {paginated.map((r) => {
+                    const guard = guardians.find(
+                      (guardian) => guardian?.id === r.guardianId
+                    );
+                    return (
+                      <Tr key={r.id} _hover={{ bg: "crema.50" }}>
+                        <Td>
+                          <Text
+                            as="button"
+                            type="button"
+                            onClick={() => setDetail(r)}
+                            fontSize="sm"
+                            fontWeight={600}
+                            color="lucera.textMuted"
+                            _hover={{ color: "vino.500" }}
+                          >
+                            {guard?.accountCode}
+                          </Text>
+                        </Td>
+                        <Td>
+                          <HStack
+                            as="button"
+                            type="button"
+                            onClick={() => setDetail(r)}
+                            _hover={{ color: "vino.500" }}
+                            textAlign="left"
+                          >
+                            <Flex
+                              h={8}
+                              w={8}
+                              borderRadius="full"
+                              bg="naranja.50"
+                              align="center"
+                              justify="center"
+                              flexShrink={0}
+                            >
+                              <Baby size={14} color="#ef7d54" />
+                            </Flex>
+                            <Text
+                              fontSize="sm"
+                              fontWeight={600}
+                              textDecoration="underline"
+                              textDecorationColor="lucera.border"
+                              textUnderlineOffset="2px"
+                            >
+                              {r.name}
+                            </Text>
+                          </HStack>
+                        </Td>
+                        <Td
+                          display={{ base: "none", md: "table-cell" }}
+                          fontSize="xs"
+                        >
+                          {r.birthDate}
+                        </Td>
+                        <Td fontSize="sm" textAlign="center">
+                          {r.age}
+                        </Td>
+                        <Td
+                          display={{ base: "none", lg: "table-cell" }}
+                          fontSize="sm"
+                        >
+                          {genderLabel(r.gender)}
+                        </Td>
+                        <Td
+                          display={{ base: "none", md: "table-cell" }}
+                          fontSize="sm"
+                          textAlign="center"
+                        >
+                          {r.weightKg ? `${r.weightKg}` : "—"}
+                        </Td>
+                        <Td display={{ base: "none", md: "table-cell" }}>
+                          {r.bloodType ? (
+                            <Badge variant="outline">
+                              <HStack spacing={1}>
+                                <Droplet size={10} color="#b91c1c" />
+                                <Text fontFamily="mono">{r.bloodType}</Text>
+                              </HStack>
+                            </Badge>
+                          ) : (
+                            <Text fontSize="xs" color="lucera.textMuted">
+                              —
+                            </Text>
+                          )}
+                        </Td>
+                        <Td
+                          display={{ base: "none", lg: "table-cell" }}
+                          fontSize="xs"
+                        >
+                          {r.insurance || (
+                            <Text as="span" color="lucera.textMuted">
+                              —
+                            </Text>
+                          )}
+                        </Td>
+                        <Td textAlign="center">
+                          <Badge variant="outline">
                             <HStack spacing={1}>
-                              <AlertTriangle size={10} />
-                              <Text>{a}</Text>
+                              <MessageSquare size={10} />
+                              <Text>{r.chatCount}</Text>
                             </HStack>
                           </Badge>
-                        </WrapItem>
-                      ))}
-                      {(r.conditions ?? []).map((c) => (
-                        <WrapItem key={c}>
-                          <Badge colorScheme="blue">{c}</Badge>
-                        </WrapItem>
-                      ))}
-                      {(r.allergies?.length ?? 0) === 0 &&
-                        (r.conditions?.length ?? 0) === 0 && (
-                          <Text fontSize="xs" color="lucera.textMuted">
-                            Sin antecedentes
+                        </Td>
+                        <Td
+                          display={{ base: "none", xl: "table-cell" }}
+                          fontSize="xs"
+                          color="lucera.textMuted"
+                        >
+                          {r.address || "—"}
+                        </Td>
+                        <Td
+                          display={{ base: "none", xl: "table-cell" }}
+                          fontSize="xs"
+                          color="lucera.textMuted"
+                        >
+                          {r.school || "—"}
+                        </Td>
+                        <Td display={{ base: "none", lg: "table-cell" }}>
+                          <Wrap spacing={1}>
+                            {(r.allergies ?? []).map((a) => (
+                              <WrapItem key={a}>
+                                <Badge colorScheme="amarillo">
+                                  <HStack spacing={1}>
+                                    <AlertTriangle size={10} />
+                                    <Text>{a}</Text>
+                                  </HStack>
+                                </Badge>
+                              </WrapItem>
+                            ))}
+                            {(r.conditions ?? []).map((c) => (
+                              <WrapItem key={c}>
+                                <Badge colorScheme="blue">{c}</Badge>
+                              </WrapItem>
+                            ))}
+                            {(r.allergies?.length ?? 0) === 0 &&
+                              (r.conditions?.length ?? 0) === 0 && (
+                                <Text fontSize="xs" color="lucera.textMuted">
+                                  Sin antecedentes
+                                </Text>
+                              )}
+                          </Wrap>
+                        </Td>
+                        <Td fontSize="xs">
+                          <Text fontWeight={600}>{r.guardianName}</Text>
+                          <Text color="lucera.textMuted">
+                            {r.relationship} · {r.phone}
                           </Text>
-                        )}
-                    </Wrap>
-                  </Td>
-                  <Td fontSize="xs">
-                    <Text fontWeight={600}>{r.guardianName}</Text>
-                    <Text color="lucera.textMuted">
-                      {r.relationship} · {r.phone}
-                    </Text>
-                  </Td>
-                  {canEdit && (
-                    <Td textAlign="right">
-                      <IconButton
-                        aria-label="Editar"
-                        size="sm"
-                        variant="ghost"
-                        icon={<Pencil size={14} />}
-                        onClick={() => openEdit(r)}
-                      />
-                      <IconButton
-                        aria-label="Eliminar"
-                        size="sm"
-                        variant="ghost"
-                        color="peligro.500"
-                        icon={<Trash2 size={14} />}
-                        onClick={() => setToDelete(r)}
-                      />
-                    </Td>
-                  )}
-                </Tr>
-              ))}
-            </Tbody>
-          </Table>
-        </TableContainer>
-        <Text mt={3} fontSize="xs" color="lucera.textMuted">
-          {filtered.length} de {data.length} niños registrados
-        </Text>
-        <Pagination
-          page={page}
-          totalPages={totalPages}
-          onPageChange={setPage}
-        />
+                        </Td>
+                        <Td textAlign="right">
+                          {canEdit && (
+                            <IconButton
+                              aria-label="Ver detalle"
+                              size="sm"
+                              variant="ghost"
+                              icon={<Eye size={14} />}
+                              onClick={() => setDetail(r)}
+                            />
+                          )}
+                          {canEdit && (
+                            <>
+                              <IconButton
+                                aria-label="Editar"
+                                size="sm"
+                                variant="ghost"
+                                icon={<Pencil size={14} />}
+                                onClick={() => openEdit(r)}
+                              />
+                              <IconButton
+                                aria-label="Eliminar"
+                                size="sm"
+                                variant="ghost"
+                                color="peligro.500"
+                                icon={<Trash2 size={14} />}
+                                onClick={() => setToDelete(r)}
+                              />
+                            </>
+                          )}
+                        </Td>
+                      </Tr>
+                    );
+                  })}
+                </Tbody>
+              </Table>
+            </TableContainer>
+            <Text mt={3} fontSize="xs" color="lucera.textMuted">
+              {filtered.length} de {data.length} niños registrados
+            </Text>
+            <Pagination
+              page={page}
+              totalPages={totalPages}
+              onPageChange={setPage}
+            />
           </>
         )}
       </StatCard>
 
       {/* Detalle del niño + historial de chats */}
-      <Modal isOpen={!!detail} onClose={() => setDetail(null)} size="xl" scrollBehavior="inside">
+      <Modal
+        isOpen={!!detail}
+        onClose={() => setDetail(null)}
+        size="xl"
+        scrollBehavior="inside"
+      >
         <ModalOverlay />
         <ModalContent>
           <ModalHeader>
@@ -722,27 +835,71 @@ export default function Children() {
               <>
                 <SimpleGrid columns={{ base: 2, md: 3 }} spacing={3} mb={4}>
                   <Box>
-                    <Text fontSize="10px" textTransform="uppercase" color="lucera.textMuted" letterSpacing="wider">Edad</Text>
+                    <Text
+                      fontSize="10px"
+                      textTransform="uppercase"
+                      color="lucera.textMuted"
+                      letterSpacing="wider"
+                    >
+                      Edad
+                    </Text>
                     <Text fontWeight={600}>{detail.age} años</Text>
                   </Box>
                   <Box>
-                    <Text fontSize="10px" textTransform="uppercase" color="lucera.textMuted" letterSpacing="wider">Nacimiento</Text>
+                    <Text
+                      fontSize="10px"
+                      textTransform="uppercase"
+                      color="lucera.textMuted"
+                      letterSpacing="wider"
+                    >
+                      Nacimiento
+                    </Text>
                     <Text fontWeight={600}>{detail.birthDate}</Text>
                   </Box>
                   <Box>
-                    <Text fontSize="10px" textTransform="uppercase" color="lucera.textMuted" letterSpacing="wider">Peso</Text>
-                    <Text fontWeight={600}>{detail.weightKg ? `${detail.weightKg} kg` : "—"}</Text>
+                    <Text
+                      fontSize="10px"
+                      textTransform="uppercase"
+                      color="lucera.textMuted"
+                      letterSpacing="wider"
+                    >
+                      Peso
+                    </Text>
+                    <Text fontWeight={600}>
+                      {detail.weightKg ? `${detail.weightKg} kg` : "—"}
+                    </Text>
                   </Box>
                   <Box>
-                    <Text fontSize="10px" textTransform="uppercase" color="lucera.textMuted" letterSpacing="wider">Sangre</Text>
+                    <Text
+                      fontSize="10px"
+                      textTransform="uppercase"
+                      color="lucera.textMuted"
+                      letterSpacing="wider"
+                    >
+                      Sangre
+                    </Text>
                     <Text fontWeight={600}>{detail.bloodType ?? "—"}</Text>
                   </Box>
                   <Box>
-                    <Text fontSize="10px" textTransform="uppercase" color="lucera.textMuted" letterSpacing="wider">Seguro</Text>
+                    <Text
+                      fontSize="10px"
+                      textTransform="uppercase"
+                      color="lucera.textMuted"
+                      letterSpacing="wider"
+                    >
+                      Seguro
+                    </Text>
                     <Text fontWeight={600}>{detail.insurance || "—"}</Text>
                   </Box>
                   <Box>
-                    <Text fontSize="10px" textTransform="uppercase" color="lucera.textMuted" letterSpacing="wider">Acudiente</Text>
+                    <Text
+                      fontSize="10px"
+                      textTransform="uppercase"
+                      color="lucera.textMuted"
+                      letterSpacing="wider"
+                    >
+                      Acudiente
+                    </Text>
                     <Text fontWeight={600}>{detail.guardianName}</Text>
                   </Box>
                 </SimpleGrid>
@@ -772,13 +929,85 @@ export default function Children() {
                 <HStack mb={3} spacing={2}>
                   <MessageSquare size={15} color="#6d122b" />
                   <Text fontSize="sm" fontWeight={700}>
-                    Historial de chats ({detailChats.length})
+                    Historial de chats
+                    {selectedGuardian ? ` · ${selectedGuardian}` : ""} (
+                    {detailChats.length})
                   </Text>
                 </HStack>
 
+                {/* Tags: "Todos" + un acudiente por tag; filtra los chats por acudiente. */}
+                {childGuardians.length > 0 && (
+                  <Flex gap={2} mb={3} wrap="wrap">
+                    <Box
+                      as="button"
+                      type="button"
+                      onClick={() => setSelectedGuardian(null)}
+                      px={3}
+                      py={1}
+                      borderRadius="full"
+                      fontSize="xs"
+                      fontWeight={600}
+                      borderWidth="1px"
+                      bg={selectedGuardian === null ? "vino.500" : "white"}
+                      borderColor={
+                        selectedGuardian === null ? "vino.500" : "lucera.border"
+                      }
+                      color={
+                        selectedGuardian === null ? "white" : "lucera.textMuted"
+                      }
+                      _hover={
+                        selectedGuardian === null
+                          ? undefined
+                          : { bg: "crema.50", borderColor: "lucera.textMuted" }
+                      }
+                      transition="all 120ms"
+                    >
+                      Todos ({childChats.length})
+                    </Box>
+                    {childGuardians.map((tag) => {
+                      const active = tag.name === selectedGuardian;
+                      return (
+                        <Box
+                          key={tag.name}
+                          as="button"
+                          type="button"
+                          onClick={() => setSelectedGuardian(tag.name)}
+                          px={3}
+                          py={1}
+                          borderRadius="full"
+                          fontSize="xs"
+                          fontWeight={600}
+                          borderWidth="1px"
+                          bg={active ? "vino.500" : "white"}
+                          borderColor={active ? "vino.500" : "lucera.border"}
+                          color={active ? "white" : "lucera.textMuted"}
+                          _hover={
+                            active
+                              ? undefined
+                              : {
+                                  bg: "crema.50",
+                                  borderColor: "lucera.textMuted",
+                                }
+                          }
+                          transition="all 120ms"
+                        >
+                          <HStack spacing={1}>
+                            <UsersIcon size={11} />
+                            <Text as="span">
+                              {tag.name} ({tag.count})
+                            </Text>
+                          </HStack>
+                        </Box>
+                      );
+                    })}
+                  </Flex>
+                )}
+
                 {detailChats.length === 0 ? (
                   <Text fontSize="sm" color="lucera.textMuted">
-                    Este niño aún no tiene chats registrados.
+                    {selectedGuardian
+                      ? `${selectedGuardian} aún no tiene chats registrados con este niño.`
+                      : "Este niño aún no tiene chats registrados."}
                   </Text>
                 ) : (
                   <VStack align="stretch" spacing={2}>
@@ -799,14 +1028,28 @@ export default function Children() {
                         transition="all 120ms"
                       >
                         <Box flex={1} minW={0}>
-                          <Flex justify="space-between" align="center" mb={1} gap={2}>
+                          <Flex
+                            justify="space-between"
+                            align="center"
+                            mb={1}
+                            gap={2}
+                          >
                             <HStack spacing={2}>
-                              <TriageBadge level={chatTriageToLevel[c.triage]} />
-                              <Badge textTransform="capitalize" variant="outline">
+                              <TriageBadge
+                                level={chatTriageToLevel[c.triage]}
+                              />
+                              <Badge
+                                textTransform="capitalize"
+                                variant="outline"
+                              >
                                 {chatStatusLabel[c.status] ?? c.status}
                               </Badge>
                             </HStack>
-                            <Text fontSize="xs" color="lucera.textMuted" sx={{ fontVariantNumeric: "tabular-nums" }}>
+                            <Text
+                              fontSize="xs"
+                              color="lucera.textMuted"
+                              sx={{ fontVariantNumeric: "tabular-nums" }}
+                            >
                               {c.startedAt}
                             </Text>
                           </Flex>
@@ -814,7 +1057,12 @@ export default function Children() {
                             {c.lastMessage}
                           </Text>
                           {c.aiSummary && (
-                            <Text fontSize="xs" color="lucera.textMuted" mt={1} noOfLines={2}>
+                            <Text
+                              fontSize="xs"
+                              color="lucera.textMuted"
+                              mt={1}
+                              noOfLines={2}
+                            >
                               IA: {c.aiSummary}
                             </Text>
                           )}
@@ -883,6 +1131,18 @@ export default function Children() {
                     )}
                   </Select>
                 </FormControl>
+                <FormControl>
+                  <FormLabel>Género</FormLabel>
+                  <Select
+                    name="gender"
+                    defaultValue={genderToValue(editing?.gender)}
+                    placeholder="Seleccionar género"
+                  >
+                    <option value="female">Femenino</option>
+                    <option value="male">Masculino</option>
+                    <option value="other">Otro</option>
+                  </Select>
+                </FormControl>
                 {!editing && (
                   <FormControl isRequired>
                     <FormLabel>Acudiente</FormLabel>
@@ -916,10 +1176,31 @@ export default function Children() {
                     defaultValue={editing?.conditions?.join(", ")}
                   />
                 </FormControl>
+                <FormControl gridColumn="span 2">
+                  <FormLabel>Dirección</FormLabel>
+                  <Input
+                    name="address"
+                    placeholder="Calle, edificio, referencia…"
+                    defaultValue={editing?.address || undefined}
+                  />
+                </FormControl>
+                <FormControl gridColumn="span 2">
+                  <FormLabel>Centro educativo</FormLabel>
+                  <Input
+                    name="school"
+                    placeholder="Nombre del colegio / escuela"
+                    defaultValue={editing?.school || undefined}
+                  />
+                </FormControl>
               </SimpleGrid>
             </ModalBody>
             <ModalFooter>
-              <Button variant="outline" onClick={onClose} mr={2} isDisabled={saving}>
+              <Button
+                variant="outline"
+                onClick={onClose}
+                mr={2}
+                isDisabled={saving}
+              >
                 Cancelar
               </Button>
               <Button type="submit" colorScheme="vino" isLoading={saving}>
@@ -936,8 +1217,8 @@ export default function Children() {
         title="Eliminar niño"
         description={
           <>
-            ¿Seguro que deseas eliminar a <strong>{toDelete?.name}</strong>?
-            Se perderá su historial clínico vinculado y no se puede deshacer.
+            ¿Seguro que deseas eliminar a <strong>{toDelete?.name}</strong>? Se
+            perderá su historial clínico vinculado y no se puede deshacer.
           </>
         }
         onConfirm={async () => {

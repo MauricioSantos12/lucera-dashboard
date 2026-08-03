@@ -10,6 +10,7 @@ export interface LoginResponse {
     email: string;
     name: string;
     role: string;
+    id: string;
   };
 }
 
@@ -24,6 +25,48 @@ export interface KpisResponse {
   revenueThisMonth: number;
 }
 
+// GET /api/stats/summary → KPIs operativos agrupados. Distinto de KpisResponse:
+// forma anidada (accounts/usage/safety) y algunos valores pueden ser null
+// (csat, reportedErRate) cuando aún no hay datos suficientes.
+export interface StatsSummaryResponse {
+  accounts: {
+    total: number;
+    active: number;
+    free: number;
+    premium: number;
+    conversionRate: number; // %
+  };
+  revenueUsd: number;
+  csat: number | null; // %
+  usage: {
+    sessions: number;
+    sessionCompletionRate: number; // %
+    abandoned: number;
+  };
+  safety: {
+    redFlagsToEmergency: number;
+    redFlagRate: number; // %
+    reportedErRate: number | null; // %
+    erConfirmed: number;
+    erAnswered: number;
+  };
+}
+
+// GET /api/stats/performance → indicadores de desempeño globales (ignora
+// filtros/query params). Los tiempos vienen en minutos; los rates en %.
+// onboardingCompletionRate puede venir null (sin datos suficientes).
+export interface StatsPerformanceResponse {
+  timeToFirstConsultMin: number | null;
+  timeToResolutionMin: number | null;
+  activeAccountRate: number | null;
+  churnRate: number | null;
+  freeLimitNoConversion: number;
+  techFailureSessions: number;
+  techFailureRate: number | null;
+  onboardingCompletionRate: number | null;
+  note?: string;
+}
+
 // GET /api/bot-status → estado del bot de WhatsApp. Siempre responde 200
 // (salvo 401): el estado real va en el JSON, no en el status HTTP.
 export interface BotStatusResponse {
@@ -34,6 +77,16 @@ export interface BotStatusResponse {
   checked_at: string; // ISO-8601 UTC
   url: string;
   error?: string; // solo cuando bot === "down"
+}
+
+// GET /api/geo → catálogo de países con sus provincias/estados. Requiere auth.
+// No incluye ciudades (la jerarquía es país → estado, de 2 niveles). El endpoint
+// ignora query params (siempre devuelve la lista completa).
+export interface GeoCountry {
+  code: string; // ISO-2: "AR" | "CO" | "PA"
+  name: string; // "Argentina" | "Colombia" | "Panamá"
+  phoneCode: string; // "+54" | "+57" | "+507"
+  states: string[]; // provincias / departamentos
 }
 
 export interface PaginatedResponse<T> {
@@ -88,6 +141,18 @@ export interface ChatApi {
   closedAt: string | null;
   status: ChatStatusApi;
   messages: ChatMessageApi[];
+  // Comentario final del médico/admin (PATCH /api/chats/{id}/note).
+  doctorNote?: string | null;
+  reviewedBy?: string | null;
+  reviewedAt?: string | null;
+  derivation: "emergency" | "appointment" | "home";
+}
+
+// PATCH /api/chats/{id}/note → guarda el comentario del médico. reviewedBy y
+// reviewedAt los setea el backend (usuario autenticado + fecha del servidor).
+export interface ChatNotePayload {
+  note: string;
+  reviewed_by: string;
 }
 
 export type GuardianRelationship =
@@ -101,6 +166,9 @@ export type GuardianStatus = "active" | "suspended" | "inactive";
 export interface InsuranceRef {
   id: number;
   name: string;
+  // El seguro embebido en un acudiente/paciente puede traer el nº de póliza;
+  // el catálogo de /api/insurances no lo incluye (por eso es opcional).
+  policyNumber?: string | null;
 }
 
 export interface SpecialtyApi {
@@ -129,13 +197,20 @@ export interface GuardianApi {
   phone: string;
   email: string;
   name: string;
+  accountCode: string;
+  gender: string | null;
+  idNumber: string | null;
   relationship: GuardianRelationship;
   country: string;
+  province: string;
+  address: string | null;
   city: string;
   status: GuardianStatus;
   plan: PlanApi;
   insurance: InsuranceRef | null;
   registeredAt: string;
+  portalEnabled?: boolean;
+  chats: number;
   children: ChildApi[];
 }
 
@@ -154,6 +229,8 @@ export interface GuardianPatchPayload {
   plan?: PlanApi;
   insuranceId?: number;
   policyNumber?: string;
+  gender?: string;
+  idNumber?: string;
 }
 
 // name, phone y email son obligatorios; crea el acudiente y su cuenta de
@@ -172,11 +249,39 @@ export interface GuardianCreatePayload {
   plan?: PlanApi;
   insuranceId?: number;
   policyNumber?: string;
+  gender?: string;
+  idNumber?: string;
 }
 
 export interface DeleteResponse {
   deleted: boolean;
   id: string;
+}
+
+// GET /api/accounts → cuentas titulares (una por acudiente; account.id === el
+// id del acudiente). insurance llega como nombre (string) o null; country en
+// formato API ("Panama"). createdAt viene como "YYYY-MM-DD HH:mm".
+export interface AccountApi {
+  id: string;
+  accountCode: string;
+  guardian: string;
+  idNumber: string | null;
+  gender: string | null;
+  phone: string;
+  email: string;
+  country: string | null;
+  province: string | null;
+  city: string | null;
+  address: string | null;
+  insurance: string | null;
+  status: string; // "active" | "inactive"
+  plan: string; // free | validacion_full | 1_hijo | 2_hijos | ...
+  paymentStatus: string | null; // "confirmed" | null
+  children: number;
+  chats: number;
+  createdAt: string;
+  subscriptionExpiresAt: string | null;
+  subscriptionState: string;
 }
 
 export type BloodType = "A+" | "A-" | "B+" | "B-" | "AB+" | "AB-" | "O+" | "O-";
@@ -192,10 +297,16 @@ export interface PatientApi {
   conditions: string[];
   allergies: string[];
   insurance: InsuranceRef | null;
+  gender: string | null;
+  idNumber: string | null;
+  school: string | null;
   guardianId: string;
   guardian: string;
   phone: string;
+  accountCode: string;
+  address: string | null;
   status: string;
+  chats: number;
   lastConsultation: string | null;
 }
 
@@ -209,6 +320,9 @@ export interface PatientCreatePayload {
   conditions?: string[];
   allergies?: string[];
   insuranceId?: number;
+  address?: string;
+  school?: string;
+  gender?: string;
 }
 
 // Todos los campos opcionales
@@ -220,6 +334,9 @@ export interface PatientPatchPayload {
   conditions?: string[];
   allergies?: string[];
   insuranceId?: number;
+  address?: string;
+  school?: string;
+  gender?: string;
 }
 
 export type PaymentMethodApi = "stripe" | "yappy";

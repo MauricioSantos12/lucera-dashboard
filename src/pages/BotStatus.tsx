@@ -79,9 +79,9 @@ const semaphoreConfig: Record<
 // Dependencias conocidas del bot, con etiqueta e ícono. Si el bot está caído,
 // checks llega vacío → se muestran como "Sin datos".
 const knownChecks: { key: string; label: string; icon: LucideIcon }[] = [
-  { key: "mysql", label: "MySQL", icon: Database },
-  { key: "redis", label: "Redis", icon: Server },
-  { key: "rag", label: "RAG (IA)", icon: BrainCircuit },
+  { key: "mysql", label: "Datos", icon: Database },
+  { key: "redis", label: "WhatsApp", icon: Server },
+  { key: "rag", label: "Modelo IA", icon: BrainCircuit },
 ];
 
 function MetaItem({

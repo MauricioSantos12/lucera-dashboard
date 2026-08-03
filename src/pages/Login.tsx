@@ -59,6 +59,7 @@ export default function Login() {
         email: data.user.email,
         name: data.user.name,
         role: roleFromApi(data.user.role),
+        id: data.user.id,
       };
       setLoading(false);
       if (!REQUIRE_MFA_CODE) {

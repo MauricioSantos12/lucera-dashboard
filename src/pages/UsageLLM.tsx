@@ -170,10 +170,10 @@ export default function UsageLLM() {
   );
 
   // Por defecto, última semana (hoy - 6 días hasta hoy)
-  const [fechaFin, setFechaFin] = useState(() =>
+  const [dateTo, setDateTo] = useState(() =>
     toISODate(new Date(Date.now()))
   );
-  const [fechaInicio, setFechaInicio] = useState(() => {
+  const [dateFrom, setDateFrom] = useState(() => {
     const d = new Date(Date.now());
     d.setDate(d.getDate() - 6);
     return toISODate(d);
@@ -181,40 +181,40 @@ export default function UsageLLM() {
 
   const filteredByDay = useMemo(
     () =>
-      (byDay ?? []).filter((d) => d.date >= fechaInicio && d.date <= fechaFin),
-    [byDay, fechaInicio, fechaFin]
+      (byDay ?? []).filter((d) => d.date >= dateFrom && d.date <= dateTo),
+    [byDay, dateFrom, dateTo]
   );
 
   // Costo del LLM agrupado por aseguradora. El consumo viene por teléfono
   // (/api/usage/by-user), el teléfono identifica al acudiente
   // (/api/guardians) y de ahí sale su aseguradora. El nombre autoritativo se
   // resuelve por id contra el catálogo de /api/insurances.
-  const costoPorAseguradora = useMemo(() => {
-    const catalogo = new Map(
+  const costByInsurance = useMemo(() => {
+    const insuranceCatalog = new Map(
       (insurancesData?.items ?? []).map((i) => [i.id, i.name])
     );
-    const acudientePorTelefono = new Map(
+    const guardianByPhone = new Map(
       (guardiansData?.items ?? []).map((g) => [g.phone, g])
     );
-    const totales = new Map<string, number>();
+    const totals = new Map<string, number>();
     (byUser ?? []).forEach((u) => {
-      const acudiente = acudientePorTelefono.get(u.phone);
-      const etiqueta = !acudiente
+      const guardian = guardianByPhone.get(u.phone);
+      const label = !guardian
         ? "Sin acudiente"
-        : acudiente.insurance
-        ? catalogo.get(acudiente.insurance.id) ?? acudiente.insurance.name
+        : guardian.insurance
+        ? insuranceCatalog.get(guardian.insurance.id) ?? guardian.insurance.name
         : "Sin seguro";
-      totales.set(etiqueta, (totales.get(etiqueta) ?? 0) + u.costUsd);
+      totals.set(label, (totals.get(label) ?? 0) + u.costUsd);
     });
-    return [...totales.entries()]
+    return [...totals.entries()]
       .map(([name, costUsd]) => ({ name, costUsd }))
       .sort((a, b) => b.costUsd - a.costUsd);
   }, [byUser, guardiansData, insurancesData]);
 
   // Control de consistencia: lo atribuido debe cuadrar con el consumo total.
-  const costoAtribuido = costoPorAseguradora.reduce((s, r) => s + r.costUsd, 0);
-  const costoTotal = summary?.costUsd ?? 0;
-  const cobertura = costoTotal > 0 ? (costoAtribuido / costoTotal) * 100 : 0;
+  const attributedCost = costByInsurance.reduce((s, r) => s + r.costUsd, 0);
+  const totalCost = summary?.costUsd ?? 0;
+  const coverage = totalCost > 0 ? (attributedCost / totalCost) * 100 : 0;
 
   const loading =
     summaryLoading ||
@@ -296,9 +296,9 @@ export default function UsageLLM() {
                   <Input
                     type="date"
                     size="sm"
-                    value={fechaInicio}
-                    max={fechaFin}
-                    onChange={(e) => setFechaInicio(e.target.value)}
+                    value={dateFrom}
+                    max={dateTo}
+                    onChange={(e) => setDateFrom(e.target.value)}
                   />
                 </Box>
                 <Box>
@@ -308,9 +308,9 @@ export default function UsageLLM() {
                   <Input
                     type="date"
                     size="sm"
-                    value={fechaFin}
-                    min={fechaInicio}
-                    onChange={(e) => setFechaFin(e.target.value)}
+                    value={dateTo}
+                    min={dateFrom}
+                    onChange={(e) => setDateTo(e.target.value)}
                   />
                 </Box>
               </Flex>
@@ -384,7 +384,7 @@ export default function UsageLLM() {
             </Text>
             <ResponsiveContainer width="100%" height={260}>
               <BarChart
-                data={costoPorAseguradora}
+                data={costByInsurance}
                 margin={{ top: 20, left: 0, right: 8 }}
               >
                 <CartesianGrid strokeDasharray="3 3" stroke="#e9d2b1" />
@@ -419,7 +419,7 @@ export default function UsageLLM() {
                   animationDuration={700}
                   animationEasing="ease-out"
                 >
-                  {costoPorAseguradora.map((_, i) => (
+                  {costByInsurance.map((_, i) => (
                     <Cell key={i} fill={brandColors[i % brandColors.length]} />
                   ))}
                   <LabelList
@@ -433,7 +433,7 @@ export default function UsageLLM() {
                 </Bar>
               </BarChart>
             </ResponsiveContainer>
-            {costoPorAseguradora.length === 0 && (
+            {costByInsurance.length === 0 && (
               <Text
                 mt={3}
                 fontSize="sm"

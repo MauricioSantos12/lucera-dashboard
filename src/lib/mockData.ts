@@ -119,6 +119,7 @@ export type Child = {
   weightKg?: number;
   conditions?: string[];
   allergies?: string[];
+  gender?: string | null;
 };
 
 export type Guardian = {
@@ -135,6 +136,13 @@ export type Guardian = {
   plan: "Gratuito" | "Premium Mensual" | "Premium Anual";
   registeredAt: string;
   children: Child[];
+  // Campos que llegan del API real (opcionales para no romper los mocks).
+  accountCode?: string;
+  gender?: string | null;
+  idNumber?: string | null;
+  address?: string | null;
+  province?: string | null;
+  chats?: number;
 };
 
 export const guardians: Guardian[] = [
@@ -702,6 +710,7 @@ export type ChatSession = {
     alerts?: string[];
   }[];
   status: "activa" | "esperando" | "cerrada";
+  derivation: "appointment" | "home" | "emergency";
 };
 
 export const chatSessions: ChatSession[] = [
@@ -726,8 +735,7 @@ export const chatSessions: ChatSession[] = [
       },
       {
         role: "bot",
-        text:
-          "Hola María. Lamento escuchar eso. ¿Cuál es la temperatura actual y desde cuándo comenzó?",
+        text: "Hola María. Lamento escuchar eso. ¿Cuál es la temperatura actual y desde cuándo comenzó?",
         time: "10:38",
       },
       {
@@ -738,11 +746,11 @@ export const chatSessions: ChatSession[] = [
       },
       {
         role: "bot",
-        text:
-          "Voy a clasificar esto como URGENTE (amarillo). Te recomiendo valoración con pediatra hoy. ¿Quieres ver opciones cercanas en Ciudad de Panamá?",
+        text: "Voy a clasificar esto como URGENTE (amarillo). Te recomiendo valoración con pediatra hoy. ¿Quieres ver opciones cercanas en Ciudad de Panamá?",
         time: "10:42",
       },
     ],
+    derivation: "appointment",
   },
   {
     id: "SES-9002",
@@ -768,6 +776,7 @@ export const chatSessions: ChatSession[] = [
         time: "10:30",
       },
     ],
+    derivation: "appointment",
   },
   {
     id: "SES-9003",
@@ -791,17 +800,16 @@ export const chatSessions: ChatSession[] = [
       },
       {
         role: "bot",
-        text:
-          "🚨 EMERGENCIA (rojo). Llama al 911 ahora mismo. Te derivo a Urgencias Pediátricas — Centro Médico Paitilla.",
+        text: "🚨 EMERGENCIA (rojo). Llama al 911 ahora mismo. Te derivo a Urgencias Pediátricas — Centro Médico Paitilla.",
         time: "10:15",
       },
       {
         role: "sistema",
-        text:
-          "Derivación enviada al acudiente: Urgencias Pediátricas Paitilla (1.2 km).",
+        text: "Derivación enviada al acudiente: Urgencias Pediátricas Paitilla (1.2 km).",
         time: "10:15",
       },
     ],
+    derivation: "appointment",
   },
   {
     id: "SES-9004",
@@ -836,11 +844,11 @@ export const chatSessions: ChatSession[] = [
       },
       {
         role: "bot",
-        text:
-          "Cuadro viral leve. Lavados nasales con suero fisiológico e hidratación. Si aparece fiebre, vuelve a contactarnos.",
+        text: "Cuadro viral leve. Lavados nasales con suero fisiológico e hidratación. Si aparece fiebre, vuelve a contactarnos.",
         time: "09:50",
       },
     ],
+    derivation: "appointment",
   },
   {
     id: "SES-9005",
@@ -870,6 +878,7 @@ export const chatSessions: ChatSession[] = [
         time: "09:20",
       },
     ],
+    derivation: "appointment",
   },
 ];
 

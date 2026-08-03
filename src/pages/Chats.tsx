@@ -11,7 +11,12 @@ import {
   chatRoleToEs,
   relationToEs,
 } from "@/lib/apiMappings";
-import type { ChatApi, GuardianApi, PatientApi } from "@/lib/apiTypes";
+import type {
+  ChatApi,
+  GuardianApi,
+  PatientApi,
+  InsuranceRef,
+} from "@/lib/apiTypes";
 import { toast } from "@/lib/toast";
 import {
   Box,
@@ -20,11 +25,14 @@ import {
   VStack,
   Input,
   InputGroup,
+  Select,
   InputLeftElement,
   Text,
   Avatar,
   Badge,
+  Button,
   Divider,
+  IconButton,
   Menu,
   MenuButton,
   MenuList,
@@ -42,10 +50,16 @@ import {
   Lock,
   ChevronDown,
   ExternalLink,
+  Pencil,
+  Plus,
+  FileText,
   type LucideIcon,
 } from "lucide-react";
 import { TriageBadge } from "@/components/TriageBadge";
 import { LoadingState } from "@/components/LoadingState";
+import { GuardianEditModal } from "@/components/GuardianEditModal";
+import { PatientEditModal } from "@/components/PatientEditModal";
+import { ChatNoteModal } from "@/components/ChatNoteModal";
 
 const triageColors: Record<ChatApi["triage"], string> = {
   general: "#2f9e6b",
@@ -133,31 +147,37 @@ function chatApiToSession(c: ChatApi): ChatSession {
       alerts: m.alerts,
     })),
     status: chatStatusToEstado[c.status] ?? "cerrada",
+    derivation: c.derivation,
   };
 }
 
 function InfoSection({
   icon: Icon,
   title,
+  action,
   children,
 }: {
   icon: LucideIcon;
   title: string;
+  action?: ReactNode;
   children: ReactNode;
 }) {
   return (
     <Box mb={5}>
-      <HStack spacing={2} mb={2}>
-        <Icon size={14} color="#6d122b" />
-        <Text
-          fontSize="10px"
-          fontWeight={700}
-          textTransform="uppercase"
-          letterSpacing="wider"
-          color="lucera.textMuted"
-        >
-          {title}
-        </Text>
+      <HStack spacing={2} mb={2} justify="space-between">
+        <HStack spacing={2}>
+          <Icon size={14} color="#6d122b" />
+          <Text
+            fontSize="10px"
+            fontWeight={700}
+            textTransform="uppercase"
+            letterSpacing="wider"
+            color="lucera.textMuted"
+          >
+            {title}
+          </Text>
+        </HStack>
+        {action}
       </HStack>
       <VStack align="stretch" spacing={1.5}>
         {children}
@@ -196,13 +216,35 @@ export default function Chats() {
     data: chatsData,
     loading: chatsLoading,
     error: chatsError,
+    refetch: refetchChats,
   } = useFetchAll<ChatApi>(token ? "/api/chats" : null);
-  const { data: guardiansData } = useFetchAll<GuardianApi>(
-    token ? "/api/guardians" : null
+  const { data: guardiansData, refetch: refetchGuardians } =
+    useFetchAll<GuardianApi>(token ? "/api/guardians" : null);
+  const { data: patientsData, refetch: refetchPatients } =
+    useFetchAll<PatientApi>(token ? "/api/patients" : null);
+  const { data: insurancesData } = useFetchAll<InsuranceRef>(
+    token ? "/api/insurances" : null
   );
-  const { data: patientsData } = useFetchAll<PatientApi>(
-    token ? "/api/patients" : null
+
+  // Modales de edición embebidos en la propia vista de Chats.
+  const [editingGuardian, setEditingGuardian] = useState<GuardianApi | null>(
+    null
   );
+  const [editingPatient, setEditingPatient] = useState<PatientApi | null>(null);
+  // Chat al que se le va a agregar/editar el comentario final del médico.
+  const [noteChat, setNoteChat] = useState<ChatApi | null>(null);
+  // Admin y Médico pueden dejar el comentario final del chat.
+  const canReview = user?.role === "Admin" || user?.role === "Médico";
+
+  // Tras editar un acudiente/niño se recargan TODOS los datos (acudientes,
+  // pacientes y chats) para reflejar los cambios. El chat abierto se conserva:
+  // selectedId vive en el estado y useFetchAll no borra la data durante el
+  // refetch, así que se vuelve a mostrar automáticamente.
+  const reloadAfterEdit = () => {
+    refetchGuardians();
+    refetchPatients();
+    refetchChats();
+  };
 
   const ownGuardian = useMemo(() => {
     if (!isGuardianRole) return undefined;
@@ -262,11 +304,23 @@ export default function Chats() {
   const [disposition, setDisposition] = useState<
     "todas" | "urgencias" | "casa" | "derivacion"
   >("todas");
+  // El chat no trae aseguradora; se resuelve por el acudiente (vía teléfono).
+  const [insuranceFilter, setInsuranceFilter] = useState("todas");
+
+  const insuranceOf = (c: ChatSession): string | null =>
+    guardianByPhone.get(c.phone)?.insurance?.name ?? null;
+
+  // Opciones del filtro: catálogo completo de aseguradoras (/api/insurances),
+  // no solo las presentes en los chats.
+  const insuranceOptions = useMemo(
+    () => (insurancesData?.items ?? []).map((i) => i.name).sort(),
+    [insurancesData]
+  );
 
   const dispositionOf = (c: ChatSession): "urgencias" | "casa" | "derivacion" =>
-    c.triage === "emergencia"
+    c.derivation === "emergency"
       ? "urgencias"
-      : c.attentionType === "Presencial"
+      : c.derivation === "appointment"
       ? "derivacion"
       : "casa";
 
@@ -280,7 +334,13 @@ export default function Chats() {
     const date = c.startedAt.slice(0, 10);
     const okStartDate = !startDate || date >= startDate;
     const okEndDate = !endDate || date <= endDate;
-    return okQ && okStartDate && okEndDate;
+    const okInsurance =
+      insuranceFilter === "todas"
+        ? true
+        : insuranceFilter === "sin_seguro"
+        ? !insuranceOf(c)
+        : insuranceOf(c) === insuranceFilter;
+    return okQ && okStartDate && okEndDate && okInsurance;
   });
 
   const counts = {
@@ -370,6 +430,23 @@ export default function Chats() {
                 min={startDate || undefined}
                 onChange={(e) => setEndDate(e.target.value)}
               />
+            </Box>
+            <Box>
+              <FilterLabel>Aseguradora</FilterLabel>
+              <Select
+                size="sm"
+                w={{ base: "100%", md: "180px" }}
+                value={insuranceFilter}
+                onChange={(e) => setInsuranceFilter(e.target.value)}
+              >
+                <option value="todas">Todas las aseguradoras</option>
+                {insuranceOptions.map((i) => (
+                  <option key={i} value={i}>
+                    {i}
+                  </option>
+                ))}
+                <option value="sin_seguro">Sin seguro</option>
+              </Select>
             </Box>
           </HStack>
         </Flex>
@@ -722,7 +799,21 @@ export default function Chats() {
               <InfoRow label="Cerrada" value={selected.closedAt ?? "—"} />
             </InfoSection>
 
-            <InfoSection icon={UsersIcon} title="Acudiente">
+            <InfoSection
+              icon={UsersIcon}
+              title="Acudiente"
+              action={
+                user?.role === "Admin" && selectedGuardian ? (
+                  <IconButton
+                    aria-label="Editar acudiente"
+                    icon={<Pencil size={13} />}
+                    size="xs"
+                    variant="ghost"
+                    onClick={() => setEditingGuardian(selectedGuardian)}
+                  />
+                ) : undefined
+              }
+            >
               <InfoRow label="Nombre" value={selected.guardian} />
               <InfoRow label="Teléfono" value={selected.phone} />
               <InfoRow
@@ -736,7 +827,21 @@ export default function Chats() {
               <InfoRow label="Ciudad" value={selectedGuardian?.city ?? "—"} />
             </InfoSection>
 
-            <InfoSection icon={Baby} title="Paciente">
+            <InfoSection
+              icon={Baby}
+              title="Paciente"
+              action={
+                user?.role === "Admin" && selectedPatient ? (
+                  <IconButton
+                    aria-label="Editar niño"
+                    icon={<Pencil size={13} />}
+                    size="xs"
+                    variant="ghost"
+                    onClick={() => setEditingPatient(selectedPatient)}
+                  />
+                ) : undefined
+              }
+            >
               <InfoRow label="Nombre" value={selected.patient} />
               <InfoRow
                 label="Edad"
@@ -764,6 +869,49 @@ export default function Chats() {
               />
             </InfoSection>
 
+            {/* Comentario final del médico/admin */}
+            {canReview && selectedRaw && (
+              <InfoSection
+                icon={FileText}
+                title="Comentario final"
+                action={
+                  selectedRaw.doctorNote ? (
+                    <IconButton
+                      aria-label="Editar comentario"
+                      icon={<Pencil size={13} />}
+                      size="xs"
+                      variant="ghost"
+                      onClick={() => setNoteChat(selectedRaw)}
+                    />
+                  ) : undefined
+                }
+              >
+                {selectedRaw.doctorNote ? (
+                  <Box>
+                    <Text fontSize="sm" whiteSpace="pre-wrap">
+                      {selectedRaw.doctorNote}
+                    </Text>
+                    <Text fontSize="10px" color="lucera.textMuted" mt={1.5}>
+                      Revisado por {selectedRaw.reviewedBy ?? "—"}
+                      {selectedRaw.reviewedAt
+                        ? ` · ${selectedRaw.reviewedAt}`
+                        : ""}
+                    </Text>
+                  </Box>
+                ) : (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    colorScheme="vino"
+                    leftIcon={<Plus size={14} />}
+                    onClick={() => setNoteChat(selectedRaw)}
+                  >
+                    Agregar comentario
+                  </Button>
+                )}
+              </InfoSection>
+            )}
+
             {selected.aiSummary && (
               <InfoSection icon={Bot} title="Resumen IA">
                 <Text fontSize="xs" color="lucera.textMuted">
@@ -774,6 +922,23 @@ export default function Chats() {
           </Box>
         )}
       </Flex>
+
+      <GuardianEditModal
+        guardian={editingGuardian}
+        onClose={() => setEditingGuardian(null)}
+        onSaved={reloadAfterEdit}
+      />
+      <PatientEditModal
+        patient={editingPatient}
+        onClose={() => setEditingPatient(null)}
+        onSaved={reloadAfterEdit}
+      />
+      <ChatNoteModal
+        chat={noteChat}
+        onClose={() => setNoteChat(null)}
+        onSaved={refetchChats}
+        user={user}
+      />
     </DashboardLayout>
   );
 }

@@ -117,3 +117,30 @@ export const countryApiToEs: Record<string, string> = {
 export const countryEsToApi: Record<string, string> = Object.fromEntries(
   Object.entries(countryApiToEs).map(([api, es]) => [es, api])
 );
+
+// --- Género -----------------------------------------------------------------
+// El backend guarda `gender` como string libre (o null) y puede llegar en
+// varios formatos (inglés/español/abreviado). Canonicalizamos a una de estas
+// claves para el <Select> y homologamos la etiqueta visible en las tablas.
+export type GenderValue = "female" | "male" | "other" | "";
+
+export function genderToValue(g?: string | null): GenderValue {
+  const v = (g ?? "").toString().trim().toLowerCase();
+  if (["female", "f", "femenino", "femenina", "mujer"].includes(v)) return "female";
+  if (["male", "m", "masculino", "hombre"].includes(v)) return "male";
+  if (v) return "other";
+  return "";
+}
+
+export function genderLabel(g?: string | null): string {
+  switch (genderToValue(g)) {
+    case "female":
+      return "Femenino";
+    case "male":
+      return "Masculino";
+    case "other":
+      return "Otro";
+    default:
+      return "—";
+  }
+}

@@ -1,15 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
-import {
-  Guardian,
-  Child,
-  Relationship,
-  AccountStatus,
-  countriesCities,
-} from "@/lib/mockData";
+import { Guardian, Child, Relationship, AccountStatus } from "@/lib/mockData";
 import { useAuth } from "@/lib/auth";
 import { useFetchAll } from "@/hooks/useFetchAll";
+import { useGeo } from "@/hooks/useGeo";
 import { apiFetch } from "@/lib/apiClient";
 import {
   relationToEs,
@@ -21,6 +16,8 @@ import {
   countryApiToEs,
   countryEsToApi,
   chatTriageToLevel,
+  genderToValue,
+  genderLabel,
 } from "@/lib/apiMappings";
 import type {
   GuardianApi,
@@ -76,6 +73,7 @@ import {
   MapPin,
   MessageSquare,
   ChevronRight,
+  Eye,
 } from "lucide-react";
 import { TriageBadge } from "@/components/TriageBadge";
 import { StatCard } from "@/components/StatCard";
@@ -84,6 +82,7 @@ import { Pagination } from "@/components/Pagination";
 import { LoadingState } from "@/components/LoadingState";
 import { ExportButton } from "@/components/ExportButton";
 import { toast } from "@/lib/toast";
+import { chatStatusLabel } from "./Children";
 
 const statusTone = (status: Guardian["status"]) =>
   status === "activa" ? "green" : status === "suspendida" ? "yellow" : "red";
@@ -102,6 +101,12 @@ function guardianApiToRow(g: GuardianApi): Guardian {
     status: statusToEs[g.status] ?? "activa",
     plan: planToEs[g.plan] ?? "Gratuito",
     registeredAt: g.registeredAt,
+    accountCode: g.accountCode,
+    gender: g.gender,
+    idNumber: g.idNumber,
+    address: g.address,
+    province: g.province,
+    chats: g.chats,
     children: g.children.map(
       (c): Child => ({
         id: c.id,
@@ -149,7 +154,7 @@ export default function Guardians() {
     });
     return map;
   }, [chatsData]);
-  const chatCountOf = (g: Guardian) => (chatsByPhone.get(g.phone) ?? []).length;
+  const chatCountOf = (g: Guardian) => g.chats ?? 0;
 
   useEffect(() => {
     if (guardiansError) {
@@ -158,6 +163,8 @@ export default function Guardians() {
       });
     }
   }, [guardiansError]);
+
+  console.log({ guardiansData });
 
   const [q, setQ] = useState("");
   const [status, setStatus] = useState("todos");
@@ -168,13 +175,25 @@ export default function Guardians() {
   const perPage = 10;
   const { isOpen, onOpen, onClose } = useDisclosure();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [editing, setEditing] = useState<Guardian | null>(null);
   const [toDelete, setToDelete] = useState<Guardian | null>(null);
   const [detail, setDetail] = useState<Guardian | null>(null);
+  const [selectedChild, setSelectedChild] = useState<string | null>(null);
   const [country, setCountry] = useState("");
+  const [province, setProvince] = useState("");
+  const [gender, setGender] = useState("");
   const [saving, setSaving] = useState(false);
+  const { countryNames, statesOf } = useGeo();
 
-  const detailChats = useMemo(
+  // Al abrir el detalle de un acudiente, se selecciona "Todos" por defecto
+  // (selectedChild = null → se muestran todos sus chats).
+  useEffect(() => {
+    setSelectedChild(null);
+  }, [detail]);
+
+  // Todos los chats del acudiente (por teléfono), ordenados por fecha.
+  const guardianChats = useMemo(
     () =>
       detail
         ? (chatsByPhone.get(detail.phone) ?? [])
@@ -183,6 +202,34 @@ export default function Guardians() {
         : [],
     [detail, chatsByPhone]
   );
+
+  // Chats filtrados por el hijo seleccionado (por nombre del paciente). Si el
+  // acudiente no tiene hijos registrados, se muestran todos sus chats.
+  const detailChats = useMemo(
+    () =>
+      selectedChild
+        ? guardianChats.filter(
+            (c) => (c.patient || "Sin paciente") === selectedChild
+          )
+        : guardianChats,
+    [guardianChats, selectedChild]
+  );
+
+  // Tags del modal = hijos registrados ∪ pacientes que aparecen en los chats,
+  // cada uno con su conteo. Así la suma de los tags cuadra con el total
+  // ("Todos"): hay chats cuyo paciente no está en la lista de hijos registrados
+  // (o viene vacío), y si solo se usaran los hijos esos chats no serían
+  // alcanzables desde ningún tag y los números no coincidirían.
+  const chatChildTags = useMemo(() => {
+    const counts = new Map<string, number>();
+    guardianChats.forEach((c) => {
+      const name = c.patient || "Sin paciente";
+      counts.set(name, (counts.get(name) ?? 0) + 1);
+    });
+    const names = new Set<string>((detail?.children ?? []).map((c) => c.name));
+    counts.forEach((_, name) => names.add(name));
+    return [...names].map((name) => ({ name, count: counts.get(name) ?? 0 }));
+  }, [guardianChats, detail]);
 
   const filtered = useMemo(() => {
     setPage(1);
@@ -209,8 +256,26 @@ export default function Guardians() {
   const openEdit = (g: Guardian | null) => {
     setEditing(g);
     setCountry(g?.country ?? "");
+    setProvince(g?.province ?? "");
+    setGender(genderToValue(g?.gender));
     onOpen();
   };
+
+  // Deep-link: al llegar con ?edit=<id> (p. ej. desde el detalle de un chat),
+  // se abre el modal de edición de ese acudiente al cargar la data. Solo Admin.
+  useEffect(() => {
+    const editId = searchParams.get("edit");
+    if (!editId || !canEdit) return;
+    const row = data.find((g) => g.id === editId);
+    if (row) {
+      setEditing(row);
+      setCountry(row.country ?? "");
+      setProvince(row.province ?? "");
+      setGender(genderToValue(row?.gender));
+      onOpen();
+      setSearchParams({}, { replace: true });
+    }
+  }, [searchParams, data, canEdit, onOpen, setSearchParams]);
 
   const handleSave = async (form: HTMLFormElement) => {
     const fd = new FormData(form);
@@ -225,14 +290,16 @@ export default function Guardians() {
         phone: String(fd.get("phone")),
         email: String(fd.get("email")),
         relationship: relationToApi[fd.get("relationship") as Relationship],
-        country: country || undefined,
+        idNumber: String(fd.get("idNumber") || "") || undefined,
+        country: countryEsToApi[country] ?? (country || undefined),
         city: String(fd.get("city") || "") || undefined,
-        province: country || undefined,
+        province: province || undefined,
         address: String(fd.get("address") || "") || undefined,
         status: statusToApi[fd.get("status") as AccountStatus],
         plan: (String(fd.get("plan") || "") || undefined) as
           | PlanApi
           | undefined,
+        gender: gender || undefined,
         insuranceId: insuranceIdNew ? Number(insuranceIdNew) : undefined,
         policyNumber: policyNumberNew || undefined,
       };
@@ -273,12 +340,15 @@ export default function Guardians() {
       name: String(fd.get("name")),
       country: countryEsToApi[country] ?? (country || undefined),
       city: String(fd.get("city")),
+      province: province || undefined,
       address: String(fd.get("address") || "") || undefined,
+      idNumber: String(fd.get("idNumber") || "") || undefined,
       relationship: relationToApi[fd.get("relationship") as Relationship],
       status: statusToApi[fd.get("status") as AccountStatus],
       plan: (String(fd.get("plan") || "") || undefined) as PlanApi | undefined,
       insuranceId: insuranceId ? Number(insuranceId) : undefined,
       policyNumber: policyNumber || undefined,
+      gender: gender || undefined,
     };
 
     setSaving(true);
@@ -341,6 +411,7 @@ export default function Guardians() {
               <option value="baja">De baja</option>
             </Select>
           </Box>
+
           <Box>
             <Text fontSize="xs" fontWeight={600} mb={1}>
               País
@@ -351,7 +422,7 @@ export default function Guardians() {
               onChange={(e) => setCountryFilter(e.target.value)}
             >
               <option value="todos">Todos los países</option>
-              {Object.keys(countriesCities).map((c) => (
+              {countryNames.map((c) => (
                 <option key={c} value={c}>
                   {c}
                 </option>
@@ -441,7 +512,7 @@ export default function Guardians() {
               <Table size="sm">
                 <Thead bg="crema.100">
                   <Tr>
-                    <Th>ID</Th>
+                    <Th>Código</Th>
                     <Th>Acudiente</Th>
                     <Th display={{ base: "none", md: "table-cell" }}>
                       Contacto
@@ -449,6 +520,7 @@ export default function Guardians() {
                     <Th display={{ base: "none", lg: "table-cell" }}>
                       País / Ciudad
                     </Th>
+                    <Th display={{ base: "none", lg: "table-cell" }}>Género</Th>
                     <Th display={{ base: "none", xl: "table-cell" }}>
                       Dirección
                     </Th>
@@ -457,32 +529,25 @@ export default function Guardians() {
                     <Th>Plan</Th>
                     <Th display={{ base: "none", md: "table-cell" }}>Seguro</Th>
                     <Th>Estado</Th>
-                    {canEdit && <Th textAlign="right">Acciones</Th>}
+                    <Th textAlign="right">Acciones</Th>
                   </Tr>
                 </Thead>
                 <Tbody>
                   {paginated.map((g) => (
                     <Tr key={g.id} _hover={{ bg: "crema.50" }}>
                       <Td>
-                        <HStack
+                        <Text
                           as="button"
                           type="button"
                           onClick={() => setDetail(g)}
+                          fontSize="sm"
+                          fontWeight={600}
+                          color="lucera.textMuted"
+                          fontFamily="mono"
                           _hover={{ color: "vino.500" }}
-                          textAlign="left"
                         >
-                          <Box>
-                            <Text
-                              fontSize="sm"
-                              fontWeight={600}
-                              textDecoration="underline"
-                              textDecorationColor="lucera.border"
-                              textUnderlineOffset="2px"
-                            >
-                              {g.id}
-                            </Text>
-                          </Box>
-                        </HStack>
+                          {g.accountCode ?? "—"}
+                        </Text>
                       </Td>
                       <Td>
                         <HStack
@@ -539,11 +604,17 @@ export default function Guardians() {
                         <Text>{g.city}</Text>
                       </Td>
                       <Td
+                        display={{ base: "none", lg: "table-cell" }}
+                        fontSize="sm"
+                      >
+                        {genderLabel(g.gender)}
+                      </Td>
+                      <Td
                         display={{ base: "none", xl: "table-cell" }}
                         fontSize="xs"
                         color="lucera.textMuted"
                       >
-                        —
+                        {g.address || "—"}
                       </Td>
                       <Td>
                         <Badge variant="outline">
@@ -584,25 +655,36 @@ export default function Guardians() {
                           {g.status}
                         </Badge>
                       </Td>
-                      {canEdit && (
-                        <Td textAlign="right">
+                      <Td textAlign="right">
+                        {canEdit && (
                           <IconButton
-                            aria-label="Editar"
+                            aria-label="Ver detalle"
                             size="sm"
                             variant="ghost"
-                            icon={<Pencil size={14} />}
-                            onClick={() => openEdit(g)}
+                            icon={<Eye size={14} />}
+                            onClick={() => setDetail(g)}
                           />
-                          <IconButton
-                            aria-label="Eliminar"
-                            size="sm"
-                            variant="ghost"
-                            color="peligro.500"
-                            icon={<Trash2 size={14} />}
-                            onClick={() => setToDelete(g)}
-                          />
-                        </Td>
-                      )}
+                        )}
+                        {canEdit && (
+                          <>
+                            <IconButton
+                              aria-label="Editar"
+                              size="sm"
+                              variant="ghost"
+                              icon={<Pencil size={14} />}
+                              onClick={() => openEdit(g)}
+                            />
+                            <IconButton
+                              aria-label="Eliminar"
+                              size="sm"
+                              variant="ghost"
+                              color="peligro.500"
+                              icon={<Trash2 size={14} />}
+                              onClick={() => setToDelete(g)}
+                            />
+                          </>
+                        )}
+                      </Td>
                     </Tr>
                   ))}
                 </Tbody>
@@ -699,7 +781,7 @@ export default function Guardians() {
                         Dirección
                       </Text>
                     </HStack>
-                    <Text fontWeight={600}>—</Text>
+                    <Text fontWeight={600}>{detail.address || "—"}</Text>
                   </Box>
                   <Box>
                     <Text
@@ -720,13 +802,86 @@ export default function Guardians() {
                 <HStack mb={3} spacing={2}>
                   <MessageSquare size={15} color="#6d122b" />
                   <Text fontSize="sm" fontWeight={700}>
-                    Chats del acudiente ({detailChats.length})
+                    Chats{selectedChild ? ` · ${selectedChild}` : ""} (
+                    {detailChats.length})
                   </Text>
                 </HStack>
 
+                {/* Tags: "Todos" + un paciente por tag (con su conteo); filtra
+                    los chats por el nombre del paciente. La suma de los tags
+                    cuadra con "Todos". */}
+                {chatChildTags.length > 0 && (
+                  <Flex gap={2} mb={3} wrap="wrap">
+                    <Box
+                      as="button"
+                      type="button"
+                      onClick={() => setSelectedChild(null)}
+                      px={3}
+                      py={1}
+                      borderRadius="full"
+                      fontSize="xs"
+                      fontWeight={600}
+                      borderWidth="1px"
+                      bg={selectedChild === null ? "vino.500" : "white"}
+                      borderColor={
+                        selectedChild === null ? "vino.500" : "lucera.border"
+                      }
+                      color={
+                        selectedChild === null ? "white" : "lucera.textMuted"
+                      }
+                      _hover={
+                        selectedChild === null
+                          ? undefined
+                          : { bg: "crema.50", borderColor: "lucera.textMuted" }
+                      }
+                      transition="all 120ms"
+                    >
+                      Todos ({guardianChats.length})
+                    </Box>
+                    {chatChildTags.map((tag) => {
+                      const active = tag.name === selectedChild;
+                      return (
+                        <Box
+                          key={tag.name}
+                          as="button"
+                          type="button"
+                          onClick={() => setSelectedChild(tag.name)}
+                          px={3}
+                          py={1}
+                          borderRadius="full"
+                          fontSize="xs"
+                          fontWeight={600}
+                          borderWidth="1px"
+                          bg={active ? "vino.500" : "white"}
+                          borderColor={active ? "vino.500" : "lucera.border"}
+                          color={active ? "white" : "lucera.textMuted"}
+                          _hover={
+                            active
+                              ? undefined
+                              : {
+                                  bg: "crema.50",
+                                  borderColor: "lucera.textMuted",
+                                }
+                          }
+                          transition="all 120ms"
+                        >
+                          <HStack spacing={1}>
+                            <Baby size={11} />
+                            <Text as="span">
+                              {tag.name} ({tag.count})
+                            </Text>
+                          </HStack>
+                        </Box>
+                      );
+                    })}
+                  </Flex>
+                )}
+
                 {detailChats.length === 0 ? (
                   <Text fontSize="sm" color="lucera.textMuted">
-                    Este acudiente aún no tiene chats registrados.
+                    {selectedChild
+                      ? `${selectedChild} aún no tiene chats registrados.`
+                      : "Este acudiente aún no tiene chats registrados."}
                   </Text>
                 ) : (
                   <VStack align="stretch" spacing={2}>
@@ -749,6 +904,9 @@ export default function Guardians() {
                         <Box flex={1} minW={0}>
                           <HStack spacing={2} mb={1}>
                             <TriageBadge level={chatTriageToLevel[c.triage]} />
+                            <Badge textTransform="capitalize" variant="outline">
+                              {chatStatusLabel[c.status] ?? c.status}
+                            </Badge>
                             <Text fontSize="xs" color="lucera.textMuted">
                               {c.patient}
                             </Text>
@@ -826,6 +984,14 @@ export default function Guardians() {
                   )}
                 </FormControl>
                 <FormControl>
+                  <FormLabel>Número de identificación</FormLabel>
+                  <Input
+                    name="idNumber"
+                    placeholder="Documento de identidad"
+                    defaultValue={editing?.idNumber ?? undefined}
+                  />
+                </FormControl>
+                <FormControl>
                   <FormLabel>Relación</FormLabel>
                   <Select
                     name="relationship"
@@ -843,28 +1009,54 @@ export default function Guardians() {
                   <Select
                     name="country"
                     value={country}
-                    onChange={(e) => setCountry(e.target.value)}
+                    onChange={(e) => {
+                      setCountry(e.target.value);
+                      setProvince("");
+                    }}
                     placeholder="Seleccionar país"
                   >
-                    {Object.keys(countriesCities).map((c) => (
+                    {countryNames.map((c) => (
                       <option key={c} value={c}>
                         {c}
                       </option>
                     ))}
                   </Select>
                 </FormControl>
-                <FormControl isRequired>
-                  <FormLabel>Ciudad</FormLabel>
+                <FormControl>
+                  <FormLabel>Provincia</FormLabel>
                   <Select
-                    name="city"
-                    defaultValue={editing?.city}
-                    placeholder="Seleccionar ciudad"
+                    name="province"
+                    value={province}
+                    onChange={(e) => setProvince(e.target.value)}
+                    placeholder="Seleccionar provincia"
+                    isDisabled={!country}
                   >
-                    {(countriesCities[country] ?? []).map((c) => (
-                      <option key={c} value={c}>
-                        {c}
+                    {statesOf(country).map((s) => (
+                      <option key={s} value={s}>
+                        {s}
                       </option>
                     ))}
+                  </Select>
+                </FormControl>
+                <FormControl>
+                  <FormLabel>Ciudad</FormLabel>
+                  <Input
+                    name="city"
+                    placeholder="Ciudad / distrito"
+                    defaultValue={editing?.city}
+                  />
+                </FormControl>
+                <FormControl>
+                  <FormLabel>Género</FormLabel>
+                  <Select
+                    name="gender"
+                    value={gender}
+                    onChange={(e) => setGender(e.target.value)}
+                    placeholder="Seleccionar género"
+                  >
+                    <option value="female">Femenino</option>
+                    <option value="male">Masculino</option>
+                    <option value="other">Otro</option>
                   </Select>
                 </FormControl>
                 <FormControl gridColumn="span 2">
@@ -872,6 +1064,7 @@ export default function Guardians() {
                   <Input
                     name="address"
                     placeholder="Calle, edificio, referencia…"
+                    defaultValue={editing?.address ?? undefined}
                   />
                 </FormControl>
                 <FormControl>

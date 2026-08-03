@@ -28,6 +28,7 @@ export type AuthUser = {
   name: string;
   role: UserRole;
   phone?: string;
+  id: string;
   // Para médicos: id del médico vinculado · para acudientes: id del acudiente
   refId?: string;
 };
@@ -53,19 +54,57 @@ const AuthContext = createContext<AuthContextType | null>(null);
 
 // Cuentas demo para que el evaluador pueda probar cada rol
 export const demoAccounts: Record<UserRole, AuthUser> = {
-  Admin: { email: "admin@lucera.pa", name: "Admin Técnico", role: "Admin", phone: "+507 6000-0001" },
-  Médico: { email: "esanchez@lucera.pa", name: "Dra. Elena Sánchez", role: "Médico", phone: "+507 6000-0201", refId: "M-201" },
-  Acudiente: { email: "maria.mendoza@gmail.com", name: "María Mendoza", role: "Acudiente", phone: "+507 6123-4567", refId: "AC-1042" },
-  Ventas: { email: "ventas@lucera.pa", name: "Carla Núñez", role: "Ventas", phone: "+507 6000-0099" },
-  Invitado: { email: "invitado@lucera.pa", name: "Usuario Invitado", role: "Invitado", phone: "+507 6000-0000" },
+  Admin: {
+    email: "admin@lucera.pa",
+    name: "Admin Técnico",
+    role: "Admin",
+    phone: "+507 6000-0001",
+    id: "LUCERA001",
+  },
+  Médico: {
+    email: "esanchez@lucera.pa",
+    name: "Dra. Elena Sánchez",
+    role: "Médico",
+    phone: "+507 6000-0201",
+    refId: "M-201",
+    id: "LUCERA002",
+  },
+  Acudiente: {
+    email: "maria.mendoza@gmail.com",
+    name: "María Mendoza",
+    role: "Acudiente",
+    phone: "+507 6123-4567",
+    refId: "AC-1042",
+    id: "LUCERA003",
+  },
+  Ventas: {
+    email: "ventas@lucera.pa",
+    name: "Carla Núñez",
+    role: "Ventas",
+    phone: "+507 6000-0099",
+    id: "LUCERA004",
+  },
+  Invitado: {
+    email: "invitado@lucera.pa",
+    name: "Usuario Invitado",
+    role: "Invitado",
+    phone: "+507 6000-0000",
+    id: "LUCERA005",
+  },
 };
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const initial = loadSession();
   const [user, setUser] = useState<AuthUser | null>(initial?.user ?? null);
-  const [accessToken, setAccessToken] = useState<string | null>(initial?.accessToken ?? null);
-  const [refreshToken, setRefreshToken] = useState<string | null>(initial?.refreshToken ?? null);
-  const [expiresAt, setExpiresAt] = useState<number | null>(initial?.expiresAt ?? null);
+  const [accessToken, setAccessToken] = useState<string | null>(
+    initial?.accessToken ?? null
+  );
+  const [refreshToken, setRefreshToken] = useState<string | null>(
+    initial?.refreshToken ?? null
+  );
+  const [expiresAt, setExpiresAt] = useState<number | null>(
+    initial?.expiresAt ?? null
+  );
 
   // Evita disparar varios /auth/refresh en paralelo si varias requests
   // detectan el token vencido casi al mismo tiempo.
@@ -111,7 +150,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             body: JSON.stringify({ refresh_token: refreshToken }),
           });
           if (!res.ok) throw new Error("No se pudo renovar la sesión");
-          const data: { access_token: string; expires_in: number } = await res.json();
+          const data: { access_token: string; expires_in: number } =
+            await res.json();
           const newExpiresAt = Date.now() + data.expires_in * 1000;
           setAccessToken(data.access_token);
           setExpiresAt(newExpiresAt);
@@ -136,23 +176,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{
-      user,
-      token: accessToken,
-      login,
-      logout,
-      updateProfile: (patch) => {
-        setUser((u) => {
-          if (!u) return u;
-          const next = { ...u, ...patch };
-          if (accessToken && refreshToken && expiresAt) {
-            saveSession({ user: next, accessToken, refreshToken, expiresAt });
-          }
-          return next;
-        });
-      },
-      getValidToken,
-    }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        token: accessToken,
+        login,
+        logout,
+        updateProfile: (patch) => {
+          setUser((u) => {
+            if (!u) return u;
+            const next = { ...u, ...patch };
+            if (accessToken && refreshToken && expiresAt) {
+              saveSession({ user: next, accessToken, refreshToken, expiresAt });
+            }
+            return next;
+          });
+        },
+        getValidToken,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );
