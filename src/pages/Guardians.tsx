@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Guardian, Child, Relationship, AccountStatus } from "@/lib/mockData";
@@ -164,8 +164,6 @@ export default function Guardians() {
     }
   }, [guardiansError]);
 
-  console.log({ guardiansData });
-
   const [q, setQ] = useState("");
   const [status, setStatus] = useState("todos");
   const [countryFilter, setCountryFilter] = useState("todos");
@@ -184,6 +182,19 @@ export default function Guardians() {
   const [province, setProvince] = useState("");
   const [gender, setGender] = useState("");
   const [saving, setSaving] = useState(false);
+  // Loading breve para dar feedback al cambiar filtros o tras crear/editar.
+  const [searching, setSearching] = useState(false);
+  const searchTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const flashLoading = useCallback(() => {
+    setSearching(true);
+    if (searchTimeout.current) clearTimeout(searchTimeout.current);
+    searchTimeout.current = setTimeout(() => setSearching(false), 450);
+  }, []);
+  useEffect(() => {
+    return () => {
+      if (searchTimeout.current) clearTimeout(searchTimeout.current);
+    };
+  }, []);
   const { countryNames, statesOf } = useGeo();
 
   // Al abrir el detalle de un acudiente, se selecciona "Todos" por defecto
@@ -231,8 +242,13 @@ export default function Guardians() {
     return [...names].map((name) => ({ name, count: counts.get(name) ?? 0 }));
   }, [guardianChats, detail]);
 
-  const filtered = useMemo(() => {
+  // Al cambiar filtros: volver a la primera página y mostrar loading breve.
+  useEffect(() => {
     setPage(1);
+    flashLoading();
+  }, [q, status, countryFilter, planFilter, insuranceFilter, flashLoading]);
+
+  const filtered = useMemo(() => {
     return data.filter((g) => {
       const okQ = `${g.name} ${g.id} ${g.email} ${g.phone} ${g.city}`
         .toLowerCase()
@@ -315,6 +331,7 @@ export default function Guardians() {
         onClose();
         setEditing(null);
         refetchGuardians();
+        flashLoading();
       } catch (err) {
         const isDuplicate =
           err instanceof Error && err.message.startsWith("Error 409");
@@ -362,6 +379,7 @@ export default function Guardians() {
       onClose();
       setEditing(null);
       refetchGuardians();
+      flashLoading();
     } catch (err) {
       toast.error("No se pudo actualizar el acudiente", {
         description: err instanceof Error ? err.message : undefined,
@@ -500,7 +518,7 @@ export default function Guardians() {
           )}
         </Flex>
 
-        {guardiansLoading && !guardiansData ? (
+        {(guardiansLoading && !guardiansData) || searching ? (
           <LoadingState label="Cargando acudientes…" />
         ) : (
           <>
@@ -1159,6 +1177,7 @@ export default function Guardians() {
             );
             toast.success("Acudiente eliminado");
             refetchGuardians();
+            flashLoading();
           } catch (err) {
             toast.error("No se pudo eliminar el acudiente", {
               description: err instanceof Error ? err.message : undefined,

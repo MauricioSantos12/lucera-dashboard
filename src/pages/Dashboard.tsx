@@ -123,8 +123,6 @@ function DashboardSummary() {
   }
   if (!summary) return null;
 
-  console.log({ summary });
-
   const { accounts, revenueUsd, csat, usage, safety } = summary;
   // Los porcentajes pueden venir null cuando aún no hay datos suficientes.
   const pct = (v: number | null) => (v == null ? "—" : `${v}%`);

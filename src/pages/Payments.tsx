@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Payment } from "@/lib/mockData";
 import { useFetchAll } from "@/hooks/useFetchAll";
@@ -138,6 +138,19 @@ export default function Payments() {
   const [insuranceFilter, setInsuranceFilter] = useState("todos");
   const [page, setPage] = useState(1);
   const perPage = 10;
+  // Loading breve para dar feedback al cambiar filtros.
+  const [searching, setSearching] = useState(false);
+  const searchTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const flashLoading = useCallback(() => {
+    setSearching(true);
+    if (searchTimeout.current) clearTimeout(searchTimeout.current);
+    searchTimeout.current = setTimeout(() => setSearching(false), 450);
+  }, []);
+  useEffect(() => {
+    return () => {
+      if (searchTimeout.current) clearTimeout(searchTimeout.current);
+    };
+  }, []);
 
   const plans = useMemo(
     () => [...new Set(payments.map((p) => p.plan))].sort(),
@@ -145,7 +158,6 @@ export default function Payments() {
   );
 
   const filtered = useMemo(() => {
-    setPage(1);
     return payments.filter((p) => {
       const okQ = `${p.id} ${p.guardian} ${p.plan}`
         .toLowerCase()
@@ -172,6 +184,21 @@ export default function Payments() {
       );
     });
   }, [payments, q, startDate, endDate, method, status, planFilter, insuranceFilter]);
+
+  // Al cambiar filtros: volver a la primera página y mostrar loading breve.
+  useEffect(() => {
+    setPage(1);
+    flashLoading();
+  }, [
+    q,
+    startDate,
+    endDate,
+    method,
+    status,
+    planFilter,
+    insuranceFilter,
+    flashLoading,
+  ]);
 
   const totalPages = Math.ceil(filtered.length / perPage);
   const paginated = filtered.slice((page - 1) * perPage, page * perPage);
@@ -391,7 +418,8 @@ export default function Payments() {
 
         {(paymentsLoading && !paymentsData) ||
         (guardiansLoading && !guardiansData) ||
-        (insurancesLoading && !insurancesData) ? (
+        (insurancesLoading && !insurancesData) ||
+        searching ? (
           <LoadingState label="Cargando pagos…" />
         ) : (
           <>

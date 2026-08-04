@@ -202,6 +202,7 @@ export default function Uses() {
     realPatients,
     statsLoading,
     applied,
+    searching,
     searchTick,
     snapshot,
     filteredGuardians,
@@ -303,8 +304,6 @@ export default function Uses() {
       .sort((a, b) => b.value - a.value);
   }, [filteredChats, filteredGuardians]);
 
-  console.log({ filteredChats });
-
   const chatStatus = useMemo(
     () => ({
       closed: filteredChats.filter((c) => c.status === "closed").length,
@@ -403,13 +402,13 @@ export default function Uses() {
         </Flex>
       )}
 
-      {/* Cargando estadísticas */}
-      {applied && statsLoading && (
+      {/* Cargando estadísticas (fetch inicial o al aplicar filtros) */}
+      {applied && (statsLoading || searching) && (
         <LoadingState label="Cargando estadísticas…" />
       )}
 
       {/* Con filtros aplicados */}
-      {applied && !statsLoading && (
+      {applied && !statsLoading && !searching && (
         <MotionBox
           key={searchTick}
           initial={{ opacity: 0, y: 14 }}

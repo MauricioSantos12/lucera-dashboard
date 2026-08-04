@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { useAuth } from "@/lib/auth";
 import { useFetchAll } from "@/hooks/useFetchAll";
@@ -178,7 +178,6 @@ export default function Insurances() {
   const [page, setPage] = useState(1);
   const perPage = 10;
   const filtered = useMemo(() => {
-    setPage(1);
     return insurances.filter((i) =>
       `${i.id} ${i.name}`.toLowerCase().includes(q.toLowerCase())
     );
@@ -190,6 +189,24 @@ export default function Insurances() {
   const [editing, setEditing] = useState<InsuranceRef | null>(null);
   const [toDelete, setToDelete] = useState<InsuranceRef | null>(null);
   const [saving, setSaving] = useState(false);
+  // Loading breve para dar feedback al cambiar el filtro o tras crear/editar/eliminar.
+  const [searching, setSearching] = useState(false);
+  const searchTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const flashLoading = useCallback(() => {
+    setSearching(true);
+    if (searchTimeout.current) clearTimeout(searchTimeout.current);
+    searchTimeout.current = setTimeout(() => setSearching(false), 450);
+  }, []);
+  useEffect(() => {
+    return () => {
+      if (searchTimeout.current) clearTimeout(searchTimeout.current);
+    };
+  }, []);
+  // Al cambiar la búsqueda: volver a la primera página y mostrar loading breve.
+  useEffect(() => {
+    setPage(1);
+    flashLoading();
+  }, [q, flashLoading]);
 
   const openEdit = (i: InsuranceRef | null) => {
     setEditing(i);
@@ -219,6 +236,7 @@ export default function Insurances() {
       onClose();
       setEditing(null);
       refetch();
+      flashLoading();
     } catch (err) {
       const isDuplicate =
         err instanceof Error && err.message.startsWith("Error 409");
@@ -239,8 +257,6 @@ export default function Insurances() {
     }
   };
 
-  console.log({ loading });
-
   const totalConsultas = insurerStats.reduce((s, e) => s + e.total, 0);
   const totalUrgencias = insurerStats.reduce((s, e) => s + e.urgencias, 0);
 
@@ -249,7 +265,7 @@ export default function Insurances() {
       title="Seguros médicos"
       subtitle="Directorio de aseguradoras soportadas"
     >
-      {loading && !insurancesData ? (
+      {(loading && !insurancesData) || searching ? (
         <LoadingState label="Cargando seguros médicos…" />
       ) : (
         <>
@@ -331,7 +347,9 @@ export default function Insurances() {
                         </HStack>
                       </Td>
                       <Td isNumeric fontWeight={600}>
-                        {formatNumber(consultationsByInsurance.get(i.name) ?? 0)}
+                        {formatNumber(
+                          consultationsByInsurance.get(i.name) ?? 0
+                        )}
                       </Td>
                       {canEdit && (
                         <Td textAlign="right">
@@ -671,6 +689,7 @@ export default function Insurances() {
             );
             toast.success("Seguro médico eliminado");
             refetch();
+            flashLoading();
           } catch (err) {
             toast.error("No se pudo eliminar el seguro médico", {
               description: err instanceof Error ? err.message : undefined,

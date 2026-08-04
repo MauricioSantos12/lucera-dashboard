@@ -30,7 +30,7 @@ export default function Profile() {
   const [selectedCenters, setSelectedCenters] = useState<string[]>([]);
 
   const showCenters = user?.role === "Admin" || user?.role === "Médico";
-  const centerOptions = centers.map(c => ({ value: c.id, label: c.name }));
+  const centerOptions = centers.map((c) => ({ value: c.id, label: c.name }));
 
   if (!user) return null;
   const initials = user.name
@@ -44,7 +44,7 @@ export default function Profile() {
     updateProfile({ name, email, phone });
     toast.success("Perfil actualizado");
   };
-  console.log({ user });
+
   return (
     <DashboardLayout
       title="Mi perfil"
@@ -113,10 +113,7 @@ export default function Profile() {
             <VStack spacing={4} align="stretch">
               <FormControl isRequired>
                 <FormLabel>Nombre completo</FormLabel>
-                <Input
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                />
+                <Input value={name} onChange={(e) => setName(e.target.value)} />
               </FormControl>
               <SimpleGrid columns={{ base: 1, md: 2 }} spacing={4}>
                 <FormControl isRequired>

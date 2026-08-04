@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useAuth } from "@/lib/auth";
 import { useFetchAll } from "@/hooks/useFetchAll";
 import type {
@@ -78,6 +78,15 @@ export function useStatsFilters() {
   const [insurance, setInsurance] = useState("");
   const [guardianFilter, setGuardianFilter] = useState("");
   const [applied, setApplied] = useState(true);
+  // Loading breve tras aplicar filtros (el filtrado es client-side e instantáneo;
+  // este spinner da feedback visual al presionar "Buscar").
+  const [searching, setSearching] = useState(false);
+  const searchTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    return () => {
+      if (searchTimeout.current) clearTimeout(searchTimeout.current);
+    };
+  }, []);
   // Se incrementa en cada "Buscar" para re-montar los resultados y disparar la
   // animación de entrada (más dinámico al aplicar filtros).
   const [searchTick, setSearchTick] = useState(0);
@@ -179,6 +188,10 @@ export function useStatsFilters() {
     });
     setApplied(true);
     setSearchTick((t) => t + 1);
+    // Muestra el loading ~500ms para dar feedback al aplicar los filtros.
+    setSearching(true);
+    if (searchTimeout.current) clearTimeout(searchTimeout.current);
+    searchTimeout.current = setTimeout(() => setSearching(false), 500);
   };
 
   const canExport = user?.role !== "Invitado";
@@ -202,6 +215,7 @@ export function useStatsFilters() {
     guardianFilter,
     setGuardianFilter,
     applied,
+    searching,
     searchTick,
     snapshot,
     handleSearch,

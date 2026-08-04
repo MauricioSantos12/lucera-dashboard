@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Center, countriesCities } from "@/lib/mockData";
 import { useFetchAll } from "@/hooks/useFetchAll";
@@ -131,9 +131,21 @@ export default function Centers() {
   const [recommended, setRecommended] = useState(false);
   const [country, setCountry] = useState("");
   const [saving, setSaving] = useState(false);
+  // Loading breve para dar feedback al cambiar filtros o tras crear/editar/eliminar.
+  const [searching, setSearching] = useState(false);
+  const searchTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const flashLoading = useCallback(() => {
+    setSearching(true);
+    if (searchTimeout.current) clearTimeout(searchTimeout.current);
+    searchTimeout.current = setTimeout(() => setSearching(false), 450);
+  }, []);
+  useEffect(() => {
+    return () => {
+      if (searchTimeout.current) clearTimeout(searchTimeout.current);
+    };
+  }, []);
 
   const filtered = useMemo(() => {
-    setPage(1);
     return data.filter((c) => {
       const okQ = `${c.name} ${c.city} ${c.address}`
         .toLowerCase()
@@ -144,6 +156,12 @@ export default function Centers() {
       return okQ && okT && okCountry && okCity;
     });
   }, [data, q, type, countryFilter, cityFilter]);
+
+  // Al cambiar filtros: volver a la primera página y mostrar loading breve.
+  useEffect(() => {
+    setPage(1);
+    flashLoading();
+  }, [q, type, countryFilter, cityFilter, flashLoading]);
 
   const totalPages = Math.ceil(filtered.length / perPage);
   const paginated = filtered.slice((page - 1) * perPage, page * perPage);
@@ -190,6 +208,7 @@ export default function Centers() {
       onClose();
       setEditing(null);
       refetchCenters();
+      flashLoading();
     } catch (err) {
       toast.error(
         editing ? "No se pudo actualizar el centro" : "No se pudo crear el centro",
@@ -306,7 +325,7 @@ export default function Centers() {
           )}
         </Flex>
 
-        {centersLoading && !centersData ? (
+        {(centersLoading && !centersData) || searching ? (
           <LoadingState label="Cargando centros…" />
         ) : (
           <>
@@ -542,6 +561,7 @@ export default function Centers() {
             );
             toast.success("Centro eliminado");
             refetchCenters();
+            flashLoading();
           } catch (err) {
             toast.error("No se pudo eliminar el centro", {
               description: err instanceof Error ? err.message : undefined,

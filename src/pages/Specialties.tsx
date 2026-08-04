@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { useAuth } from "@/lib/auth";
 import { useFetchAll } from "@/hooks/useFetchAll";
@@ -75,7 +75,6 @@ export default function Specialties() {
   const [page, setPage] = useState(1);
   const perPage = 10;
   const filtered = useMemo(() => {
-    setPage(1);
     return specialties.filter((s) =>
       `${s.id} ${s.name}`.toLowerCase().includes(q.toLowerCase())
     );
@@ -87,6 +86,24 @@ export default function Specialties() {
   const [editing, setEditing] = useState<SpecialtyApi | null>(null);
   const [toDelete, setToDelete] = useState<SpecialtyApi | null>(null);
   const [saving, setSaving] = useState(false);
+  // Loading breve para dar feedback al cambiar el filtro o tras crear/editar/eliminar.
+  const [searching, setSearching] = useState(false);
+  const searchTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const flashLoading = useCallback(() => {
+    setSearching(true);
+    if (searchTimeout.current) clearTimeout(searchTimeout.current);
+    searchTimeout.current = setTimeout(() => setSearching(false), 450);
+  }, []);
+  useEffect(() => {
+    return () => {
+      if (searchTimeout.current) clearTimeout(searchTimeout.current);
+    };
+  }, []);
+  // Al cambiar la búsqueda: volver a la primera página y mostrar loading breve.
+  useEffect(() => {
+    setPage(1);
+    flashLoading();
+  }, [q, flashLoading]);
 
   const openEdit = (s: SpecialtyApi | null) => {
     setEditing(s);
@@ -116,6 +133,7 @@ export default function Specialties() {
       onClose();
       setEditing(null);
       refetch();
+      flashLoading();
     } catch (err) {
       const isDuplicate =
         err instanceof Error && err.message.startsWith("Error 409");
@@ -182,7 +200,7 @@ export default function Specialties() {
           </HStack>
         </Flex>
 
-        {loading && !specialtiesData ? (
+        {(loading && !specialtiesData) || searching ? (
           <LoadingState label="Cargando especialidades…" />
         ) : (
           <>
@@ -320,6 +338,7 @@ export default function Specialties() {
             );
             toast.success("Especialidad eliminada");
             refetch();
+            flashLoading();
           } catch (err) {
             const inUse =
               err instanceof Error && err.message.startsWith("Error 409");

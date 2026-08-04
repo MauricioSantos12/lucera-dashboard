@@ -202,6 +202,7 @@ export default function Statistics() {
     realPatients,
     statsLoading,
     applied,
+    searching,
     searchTick,
     snapshot,
     filteredGuardians,
@@ -416,13 +417,13 @@ export default function Statistics() {
         </Flex>
       )}
 
-      {/* Cargando estadísticas */}
-      {applied && statsLoading && (
+      {/* Cargando estadísticas (fetch inicial o al aplicar filtros) */}
+      {applied && (statsLoading || searching) && (
         <LoadingState label="Cargando estadísticas…" />
       )}
 
       {/* Con filtros aplicados */}
-      {applied && !statsLoading && (
+      {applied && !statsLoading && !searching && (
         <MotionBox
           key={searchTick}
           initial={{ opacity: 0, y: 14 }}

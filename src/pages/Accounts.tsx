@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { useAuth } from "@/lib/auth";
 import { useFetchAll } from "@/hooks/useFetchAll";
@@ -63,6 +63,15 @@ export default function Accounts() {
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [page, setPage] = useState(1);
+  // Loading breve al cambiar filtros (el filtrado es client-side e instantáneo;
+  // da feedback visual). Se debouncea para que no parpadee en cada tecla.
+  const [searching, setSearching] = useState(false);
+  const searchTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    return () => {
+      if (searchTimeout.current) clearTimeout(searchTimeout.current);
+    };
+  }, []);
 
   // Opciones de rol derivadas de la data real.
   const roleOptions = useMemo(
@@ -87,9 +96,13 @@ export default function Accounts() {
     });
   }, [users, q, roleFilter, statusFilter, dateFrom, dateTo]);
 
-  // Al cambiar cualquier filtro, se vuelve a la primera página.
+  // Al cambiar cualquier filtro: volver a la primera página y mostrar un
+  // loading breve (~400ms, debounceado) para dar feedback.
   useEffect(() => {
     setPage(1);
+    setSearching(true);
+    if (searchTimeout.current) clearTimeout(searchTimeout.current);
+    searchTimeout.current = setTimeout(() => setSearching(false), 400);
   }, [q, roleFilter, statusFilter, dateFrom, dateTo]);
 
   const totalPages = Math.ceil(filtered.length / PER_PAGE);
@@ -199,7 +212,7 @@ export default function Accounts() {
           />
         </Flex>
 
-        {loading && !usersData ? (
+        {(loading && !usersData) || searching ? (
           <LoadingState label="Cargando usuarios…" />
         ) : (
           <>

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Child } from "@/lib/mockData";
@@ -225,6 +225,19 @@ export default function Children() {
   const [toDelete, setToDelete] = useState<Row | null>(null);
   const [detail, setDetail] = useState<Row | null>(null);
   const [saving, setSaving] = useState(false);
+  // Loading breve para dar feedback al cambiar filtros o tras crear/editar/eliminar.
+  const [searching, setSearching] = useState(false);
+  const searchTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const flashLoading = useCallback(() => {
+    setSearching(true);
+    if (searchTimeout.current) clearTimeout(searchTimeout.current);
+    searchTimeout.current = setTimeout(() => setSearching(false), 450);
+  }, []);
+  useEffect(() => {
+    return () => {
+      if (searchTimeout.current) clearTimeout(searchTimeout.current);
+    };
+  }, []);
   // Filtro por acudiente dentro del detalle del niño (null = "Todos").
   const [selectedGuardian, setSelectedGuardian] = useState<string | null>(null);
 
@@ -267,7 +280,6 @@ export default function Children() {
   );
 
   const filtered = useMemo(() => {
-    setPage(1);
     return data.filter((r) => {
       const okQ = `${r.name} ${r.guardianName} ${r.id}`
         .toLowerCase()
@@ -326,6 +338,22 @@ export default function Children() {
     conditionsFilter,
     countryFilter,
     insuranceFilter,
+  ]);
+
+  // Al cambiar filtros: volver a la primera página y mostrar loading breve.
+  useEffect(() => {
+    setPage(1);
+    flashLoading();
+  }, [
+    q,
+    filter,
+    bloodTypeFilter,
+    weightFilter,
+    allergiesFilter,
+    conditionsFilter,
+    countryFilter,
+    insuranceFilter,
+    flashLoading,
   ]);
 
   const totalPages = Math.ceil(filtered.length / perPage);
@@ -395,6 +423,7 @@ export default function Children() {
       onClose();
       setEditing(null);
       refetchPatients();
+      flashLoading();
     } catch (err) {
       toast.error(
         editing
@@ -581,7 +610,8 @@ export default function Children() {
         </Flex>
 
         {(patientsLoading && !patientsData) ||
-        (guardiansLoading && !guardiansData) ? (
+        (guardiansLoading && !guardiansData) ||
+        searching ? (
           <LoadingState label="Cargando niños…" />
         ) : (
           <>
@@ -1232,6 +1262,7 @@ export default function Children() {
             );
             toast.success("Niño eliminado");
             refetchPatients();
+            flashLoading();
           } catch (err) {
             toast.error("No se pudo eliminar el niño", {
               description: err instanceof Error ? err.message : undefined,
