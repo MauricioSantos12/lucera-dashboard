@@ -22,7 +22,7 @@ import logoVertical from "@/assets/lucera-vertical.jpg";
 import logoSymbol from "@/assets/lucera-symbol.jpg";
 import { toast } from "@/lib/toast";
 import { BACKEND_URL } from "@/lib/config";
-import type { LoginResponse } from "@/lib/apiTypes";
+import type { LoginResponse, GuardianLoginResponse } from "@/lib/apiTypes";
 
 // Paso de verificación por código oculto temporalmente (no eliminado).
 // Controlado por VITE_REQUIRE_MFA_CODE en .env; cambia a "true" para reactivarlo.
@@ -45,38 +45,71 @@ export default function Login() {
   const handleCreds = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+    const identifier = email.trim();
     try {
+      // Login unificado: primero como operador (/auth/login por correo). Si
+      // falla, se intenta como acudiente (/auth/guardian/login por teléfono),
+      // usando el mismo valor. El usuario no elige el tipo de cuenta.
       const res = await fetch(`${BACKEND_URL}/auth/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ email: identifier, password }),
       });
-      if (!res.ok) {
-        throw new Error("Correo o contraseña incorrectos");
-      }
-      const data: LoginResponse = await res.json();
-      const acc: AuthUser = {
-        email: data.user.email,
-        name: data.user.name,
-        role: roleFromApi(data.user.role),
-        id: data.user.id,
-      };
-      setLoading(false);
-      if (!REQUIRE_MFA_CODE) {
-        login(acc, data.access_token, data.refresh_token, data.expires_in);
-        toast.success(`Bienvenido(a), ${acc.name}`);
+
+      if (res.ok) {
+        const data: LoginResponse = await res.json();
+        const acc: AuthUser = {
+          email: data.user.email,
+          name: data.user.name,
+          role: roleFromApi(data.user.role),
+          id: data.user.id,
+          mustChangePassword: data.user.mustChangePassword,
+        };
+        setLoading(false);
+        if (!REQUIRE_MFA_CODE) {
+          login(acc, data.access_token, data.refresh_token, data.expires_in);
+          toast.success(`Bienvenido(a), ${acc.name}`);
+          return;
+        }
+        setPendingAuth({
+          user: acc,
+          accessToken: data.access_token,
+          refreshToken: data.refresh_token,
+          expiresIn: data.expires_in,
+        });
+        setStep("mfa");
+        toast.success("Código de verificación enviado por mail", {
+          description: `Revisa tu correo ${acc.email}`,
+        });
         return;
       }
-      setPendingAuth({
-        user: acc,
-        accessToken: data.access_token,
-        refreshToken: data.refresh_token,
-        expiresIn: data.expires_in,
+
+      // Fallback: acudiente del portal (login por teléfono, token scope=portal).
+      const gRes = await fetch(`${BACKEND_URL}/auth/guardian/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone: identifier, password }),
       });
-      setStep("mfa");
-      toast.success("Código de verificación enviado por mail", {
-        description: `Revisa tu correo ${acc.email}`,
-      });
+      if (!gRes.ok) {
+        throw new Error("Correo/teléfono o contraseña incorrectos");
+      }
+      const gData: GuardianLoginResponse = await gRes.json();
+      const gAcc: AuthUser = {
+        email: gData.user?.email ?? "",
+        name: gData.user?.name ?? "Acudiente",
+        role: roleFromApi(gData.user?.role ?? "Guardian"),
+        id: gData.user?.id ?? gData.user?.gid ?? "",
+        phone: gData.user?.phone ?? identifier,
+        isPortal: true,
+      };
+      setLoading(false);
+      login(
+        gAcc,
+        gData.access_token,
+        gData.refresh_token,
+        gData.expires_in ?? 3600
+      );
+      toast.success(`Bienvenido(a), ${gAcc.name}`);
     } catch (err) {
       setLoading(false);
       toast.error("No se pudo iniciar sesión", {
@@ -142,7 +175,7 @@ export default function Login() {
               textTransform="uppercase"
               opacity={0.75}
             >
-              Atención pediátrica
+              Teleorientación pediátrica
             </Text>
           </Box>
         </HStack>
@@ -154,7 +187,7 @@ export default function Login() {
             lineHeight={1.1}
             color="white"
           >
-            Atención pediátrica
+            Teleorientación pediátrica
             <br />
             <Text as="span" color="naranja.300">
               accesible y segura
@@ -167,7 +200,9 @@ export default function Login() {
           </Text>
         </VStack>
         <Text fontSize="xs" opacity={0.6} position="relative">
-          Cumple con la Ley 81 de Protección de Datos Personales · Panamá
+          Lucera es un servicio de teleorientación en salud, conforma a la Ley
+          203 de 2021. Protegemos los datos de acuerdo a la Ley 81 de 2019 de
+          Protección de Datos Personales
         </Text>
       </Flex>
 
@@ -201,7 +236,8 @@ export default function Login() {
                 <FormControl isRequired>
                   <FormLabel>Correo</FormLabel>
                   <Input
-                    type="email"
+                    type="text"
+                    autoComplete="username"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                   />
@@ -274,7 +310,7 @@ export default function Login() {
                     justify="center"
                     mb={4}
                   >
-                    <Smartphone size={22} color="#ef7d54" />
+                    <Smartphone size={22} color="#f08159" />
                   </Flex>
                   <Heading size="lg">Verificación by Email</Heading>
                   <Text fontSize="sm" color="lucera.textMuted" mt={1}>

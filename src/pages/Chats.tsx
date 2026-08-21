@@ -63,7 +63,7 @@ import { ChatNoteModal } from "@/components/ChatNoteModal";
 
 const triageColors: Record<ChatApi["triage"], string> = {
   general: "#2f9e6b",
-  urgent: "#f8cc37",
+  urgent: "#f6ca35",
   emergency: "#b91c1c",
 };
 
@@ -166,7 +166,7 @@ function InfoSection({
     <Box mb={5}>
       <HStack spacing={2} mb={2} justify="space-between">
         <HStack spacing={2}>
-          <Icon size={14} color="#6d122b" />
+          <Icon size={14} color="#6c122b" />
           <Text
             fontSize="10px"
             fontWeight={700}

@@ -256,7 +256,7 @@ export default function Medications() {
                         align="center"
                         justify="center"
                       >
-                        <Pill size={14} color="#ef7d54" />
+                        <Pill size={14} color="#f08159" />
                       </Flex>
                       <Box>
                         <Text fontSize="sm" fontWeight={600}>

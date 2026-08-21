@@ -111,7 +111,7 @@ export default function MySubscription() {
             <Heading size="lg" fontFamily="heading" color="white">
               <HStack>
                 <Text>{guardian.plan}</Text>
-                {guardian.plan !== "Gratuito" && <Crown size={20} color="#f8cc37" />}
+                {guardian.plan !== "Gratuito" && <Crown size={20} color="#f6ca35" />}
               </HStack>
             </Heading>
             <Text opacity={0.7} fontSize="sm" mt={1}>

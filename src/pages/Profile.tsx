@@ -10,24 +10,71 @@ import {
   FormLabel,
   HStack,
   Input,
+  Modal,
+  ModalBody,
+  ModalCloseButton,
+  ModalContent,
+  ModalFooter,
+  ModalHeader,
+  ModalOverlay,
   SimpleGrid,
   Text,
   VStack,
   Badge,
   Heading,
+  useDisclosure,
 } from "@chakra-ui/react";
 import { ShieldCheck, Save } from "lucide-react";
 import { StatCard } from "@/components/StatCard";
 import { MultiSelect } from "@/components/MultiSelect";
 import { centers } from "@/lib/mockData";
 import { toast } from "@/lib/toast";
+import { changePassword } from "@/lib/passwordApi";
+
+const MIN_LENGTH = 8;
 
 export default function Profile() {
-  const { user, updateProfile } = useAuth();
+  const { user, updateProfile, getValidToken, applyPasswordChanged } = useAuth();
   const [name, setName] = useState(user?.name ?? "");
   const [email, setEmail] = useState(user?.email ?? "");
   const [phone, setPhone] = useState(user?.phone ?? "");
   const [selectedCenters, setSelectedCenters] = useState<string[]>([]);
+
+  // Modal de cambio de contraseña voluntario.
+  const pwd = useDisclosure();
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirm, setConfirm] = useState("");
+  const [savingPwd, setSavingPwd] = useState(false);
+
+  const submitPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (newPassword.length < MIN_LENGTH) {
+      toast.error(`La nueva contraseña debe tener al menos ${MIN_LENGTH} caracteres`);
+      return;
+    }
+    if (newPassword !== confirm) {
+      toast.error("La confirmación no coincide con la nueva contraseña");
+      return;
+    }
+    setSavingPwd(true);
+    try {
+      const token = await getValidToken();
+      const res = await changePassword(currentPassword, newPassword, token);
+      applyPasswordChanged(res.access_token, res.refresh_token);
+      toast.success("Contraseña actualizada");
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirm("");
+      pwd.onClose();
+    } catch (err) {
+      toast.error("No se pudo cambiar la contraseña", {
+        description: err instanceof Error ? err.message : undefined,
+      });
+    } finally {
+      setSavingPwd(false);
+    }
+  };
 
   const showCenters = user?.role === "Admin" || user?.role === "Médico";
   const centerOptions = centers.map((c) => ({ value: c.id, label: c.name }));
@@ -151,14 +198,7 @@ export default function Profile() {
                 >
                   Guardar cambios
                 </Button>
-                <Button
-                  variant="outline"
-                  onClick={() =>
-                    toast.info(
-                      "Enlace de cambio de contraseña enviado por email"
-                    )
-                  }
-                >
+                <Button variant="outline" onClick={pwd.onOpen}>
                   Cambiar contraseña
                 </Button>
               </HStack>
@@ -166,6 +206,58 @@ export default function Profile() {
           </Box>
         </StatCard>
       </SimpleGrid>
+
+      <Modal isOpen={pwd.isOpen} onClose={pwd.onClose} size="md">
+        <ModalOverlay />
+        <ModalContent>
+          <ModalHeader>Cambiar contraseña</ModalHeader>
+          <ModalCloseButton />
+          <form onSubmit={submitPassword}>
+            <ModalBody>
+              <VStack spacing={4} align="stretch">
+                <FormControl isRequired>
+                  <FormLabel>Contraseña actual</FormLabel>
+                  <Input
+                    type="password"
+                    value={currentPassword}
+                    onChange={(e) => setCurrentPassword(e.target.value)}
+                  />
+                </FormControl>
+                <FormControl isRequired>
+                  <FormLabel>Nueva contraseña</FormLabel>
+                  <Input
+                    type="password"
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    placeholder={`Mínimo ${MIN_LENGTH} caracteres`}
+                  />
+                </FormControl>
+                <FormControl isRequired>
+                  <FormLabel>Confirmar nueva contraseña</FormLabel>
+                  <Input
+                    type="password"
+                    value={confirm}
+                    onChange={(e) => setConfirm(e.target.value)}
+                  />
+                </FormControl>
+              </VStack>
+            </ModalBody>
+            <ModalFooter>
+              <Button
+                variant="outline"
+                mr={2}
+                onClick={pwd.onClose}
+                isDisabled={savingPwd}
+              >
+                Cancelar
+              </Button>
+              <Button type="submit" colorScheme="vino" isLoading={savingPwd}>
+                Guardar
+              </Button>
+            </ModalFooter>
+          </form>
+        </ModalContent>
+      </Modal>
     </DashboardLayout>
   );
 }

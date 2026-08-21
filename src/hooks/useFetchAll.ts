@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useAuth } from "@/lib/auth";
 import { BACKEND_URL } from "@/lib/config";
+import { toApiError } from "@/lib/apiError";
 import type { PaginatedResponse } from "@/lib/apiTypes";
 
 type State<T> = {
@@ -39,7 +40,7 @@ export function useFetchAll<T>(basePath: string | null) {
           { headers }
         );
         if (!res.ok) {
-          throw new Error(`Error ${res.status}: ${res.statusText}`);
+          throw await toApiError(res);
         }
         return (await res.json()) as PaginatedResponse<T>;
       };

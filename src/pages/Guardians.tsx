@@ -7,12 +7,18 @@ import { useFetchAll } from "@/hooks/useFetchAll";
 import { useGeo } from "@/hooks/useGeo";
 import { apiFetch } from "@/lib/apiClient";
 import {
+  planLabelEs,
+  PLAN_TIERS,
+  ACCEPTED_PLANS,
+  emptyChild,
+  type ChildForm,
+} from "@/lib/guardianForm";
+import {
   relationToEs,
   relationToApi,
   statusToEs,
   statusToApi,
   planToEs,
-  planToApi,
   countryApiToEs,
   countryEsToApi,
   chatTriageToLevel,
@@ -23,6 +29,8 @@ import type {
   GuardianApi,
   GuardianPatchPayload,
   GuardianCreatePayload,
+  PatientApi,
+  PatientCreatePayload,
   InsuranceRef,
   ChatApi,
   PlanApi,
@@ -74,6 +82,7 @@ import {
   MessageSquare,
   ChevronRight,
   Eye,
+  KeyRound,
 } from "lucide-react";
 import { TriageBadge } from "@/components/TriageBadge";
 import { StatCard } from "@/components/StatCard";
@@ -81,11 +90,13 @@ import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { Pagination } from "@/components/Pagination";
 import { LoadingState } from "@/components/LoadingState";
 import { ExportButton } from "@/components/ExportButton";
+import { GuardianPortalModal } from "@/components/GuardianPortalModal";
 import { toast } from "@/lib/toast";
 import { chatStatusLabel } from "./Children";
 
 const statusTone = (status: Guardian["status"]) =>
   status === "activa" ? "green" : status === "suspendida" ? "yellow" : "red";
+
 
 function guardianApiToRow(g: GuardianApi): Guardian {
   return {
@@ -106,6 +117,7 @@ function guardianApiToRow(g: GuardianApi): Guardian {
     idNumber: g.idNumber,
     address: g.address,
     province: g.province,
+    planApi: g.plan,
     chats: g.chats,
     children: g.children.map(
       (c): Child => ({
@@ -177,10 +189,18 @@ export default function Guardians() {
   const [editing, setEditing] = useState<Guardian | null>(null);
   const [toDelete, setToDelete] = useState<Guardian | null>(null);
   const [detail, setDetail] = useState<Guardian | null>(null);
+  const [portalGuardian, setPortalGuardian] = useState<{
+    id: string;
+    name: string;
+  } | null>(null);
   const [selectedChild, setSelectedChild] = useState<string | null>(null);
   const [country, setCountry] = useState("");
   const [province, setProvince] = useState("");
   const [gender, setGender] = useState("");
+  // Estado del formulario de creación/edición: plan (tier), ciclo de cobro y
+  // los hijos a crear (solo en creación).
+  const [plan, setPlan] = useState("free");
+  const [childForms, setChildForms] = useState<ChildForm[]>([]);
   const [saving, setSaving] = useState(false);
   // Loading breve para dar feedback al cambiar filtros o tras crear/editar.
   const [searching, setSearching] = useState(false);
@@ -274,6 +294,8 @@ export default function Guardians() {
     setCountry(g?.country ?? "");
     setProvince(g?.province ?? "");
     setGender(genderToValue(g?.gender));
+    setPlan(g?.planApi ?? "free");
+    setChildForms([]); // los hijos solo se agregan al crear
     onOpen();
   };
 
@@ -288,6 +310,8 @@ export default function Guardians() {
       setCountry(row.country ?? "");
       setProvince(row.province ?? "");
       setGender(genderToValue(row?.gender));
+      setPlan(row.planApi ?? "free");
+      setChildForms([]);
       onOpen();
       setSearchParams({}, { replace: true });
     }
@@ -297,8 +321,9 @@ export default function Guardians() {
     const fd = new FormData(form);
 
     if (!editing) {
-      // name/phone/email son obligatorios; el resto es opcional. Si "plan"
-      // es un plan pago, el backend registra el pago correspondiente.
+      // name/phone/email son obligatorios; el resto es opcional. El plan sale
+      // del selector de tarjetas. Los hijos se crean aparte (POST /api/patients)
+      // porque el alta del acudiente no los acepta anidados.
       const insuranceIdNew = String(fd.get("insurance") || "");
       const policyNumberNew = String(fd.get("policyNumber") || "");
       const payload: GuardianCreatePayload = {
@@ -312,22 +337,70 @@ export default function Guardians() {
         province: province || undefined,
         address: String(fd.get("address") || "") || undefined,
         status: statusToApi[fd.get("status") as AccountStatus],
-        plan: (String(fd.get("plan") || "") || undefined) as
-          | PlanApi
-          | undefined,
+        plan: (plan || undefined) as PlanApi | undefined,
         gender: gender || undefined,
         insuranceId: insuranceIdNew ? Number(insuranceIdNew) : undefined,
         policyNumber: policyNumberNew || undefined,
+        medico_cabecera_nombre:
+          String(fd.get("medico_cabecera_nombre") || "") || undefined,
+        medico_cabecera_celular:
+          String(fd.get("medico_cabecera_celular") || "") || undefined,
       };
+
+      // Solo los hijos con nombre y fecha de nacimiento se envían.
+      const validChildren = childForms.filter(
+        (c) => c.name.trim() && c.birthDate
+      );
 
       setSaving(true);
       try {
         const freshToken = await getValidToken();
-        await apiFetch<GuardianApi>("/api/guardians", freshToken, {
-          method: "POST",
-          body: JSON.stringify(payload),
-        });
-        toast.success("Acudiente creado");
+        const created = await apiFetch<GuardianApi>(
+          "/api/guardians",
+          freshToken,
+          { method: "POST", body: JSON.stringify(payload) }
+        );
+
+        let childFailures = 0;
+        for (const c of validChildren) {
+          const childPayload: PatientCreatePayload = {
+            guardianId: created.id,
+            name: c.name.trim(),
+            birthDate: c.birthDate,
+            weightKg: c.weightKg ? Number(c.weightKg) : undefined,
+            idNumber: c.idNumber.trim() || undefined,
+            school: c.school.trim() || undefined,
+            allergies: c.allergies
+              .split(",")
+              .map((s) => s.trim())
+              .filter(Boolean),
+            conditions: c.conditions
+              .split(",")
+              .map((s) => s.trim())
+              .filter(Boolean),
+          };
+          try {
+            await apiFetch<PatientApi>("/api/patients", freshToken, {
+              method: "POST",
+              body: JSON.stringify(childPayload),
+            });
+          } catch {
+            childFailures++;
+          }
+        }
+
+        if (childFailures > 0) {
+          toast.error(
+            `Acudiente creado, pero ${childFailures} hijo(s) no se pudieron registrar`,
+            { description: "Puedes agregarlos luego desde la sección Niños." }
+          );
+        } else {
+          toast.success(
+            validChildren.length
+              ? `Acudiente creado con ${validChildren.length} hijo(s)`
+              : "Acudiente creado"
+          );
+        }
         onClose();
         setEditing(null);
         refetchGuardians();
@@ -362,10 +435,14 @@ export default function Guardians() {
       idNumber: String(fd.get("idNumber") || "") || undefined,
       relationship: relationToApi[fd.get("relationship") as Relationship],
       status: statusToApi[fd.get("status") as AccountStatus],
-      plan: (String(fd.get("plan") || "") || undefined) as PlanApi | undefined,
+      plan: (plan || undefined) as PlanApi | undefined,
       insuranceId: insuranceId ? Number(insuranceId) : undefined,
       policyNumber: policyNumber || undefined,
       gender: gender || undefined,
+      medico_cabecera_nombre:
+        String(fd.get("medico_cabecera_nombre") || "") || undefined,
+      medico_cabecera_celular:
+        String(fd.get("medico_cabecera_celular") || "") || undefined,
     };
 
     setSaving(true);
@@ -388,6 +465,14 @@ export default function Guardians() {
       setSaving(false);
     }
   };
+
+  const addChild = () => setChildForms((prev) => [...prev, emptyChild()]);
+  const removeChild = (i: number) =>
+    setChildForms((prev) => prev.filter((_, idx) => idx !== i));
+  const updateChild = (i: number, patch: Partial<ChildForm>) =>
+    setChildForms((prev) =>
+      prev.map((c, idx) => (idx === i ? { ...c, ...patch } : c))
+    );
 
   return (
     <DashboardLayout title="Acudientes (Tutores)" subtitle="Cuentas titulares">
@@ -503,7 +588,7 @@ export default function Guardians() {
               Estado: g.status,
               Niños: g.children.length,
               Chats: chatCountOf(g),
-              Registrado: g.registeredAt,
+              "Fecha de creación": g.registeredAt ? g.registeredAt.slice(0, 10) : "",
             }))}
           />
           {canEdit && (
@@ -547,6 +632,7 @@ export default function Guardians() {
                     <Th>Plan</Th>
                     <Th display={{ base: "none", md: "table-cell" }}>Seguro</Th>
                     <Th>Estado</Th>
+                    <Th display={{ base: "none", lg: "table-cell" }}>Creación</Th>
                     <Th textAlign="right">Acciones</Th>
                   </Tr>
                 </Thead>
@@ -584,7 +670,7 @@ export default function Guardians() {
                             justify="center"
                             flexShrink={0}
                           >
-                            <UsersIcon size={14} color="#6d122b" />
+                            <UsersIcon size={14} color="#6c122b" />
                           </Flex>
                           <Box>
                             <Text
@@ -651,7 +737,9 @@ export default function Guardians() {
                         </Badge>
                       </Td>
                       <Td>
-                        <Badge variant="outline">{g.plan}</Badge>
+                        <Badge variant="outline">
+                          {planLabelEs[g.planApi ?? ""] ?? g.plan}
+                        </Badge>
                       </Td>
                       <Td
                         display={{ base: "none", md: "table-cell" }}
@@ -673,6 +761,14 @@ export default function Guardians() {
                           {g.status}
                         </Badge>
                       </Td>
+                      <Td
+                        display={{ base: "none", lg: "table-cell" }}
+                        fontSize="xs"
+                        color="lucera.textMuted"
+                        sx={{ fontVariantNumeric: "tabular-nums" }}
+                      >
+                        {g.registeredAt ? g.registeredAt.slice(0, 10) : "—"}
+                      </Td>
                       <Td textAlign="right">
                         {canEdit && (
                           <IconButton
@@ -685,6 +781,15 @@ export default function Guardians() {
                         )}
                         {canEdit && (
                           <>
+                            <IconButton
+                              aria-label="Acceso al portal"
+                              size="sm"
+                              variant="ghost"
+                              icon={<KeyRound size={14} />}
+                              onClick={() =>
+                                setPortalGuardian({ id: g.id, name: g.name })
+                              }
+                            />
                             <IconButton
                               aria-label="Editar"
                               size="sm"
@@ -731,7 +836,7 @@ export default function Guardians() {
         <ModalContent>
           <ModalHeader>
             <HStack spacing={2}>
-              <UsersIcon size={18} color="#6d122b" />
+              <UsersIcon size={18} color="#6c122b" />
               <Text>{detail?.name}</Text>
             </HStack>
           </ModalHeader>
@@ -818,7 +923,7 @@ export default function Guardians() {
 
                 <Divider mb={3} />
                 <HStack mb={3} spacing={2}>
-                  <MessageSquare size={15} color="#6d122b" />
+                  <MessageSquare size={15} color="#6c122b" />
                   <Text fontSize="sm" fontWeight={700}>
                     Chats{selectedChild ? ` · ${selectedChild}` : ""} (
                     {detailChats.length})
@@ -1070,7 +1175,7 @@ export default function Guardians() {
                     name="gender"
                     value={gender}
                     onChange={(e) => setGender(e.target.value)}
-                    placeholder="Seleccionar género"
+                    placeholder="Prefiero no decir"
                   >
                     <option value="female">Femenino</option>
                     <option value="male">Masculino</option>
@@ -1083,6 +1188,20 @@ export default function Guardians() {
                     name="address"
                     placeholder="Calle, edificio, referencia…"
                     defaultValue={editing?.address ?? undefined}
+                  />
+                </FormControl>
+                <FormControl>
+                  <FormLabel>Pediatra de cabecera (opcional)</FormLabel>
+                  <Input
+                    name="medico_cabecera_nombre"
+                    placeholder="Nombre del pediatra"
+                  />
+                </FormControl>
+                <FormControl>
+                  <FormLabel>Celular del pediatra</FormLabel>
+                  <Input
+                    name="medico_cabecera_celular"
+                    placeholder="Celular"
                   />
                 </FormControl>
                 <FormControl>
@@ -1107,24 +1226,34 @@ export default function Guardians() {
                     defaultValue={editing ? undefined : ""}
                   />
                 </FormControl>
-                <FormControl>
-                  <FormLabel>Plan</FormLabel>
-                  <Select
-                    name="plan"
-                    defaultValue={editing ? planToApi[editing.plan] : "free"}
-                  >
-                    {(
-                      ["free", "premium_monthly", "premium_annual"] as const
-                    ).map((p) => (
-                      <option key={p} value={p}>
-                        {planToEs[p]}
-                      </option>
-                    ))}
-                  </Select>
-                  <Text fontSize="xs" color="lucera.textMuted" mt={1}>
-                    Un plan pago registra el pago correspondiente.
-                  </Text>
-                </FormControl>
+                {editing && (
+                  <FormControl>
+                    <FormLabel>Plan</FormLabel>
+                    <Select
+                      value={plan}
+                      onChange={(e) => setPlan(e.target.value)}
+                    >
+                      {/* El plan actual, si es un valor legacy (1_hijo, …) que el
+                          backend ya no acepta, se muestra pero al guardar hay que
+                          elegir uno válido. */}
+                      {(ACCEPTED_PLANS as readonly string[]).includes(plan)
+                        ? null
+                        : plan && (
+                            <option value={plan}>
+                              {planLabelEs[plan] ?? plan} (actual)
+                            </option>
+                          )}
+                      {ACCEPTED_PLANS.map((value) => (
+                        <option key={value} value={value}>
+                          {planLabelEs[value] ?? value}
+                        </option>
+                      ))}
+                    </Select>
+                    <Text fontSize="xs" color="lucera.textMuted" mt={1}>
+                      Un plan pago registra el pago correspondiente.
+                    </Text>
+                  </FormControl>
+                )}
                 <FormControl>
                   <FormLabel>Estado</FormLabel>
                   <Select
@@ -1137,6 +1266,186 @@ export default function Guardians() {
                   </Select>
                 </FormControl>
               </SimpleGrid>
+
+              {!editing && (
+                <>
+                  {/* Elige tu plan */}
+                  <Divider my={5} borderColor="lucera.borderSoft" />
+                  <Text fontSize="sm" fontWeight={700} color="vino.500" mb={1}>
+                    Elige tu plan
+                  </Text>
+                  <Text fontSize="xs" color="lucera.textMuted" mb={3}>
+                    Puedes cambiarlo luego.
+                  </Text>
+                  <VStack align="stretch" spacing={2}>
+                    {PLAN_TIERS.map((t) => {
+                      const active = plan === t.value;
+                      return (
+                        <Flex
+                          key={t.value}
+                          as="button"
+                          type="button"
+                          onClick={() => setPlan(t.value)}
+                          justify="space-between"
+                          align="center"
+                          px={4}
+                          py={3}
+                          borderWidth="1px"
+                          borderRadius="md"
+                          textAlign="left"
+                          borderColor={active ? "vino.500" : "lucera.border"}
+                          bg={active ? "naranja.50" : "white"}
+                          _hover={active ? undefined : { bg: "crema.50" }}
+                          transition="all 120ms"
+                        >
+                          <Box>
+                            <Text fontWeight={700} fontSize="sm">
+                              {t.label}
+                            </Text>
+                            <Text fontSize="xs" color="lucera.textMuted">
+                              {t.hint}
+                            </Text>
+                          </Box>
+                          <Box textAlign="right">
+                            <Text fontWeight={700} color="vino.500">
+                              ${t.price}
+                            </Text>
+                            <Text fontSize="xs" color="lucera.textMuted">
+                              {t.period}
+                            </Text>
+                          </Box>
+                        </Flex>
+                      );
+                    })}
+                  </VStack>
+
+                  {/* Tus hijos */}
+                  <Divider my={5} borderColor="lucera.borderSoft" />
+                  <Text fontSize="sm" fontWeight={700} color="vino.500" mb={1}>
+                    Tus hijos
+                  </Text>
+                  <Text fontSize="xs" color="lucera.textMuted" mb={3}>
+                    Opcional — puedes agregarlos ahora o más tarde. Los hijos se
+                    editan luego desde la sección Niños.
+                  </Text>
+                  <VStack align="stretch" spacing={3}>
+                    {childForms.map((c, i) => (
+                      <Box
+                        key={i}
+                        borderWidth="1px"
+                        borderStyle="dashed"
+                        borderColor="lucera.border"
+                        borderRadius="md"
+                        p={3}
+                      >
+                        <Flex justify="flex-end" mb={1}>
+                          <Button
+                            size="xs"
+                            variant="ghost"
+                            colorScheme="red"
+                            leftIcon={<Trash2 size={12} />}
+                            onClick={() => removeChild(i)}
+                          >
+                            quitar
+                          </Button>
+                        </Flex>
+                        <SimpleGrid columns={2} spacing={3}>
+                          <FormControl gridColumn="span 2">
+                            <FormLabel>Nombre</FormLabel>
+                            <Input
+                              placeholder="Nombre del hijo/a"
+                              value={c.name}
+                              onChange={(e) =>
+                                updateChild(i, { name: e.target.value })
+                              }
+                            />
+                          </FormControl>
+                          <FormControl>
+                            <FormLabel>Fecha de nacimiento</FormLabel>
+                            <Input
+                              type="date"
+                              value={c.birthDate}
+                              onChange={(e) =>
+                                updateChild(i, { birthDate: e.target.value })
+                              }
+                            />
+                          </FormControl>
+                          <FormControl>
+                            <FormLabel>Peso (kg)</FormLabel>
+                            <Input
+                              type="number"
+                              step="0.1"
+                              min="0"
+                              placeholder="0"
+                              value={c.weightKg}
+                              onChange={(e) =>
+                                updateChild(i, { weightKg: e.target.value })
+                              }
+                            />
+                          </FormControl>
+                          <FormControl>
+                            <FormLabel>Cédula / documento</FormLabel>
+                            <Input
+                              placeholder="Documento del paciente"
+                              value={c.idNumber}
+                              onChange={(e) =>
+                                updateChild(i, { idNumber: e.target.value })
+                              }
+                            />
+                          </FormControl>
+                          <FormControl>
+                            <FormLabel>Centro educativo</FormLabel>
+                            <Input
+                              placeholder="Escuela o colegio"
+                              value={c.school}
+                              onChange={(e) =>
+                                updateChild(i, { school: e.target.value })
+                              }
+                            />
+                          </FormControl>
+                          <FormControl gridColumn="span 2">
+                            <FormLabel>Alergias (separadas por coma)</FormLabel>
+                            <Input
+                              placeholder="Ej: Penicilina (o ninguna)"
+                              value={c.allergies}
+                              onChange={(e) =>
+                                updateChild(i, { allergies: e.target.value })
+                              }
+                            />
+                          </FormControl>
+                          <FormControl gridColumn="span 2">
+                            <FormLabel>
+                              Condiciones (separadas por coma)
+                            </FormLabel>
+                            <Input
+                              placeholder="Opcional"
+                              value={c.conditions}
+                              onChange={(e) =>
+                                updateChild(i, { conditions: e.target.value })
+                              }
+                            />
+                          </FormControl>
+                        </SimpleGrid>
+                      </Box>
+                    ))}
+                    <Button
+                      variant="outline"
+                      colorScheme="vino"
+                      leftIcon={<Plus size={16} />}
+                      onClick={addChild}
+                    >
+                      Agregar hijo
+                    </Button>
+                    <Text
+                      fontSize="xs"
+                      color="lucera.textMuted"
+                      textAlign="center"
+                    >
+                      Puedes dejarlo vacío y continuar.
+                    </Text>
+                  </VStack>
+                </>
+              )}
             </ModalBody>
             <ModalFooter>
               <Button
@@ -1154,6 +1463,11 @@ export default function Guardians() {
           </form>
         </ModalContent>
       </Modal>
+
+      <GuardianPortalModal
+        guardian={portalGuardian}
+        onClose={() => setPortalGuardian(null)}
+      />
 
       <ConfirmDialog
         open={!!toDelete}

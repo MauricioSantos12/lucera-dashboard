@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useAuth } from "@/lib/auth";
 import { BACKEND_URL } from "@/lib/config";
+import { toApiError } from "@/lib/apiError";
 
 type UseFetchState<T> = {
   data: T | null;
@@ -32,7 +33,7 @@ export function useFetch<T>(path: string | null, options?: RequestInit) {
         },
       });
       if (!res.ok) {
-        throw new Error(`Error ${res.status}: ${res.statusText}`);
+        throw await toApiError(res);
       }
       const data = (await res.json()) as T;
       setState({ data, loading: false, error: null });

@@ -1,4 +1,5 @@
 import { BACKEND_URL } from "@/lib/config";
+import { toApiError } from "@/lib/apiError";
 
 // Para llamadas imperativas (POST/PATCH/DELETE) fuera del ciclo de vida de useFetch.
 export async function apiFetch<T>(
@@ -15,7 +16,7 @@ export async function apiFetch<T>(
     },
   });
   if (!res.ok) {
-    throw new Error(`Error ${res.status}: ${res.statusText}`);
+    throw await toApiError(res);
   }
   return res.json() as Promise<T>;
 }

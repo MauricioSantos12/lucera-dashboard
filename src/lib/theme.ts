@@ -1,11 +1,12 @@
 import { extendTheme, transition, type ThemeConfig } from "@chakra-ui/react";
 
-// Lucera brand palette
-//   vino    #6d122b   (primary / brand)
-//   naranja #ef7d54   (accent)
-//   crema   #f4e3ce   (background / soft surfaces)
-//   amarillo#f8cc37   (warning / highlight)
+// Lucera brand palette (HEX exactos del Brandbook 2026)
+//   vino    #6c122b   (primary / brand)      PANTONE 7421c
+//   naranja #f08159   (accent)               PANTONE 2025c  (en gradientes: #f07e55)
+//   crema   #f5e7d3   (fondo base)           PANTONE 8401c  — "usar siempre en fondo crema"
+//   amarillo#f6ca35   (luz / highlight)      PANTONE 122c
 //   white / black
+// Gradientes de marca: ver `luceraGradients` al final del archivo.
 
 const config: ThemeConfig = {
   initialColorMode: "light",
@@ -19,7 +20,7 @@ const colors = {
     200: "#e89aae",
     300: "#d96f8b",
     400: "#b94464",
-    500: "#6d122b", // base
+    500: "#6c122b", // base — Brandbook exacto
     600: "#5e0f25",
     700: "#4d0c1e",
     800: "#3c0917",
@@ -30,8 +31,8 @@ const colors = {
     100: "#fbd5c4",
     200: "#f7b89a",
     300: "#f49a72",
-    400: "#f08a60",
-    500: "#ef7d54", // base
+    400: "#f28e6a",
+    500: "#f08159", // base — Brandbook exacto
     600: "#d96a44",
     700: "#b85636",
     800: "#8d4127",
@@ -40,8 +41,8 @@ const colors = {
   crema: {
     50: "#fdf8f0",
     100: "#faefdc",
-    200: "#f7e8cf",
-    300: "#f4e3ce", // base
+    200: "#f9ecda",
+    300: "#f5e7d3", // base — Brandbook exacto (fondo de marca)
     400: "#e9d2b1",
     500: "#d8bb8e",
     600: "#b89968",
@@ -54,8 +55,8 @@ const colors = {
     100: "#feeeb6",
     200: "#fde288",
     300: "#fbd75a",
-    400: "#fad146",
-    500: "#f8cc37", // base
+    400: "#f8d047",
+    500: "#f6ca35", // base — Brandbook exacto
     600: "#e0b426",
     700: "#b08a18",
     800: "#806211",
@@ -72,15 +73,15 @@ const colors = {
 };
 
 const fonts = {
-  heading: `'Coben', 'Fraunces', Georgia, serif`,
+  heading: `'Corben', 'Fraunces', Georgia, serif`,
   body: `'Figtree', ui-sans-serif, system-ui, sans-serif`,
   mono: `ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace`,
 };
 
 const semanticTokens = {
   colors: {
-    "lucera.bg": { default: "white" },
-    "lucera.surface": { default: "white" },
+    "lucera.bg": { default: "crema.300" }, // fondo crema de marca (#f5e7d3)
+    "lucera.surface": { default: "white" }, // tarjetas blancas sobre crema
     "lucera.surfaceAlt": { default: "#fbeaef" }, // vino 50
     "lucera.border": { default: "#f3c5d1" }, // vino 100
     "lucera.borderSoft": { default: "#fbeaef" },
@@ -236,3 +237,20 @@ export const theme = extendTheme({
   styles,
   components,
 });
+
+// Gradientes de marca (Brandbook 2026). Strings listos para usar en Chakra:
+//   <Box bgGradient={luceraGradients.warm} />
+// Los degradados planos (coral/vino/amarillo) nacen SIEMPRE del crema, según el
+// manual. `warm` es el mesh cálido para héroes/fondos (dirección libre).
+export const luceraGradients = {
+  // Mesh cálido con toda la paleta — héroes y fondos grandes.
+  warm: "linear(135deg, vino.500 0%, naranja.500 55%, amarillo.500 100%)",
+  // Degradados de marca sobre crema (fondo → color).
+  coral: "linear(180deg, crema.300 0%, naranja.500 100%)",
+  vino: "linear(180deg, crema.300 0%, vino.500 100%)",
+  amarillo: "linear(180deg, crema.300 0%, amarillo.500 100%)",
+  // Variante para chips/iconos pequeños (más saturada, sin el crema).
+  chipCoral: "linear(135deg, naranja.400 0%, vino.500 100%)",
+  chipAmarillo: "linear(135deg, amarillo.400 0%, naranja.500 100%)",
+  chipVino: "linear(135deg, vino.400 0%, vino.700 100%)",
+} as const;

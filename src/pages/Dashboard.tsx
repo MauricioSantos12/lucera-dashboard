@@ -48,42 +48,56 @@ interface StatProps {
   sub?: string;
 }
 
+// Estilo de KPI por acento: chip suave = fondo tenue del color + icono en el
+// color (sin gradiente ni sombra), para un look más liviano. Los semánticos
+// (éxito/peligro) usan un tinte claro con el icono en su color.
+const chipStyleByBg: Record<string, { bg: string; color: string }> = {
+  "vino.50": { bg: "vino.50", color: "vino.500" },
+  "naranja.50": { bg: "naranja.50", color: "naranja.600" },
+  "amarillo.50": { bg: "amarillo.50", color: "amarillo.700" },
+  "exito.500": { bg: "rgba(47,158,107,0.12)", color: "exito.500" },
+  "peligro.500": { bg: "rgba(185,28,28,0.12)", color: "peligro.500" },
+};
+
 function Stat({ icon, label, value, accent, sub }: StatProps) {
+  const chipProps = chipStyleByBg[accent.bg] ?? { bg: accent.bg, color: accent.fg };
+
   return (
-    <StatCard>
-      <Flex justify="space-between" align="flex-start">
+    <StatCard position="relative" overflow="hidden">
+      <Flex justify="space-between" align="flex-start" position="relative">
         <Box>
           <Text
             fontSize="11px"
             textTransform="uppercase"
             letterSpacing="wider"
             color="lucera.textMuted"
-            fontWeight={600}
+            fontWeight={700}
           >
             {label}
           </Text>
           <Heading
-            size="lg"
+            fontSize={{ base: "2xl", md: "3xl" }}
+            fontWeight={700}
             mt={2}
-            fontFamily="heading"
+            lineHeight={1.1}
             sx={{ fontVariantNumeric: "tabular-nums" }}
           >
             {value}
           </Heading>
           {sub && (
-            <Text fontSize="xs" color="lucera.textMuted" mt={0.5}>
+            <Text fontSize="xs" color="lucera.textMuted" mt={1}>
               {sub}
             </Text>
           )}
         </Box>
         <Flex
-          h={10}
-          w={10}
-          borderRadius="lg"
+          h={11}
+          w={11}
+          borderRadius="xl"
           align="center"
           justify="center"
-          bg={accent.bg}
-          color={accent.fg}
+          flexShrink={0}
+          {...chipProps}
         >
           <Icon as={icon} boxSize={5} />
         </Flex>

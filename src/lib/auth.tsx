@@ -1,6 +1,14 @@
-import { createContext, useContext, useRef, useState, ReactNode } from "react";
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+  ReactNode,
+} from "react";
 import { BACKEND_URL } from "@/lib/config";
 import { saveSession, loadSession, clearSession } from "@/lib/authStorage";
+import { onPasswordChangeRequired } from "@/lib/passwordGate";
 
 export type UserRole = "Admin" | "Médico" | "Acudiente" | "Ventas" | "Invitado";
 
@@ -31,6 +39,11 @@ export type AuthUser = {
   id: string;
   // Para médicos: id del médico vinculado · para acudientes: id del acudiente
   refId?: string;
+  // true → el usuario debe cambiar la contraseña antes de usar el panel.
+  mustChangePassword?: boolean;
+  // true → sesión de acudiente por el portal (token scope=portal). Las vistas
+  // de acudiente deben leer de /portal/* (no /api/*).
+  isPortal?: boolean;
 };
 
 // Refresca el access_token con un poco de margen antes de que expire de verdad.
@@ -47,6 +60,8 @@ type AuthContextType = {
   ) => void;
   logout: () => void;
   updateProfile: (patch: Partial<AuthUser>) => void;
+  // Tras cambiar la contraseña: reemplaza los tokens y baja mustChangePassword.
+  applyPasswordChanged: (accessToken: string, refreshToken: string) => void;
   getValidToken: () => Promise<string | null>;
 };
 
@@ -137,6 +152,47 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     clearSession();
   };
 
+  // Tras POST /api/users/me/password: la respuesta trae tokens nuevos (sin
+  // expires_in) y el flag ya en false. Se reutiliza el expiresAt actual (o 1h)
+  // porque getValidToken renovará con el refresh_token nuevo cuando toque.
+  const applyPasswordChanged = (
+    newAccessToken: string,
+    newRefreshToken: string
+  ) => {
+    const newExpiresAt = expiresAt ?? Date.now() + 3600_000;
+    setAccessToken(newAccessToken);
+    setRefreshToken(newRefreshToken);
+    setExpiresAt(newExpiresAt);
+    setUser((u) => {
+      const next = u ? { ...u, mustChangePassword: false } : u;
+      if (next) {
+        saveSession({
+          user: next,
+          accessToken: newAccessToken,
+          refreshToken: newRefreshToken,
+          expiresAt: newExpiresAt,
+        });
+      }
+      return next;
+    });
+  };
+
+  // Red de seguridad: si un request responde 403 "Password change required"
+  // (p. ej. una pestaña vieja o un token de antes), se marca el flag y
+  // ProtectedRoute muestra la pantalla de cambio.
+  useEffect(() => {
+    return onPasswordChangeRequired(() => {
+      setUser((u) => {
+        if (!u || u.mustChangePassword) return u;
+        const next = { ...u, mustChangePassword: true };
+        if (accessToken && refreshToken && expiresAt) {
+          saveSession({ user: next, accessToken, refreshToken, expiresAt });
+        }
+        return next;
+      });
+    });
+  }, [accessToken, refreshToken, expiresAt]);
+
   const getValidToken = async (): Promise<string | null> => {
     if (!accessToken || !refreshToken || !expiresAt) return null;
     if (Date.now() < expiresAt - EXPIRY_BUFFER_MS) return accessToken;
@@ -192,6 +248,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             return next;
           });
         },
+        applyPasswordChanged,
         getValidToken,
       }}
     >

@@ -360,7 +360,7 @@ export default function Centers() {
                         align="center"
                         justify="center"
                       >
-                        <Building2 size={14} color="#6d122b" />
+                        <Building2 size={14} color="#6c122b" />
                       </Flex>
                       <Text fontSize="sm" fontWeight={600}>
                         {c.name}

@@ -54,13 +54,13 @@ const MotionBox = motion(Box);
 
 // Ciclo de colores de marca (vino, naranja, amarillo) reutilizado en las
 // gráficas de barras para mantener consistencia visual.
-const brandColors = ["#6d122b", "#ef7d54", "#f8cc37"];
+const brandColors = ["#6c122b", "#f08159", "#f6ca35"];
 
 // Colores fijos para la disposición del paciente (urgencias / citas / casa),
 // reutilizados en el donut y en la tendencia de 3 curvas.
 const dispositionColors = {
   urgencias: "#b91c1c",
-  citas: "#ef7d54",
+  citas: "#f08159",
   casa: "#2f9e6b",
 };
 
@@ -289,13 +289,13 @@ export default function Statistics() {
         label: "Femenino",
         value: femenino,
         pct: Math.round((femenino / total) * 100),
-        color: "#6d122b",
+        color: "#6c122b",
       },
       {
         label: "Masculino",
         value: masculino,
         pct: Math.round((masculino / total) * 100),
-        color: "#ef7d54",
+        color: "#f08159",
       },
       {
         label: "No especificado",

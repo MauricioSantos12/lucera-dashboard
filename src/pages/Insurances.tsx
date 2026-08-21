@@ -62,10 +62,10 @@ import {
 import { Search, ShieldCheck, Plus, Pencil, Trash2 } from "lucide-react";
 import { formatNumber } from "@/lib/format";
 
-const brandColors = ["#6d122b", "#ef7d54", "#f8cc37"];
+const brandColors = ["#6c122b", "#f08159", "#f6ca35"];
 const dispositionColors = {
   urgencias: "#b91c1c",
-  citas: "#ef7d54",
+  citas: "#f08159",
   casa: "#2f9e6b",
 };
 const tooltipStyle = {

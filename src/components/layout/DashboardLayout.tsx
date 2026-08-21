@@ -146,13 +146,23 @@ function Inner({
   const year = new Date().getFullYear();
 
   return (
-    <Flex minH="100vh" w="100%" bg="lucera.bg">
+    // En el dashboard los títulos usan la fuente body (Figtree), no la serif de
+    // titulares. Se logra redefiniendo la variable de Chakra para todo el
+    // subárbol: cualquier `fontFamily="heading"` hereda el stack body sin tocar
+    // cada componente. (La landing conserva su serif.)
+    <Flex
+      minH="100vh"
+      w="100%"
+      bg="lucera.bg"
+      sx={{ "--chakra-fonts-heading": "var(--chakra-fonts-body)" }}
+    >
       <AppSidebar />
       <Flex direction="column" flex={1} minW={0}>
         <Header title={title} subtitle={subtitle} />
         <Box
           as="main"
           flex={1}
+          bg="#fffdfa"
           px={{ base: 4, md: 6 }}
           py={{ base: 4, md: 6 }}
           maxW="100%"
@@ -181,7 +191,7 @@ function Inner({
           gap={1}
           justify="space-between"
         >
-          <Text>© {year} Lucera · Sistema de Triaje Pediátrico</Text>
+          <Text>© {year} Lucera · Servicio de teleorientación en salud</Text>
           <Text>
             Cumplimos con la{" "}
             <Text as="strong" color="lucera.text">

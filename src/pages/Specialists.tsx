@@ -218,7 +218,7 @@ export default function Specialists() {
                         align="center"
                         justify="center"
                       >
-                        <Stethoscope size={14} color="#ef7d54" />
+                        <Stethoscope size={14} color="#f08159" />
                       </Flex>
                       <Text fontSize="sm" fontWeight={600}>
                         {e.name}

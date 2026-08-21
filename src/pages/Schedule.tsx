@@ -101,7 +101,7 @@ export default function Schedule() {
       <SimpleGrid columns={{ base: 1, lg: 3 }} spacing={4}>
         <StatCard>
           <HStack mb={1}>
-            <CalendarDays size={16} color="#6d122b" />
+            <CalendarDays size={16} color="#6c122b" />
             <Heading size="sm" fontFamily="heading">
               Calendario
             </Heading>

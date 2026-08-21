@@ -44,7 +44,9 @@ export const statusToApi: Record<AccountStatus, GuardianStatus> = {
   baja: "inactive",
 };
 
-export const planToEs: Record<PlanApi, Guardian["plan"]> = {
+// Solo cubre los planes "legacy"; los tiers nuevos (1_hijo, …) se muestran con
+// planLabelEs en Guardians. Por eso es parcial.
+export const planToEs: Partial<Record<PlanApi, Guardian["plan"]>> = {
   free: "Gratuito",
   premium_monthly: "Premium Mensual",
   premium_annual: "Premium Anual",

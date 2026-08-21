@@ -61,7 +61,7 @@ const semaphoreConfig: Record<
   degraded: {
     label: "Degradado",
     description: "El bot está arriba pero una dependencia está caída.",
-    color: "#f8cc37",
+    color: "#f6ca35",
     bg: "amarillo.50",
     fg: "amarillo.700",
     Icon: AlertTriangle,
@@ -209,7 +209,7 @@ export default function BotStatus() {
               <Box flex={1} minW={0}>
                 <HStack spacing={3} mb={1} wrap="wrap">
                   <HStack spacing={2}>
-                    <Bot size={18} color="#6d122b" />
+                    <Bot size={18} color="#6c122b" />
                     <Heading size="md" fontFamily="heading">
                       {cfg.label}
                     </Heading>

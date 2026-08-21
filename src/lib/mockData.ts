@@ -142,6 +142,7 @@ export type Guardian = {
   idNumber?: string | null;
   address?: string | null;
   province?: string | null;
+  planApi?: string; // valor crudo del plan del API (free, 1_hijo, …)
   chats?: number;
 };
 

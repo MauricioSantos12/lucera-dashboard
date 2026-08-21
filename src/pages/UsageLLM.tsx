@@ -59,7 +59,7 @@ function toISODate(d: Date) {
 }
 
 // Ciclo de colores de marca (vino, naranja, amarillo), igual que en Estadísticas.
-const brandColors = ["#6d122b", "#ef7d54", "#f8cc37"];
+const brandColors = ["#6c122b", "#f08159", "#f6ca35"];
 
 // Deja ~18% de espacio arriba de la barra más alta para que la etiqueta no se recorte.
 const yAxisDomain: [number, (dataMax: number) => number] = [
@@ -350,14 +350,14 @@ export default function UsageLLM() {
                   yAxisId="left"
                   dataKey="calls"
                   name="Llamadas"
-                  fill="#6d122b"
+                  fill="#6c122b"
                   radius={[4, 4, 0, 0]}
                 />
                 <Bar
                   yAxisId="right"
                   dataKey="costUsd"
                   name="Costo (USD)"
-                  fill="#ef7d54"
+                  fill="#f08159"
                   radius={[4, 4, 0, 0]}
                 />
               </BarChart>

@@ -20,6 +20,7 @@ import {
   ModalHeader,
   ModalOverlay,
   SimpleGrid,
+  Stack,
   Text,
   useDisclosure,
   useToast,
@@ -160,35 +161,75 @@ const pricingPlans = [
 
 const year = new Date().getFullYear();
 
-// Formas decorativas de fondo, mismos colores de marca, solo con blur/opacidad.
-function FloatingOrbs() {
+// Trazos de luciérnaga (universo gráfico del Brandbook): líneas finas con punta
+// redonda y relleno en gradiente que evocan la estela de luz. Se usan siempre
+// con degradado y flotan sutilmente para transmitir "movimiento y luz".
+function FireflyTrail({
+  d,
+  from,
+  to,
+  ...box
+}: {
+  d: string;
+  from: string;
+  to: string;
+} & React.ComponentProps<typeof MotionBox>) {
+  const id = `ft-${from.replace("#", "")}-${to.replace("#", "")}-${d.length}`;
+  return (
+    <MotionBox position="absolute" pointerEvents="none" {...box}>
+      <svg
+        width="100%"
+        height="100%"
+        viewBox="0 0 200 200"
+        fill="none"
+        aria-hidden="true"
+      >
+        <defs>
+          <linearGradient id={id} x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0%" stopColor={from} />
+            <stop offset="100%" stopColor={to} />
+          </linearGradient>
+        </defs>
+        <path
+          d={d}
+          stroke={`url(#${id})`}
+          strokeWidth={4}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </svg>
+    </MotionBox>
+  );
+}
+
+function FireflyTrails() {
+  // Curvas con un bucle final, como la estela de la luciérnaga del manual.
+  const swoosh = "M20 150 C 40 60, 120 40, 150 90";
+  const loop =
+    "M20 160 C 30 90, 120 70, 140 110 C 150 130, 125 148, 120 128 C 116 112, 138 112, 150 130 C 165 152, 185 150, 190 140";
   return (
     <>
-      <MotionBox
-        position="absolute"
-        top="-10%"
-        right="-5%"
-        boxSize={{ base: "220px", md: "340px" }}
-        borderRadius="full"
-        bg="naranja.400"
-        opacity={0.25}
-        filter="blur(70px)"
-        animate={{ y: [0, 24, 0] }}
-        transition={{ duration: 9, repeat: Infinity, ease: "easeInOut" }}
-        pointerEvents="none"
+      <FireflyTrail
+        d={loop}
+        from="#f6ca35"
+        to="#f08159"
+        top={{ base: "4%", md: "6%" }}
+        right={{ base: "-6%", md: "2%" }}
+        boxSize={{ base: "180px", md: "300px" }}
+        opacity={0.55}
+        animate={{ y: [0, 18, 0], rotate: [0, 3, 0] }}
+        transition={{ duration: 10, repeat: Infinity, ease: "easeInOut" }}
       />
-      <MotionBox
-        position="absolute"
-        bottom="-15%"
-        left="-8%"
-        boxSize={{ base: "200px", md: "300px" }}
-        borderRadius="full"
-        bg="amarillo.400"
-        opacity={0.18}
-        filter="blur(80px)"
-        animate={{ y: [0, -20, 0] }}
-        transition={{ duration: 11, repeat: Infinity, ease: "easeInOut" }}
-        pointerEvents="none"
+      <FireflyTrail
+        d={swoosh}
+        from="#f08159"
+        to="#f6ca35"
+        bottom={{ base: "2%", md: "8%" }}
+        left={{ base: "-8%", md: "-2%" }}
+        boxSize={{ base: "170px", md: "260px" }}
+        opacity={0.45}
+        animate={{ y: [0, -16, 0], rotate: [0, -4, 0] }}
+        transition={{ duration: 12, repeat: Infinity, ease: "easeInOut" }}
       />
     </>
   );
@@ -313,18 +354,27 @@ export default function LandingPage() {
         </HStack>
       </Flex>
 
-      {/* Hero */}
+      {/* Hero: mesh cálido de marca (vino base con destellos coral/amarillo en
+          las esquinas), centro más oscuro para legibilidad del texto blanco. */}
       <Box
         position="relative"
         overflow="hidden"
-        bgGradient="linear(135deg, vino.700 0%, vino.500 60%, naranja.800 100%)"
         color="white"
         pt={{ base: 28, md: 36 }}
         pb={{ base: 16, md: 24 }}
+        sx={{
+          backgroundColor: "#6c122b",
+          backgroundImage: `
+            radial-gradient(60% 55% at 82% 8%, rgba(246,202,53,0.55) 0%, rgba(246,202,53,0) 60%),
+            radial-gradient(65% 60% at 88% 92%, rgba(240,129,89,0.65) 0%, rgba(240,129,89,0) 60%),
+            radial-gradient(70% 65% at 8% 90%, rgba(185,68,100,0.55) 0%, rgba(185,68,100,0) 62%),
+            radial-gradient(80% 70% at 50% 45%, rgba(108,18,43,0.55) 0%, rgba(108,18,43,0) 70%)
+          `,
+        }}
       >
-        <FloatingOrbs />
+        <FireflyTrails />
         <Container maxW="4xl" textAlign="center" position="relative">
-          <MotionBox
+          {/* <MotionBox
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, ease: "easeOut" }}
@@ -350,21 +400,21 @@ export default function LandingPage() {
                 objectFit="contain"
               />
             </Box>
-          </MotionBox>
+          </MotionBox> */}
           <MotionBox
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.1, ease: "easeOut" }}
           >
             <Heading
-              size="3xl"
+              size={{ base: "xl", md: "3xl" }}
               fontFamily="heading"
-              fontWeight={800}
-              lineHeight={1.05}
-              mb={6}
+              fontWeight={600}
+              lineHeight={1.2}
+              mb={8}
               color="white"
             >
-              Atención pediátrica
+              Teleorientación pediátrica
               <br />
               <Text as="span" color="naranja.300">
                 accesible y segura
@@ -378,10 +428,19 @@ export default function LandingPage() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.2, ease: "easeOut" }}
           >
-            <Text fontSize="lg" opacity={0.85} maxW="2xl" mx="auto" mb={8}>
-              Plataforma de telemedicina con triaje inteligente vía WhatsApp.
-              Los acudientes reciben orientación inmediata y los médicos
-              monitorean en tiempo real.
+            <Text
+              fontSize="lg"
+              opacity={0.85}
+              maxW="2xl"
+              textAlign={"center"}
+              mx="auto"
+              mb={8}
+              fontFamily="body"
+            >
+              Lucera te acompaña con orientación sobre las dudas de salud de tus
+              hijos, de forma natural, humana y cálida, desde tu WhatsApp.{" "}
+              <b>Lucera</b> no da diagnósticos, no receta medicamentos, no
+              reemplaza a tu pediatra ni a una sala de urgencias.
             </Text>
           </MotionBox>
           <MotionBox
@@ -452,7 +511,7 @@ export default function LandingPage() {
             <VStack spacing={4}>
               <Text
                 fontSize="xs"
-                fontFamily="mono"
+                fontFamily="body"
                 fontWeight={700}
                 letterSpacing="widest"
                 textTransform="uppercase"
@@ -465,6 +524,7 @@ export default function LandingPage() {
                 fontFamily="heading"
                 fontWeight={800}
                 lineHeight={1.15}
+                color="vino.500"
               >
                 Frente a eso, hay tres caminos.
               </Heading>
@@ -502,10 +562,10 @@ export default function LandingPage() {
       {/* Features */}
       <Box bg="vino.700" color="white" py={{ base: 12, md: 20 }}>
         <Container maxW="5xl">
-          <FadeInSection>
+          <FadeInSection display="flex" justifyContent="center">
             <VStack spacing={3} mb={12} textAlign="center">
               <Heading size="lg" fontFamily="heading" color="white">
-                ¿Qué ofrece Lucera?
+                {`¿Qué ofrece Lucera?`}
               </Heading>
               <Text color="whiteAlpha.800" maxW="lg">
                 Una plataforma integral que conecta familias con atención
@@ -526,6 +586,9 @@ export default function LandingPage() {
                   whileHover={{ y: -6, scale: 1.02 }}
                   _hover={{ borderColor: "naranja.300", bg: "whiteAlpha.200" }}
                   transition={{ duration: 0.2 }}
+                  display="flex"
+                  flexDir="column"
+                  alignItems="strech"
                 >
                   <Flex
                     h={10}
@@ -554,7 +617,14 @@ export default function LandingPage() {
       {/* Stats */}
       <Box bg="crema.50" py={12}>
         <Container maxW="4xl">
-          <SimpleGrid columns={{ base: 2, md: 3 }} spacing={6}>
+          <Stack
+            flexDir="row"
+            flexWrap="wrap"
+            justifyContent="center"
+            alignItems="center"
+            w="100%"
+            spacing={6}
+          >
             {stats.map((s, i) => (
               <FadeInSection key={s.label} delay={i * 0.1}>
                 <VStack spacing={1}>
@@ -570,12 +640,12 @@ export default function LandingPage() {
                 </VStack>
               </FadeInSection>
             ))}
-          </SimpleGrid>
+          </Stack>
         </Container>
       </Box>
 
       {/* How it works */}
-      <Box bg="vino.50" py={{ base: 12, md: 20 }}>
+      <Box bg="crema.100" py={{ base: 12, md: 20 }}>
         <Container maxW="4xl">
           <FadeInSection>
             <VStack spacing={3} mb={12} textAlign="center">
@@ -615,14 +685,18 @@ export default function LandingPage() {
                       fontFamily="heading"
                       fontSize="xl"
                       fontWeight={700}
-                      boxShadow="0 0 0 6px var(--chakra-colors-vino-50)"
+                      boxShadow="0 0 0 6px var(--chakra-colors-crema-100)"
                     >
                       {item.step}
                     </Flex>
                     <Heading size="sm" fontFamily="heading">
                       {item.title}
                     </Heading>
-                    <Text fontSize="sm" color="lucera.textMuted">
+                    <Text
+                      fontSize="sm"
+                      color="lucera.textMuted"
+                      fontFamily="body"
+                    >
                       {item.desc}
                     </Text>
                   </VStack>
@@ -654,6 +728,7 @@ export default function LandingPage() {
                   letterSpacing="widest"
                   textTransform="uppercase"
                   color="naranja.300"
+                  fontFamily="body"
                 >
                   Nuestra mentalidad
                 </Text>
@@ -676,7 +751,12 @@ export default function LandingPage() {
                     construya.
                   </Text>
                 </Heading>
-                <Text fontSize="md" color="whiteAlpha.900" maxW="md">
+                <Text
+                  fontSize="md"
+                  color="whiteAlpha.900"
+                  maxW="md"
+                  fontFamily="body"
+                >
                   Lucera no es un chatbot que responde y desaparece. Es
                   infraestructura médica pensada, construida y operada desde
                   Panamá para las familias de la región, con el pediatra siempre
@@ -722,7 +802,11 @@ export default function LandingPage() {
                       >
                         {p.title}
                       </Heading>
-                      <Text fontSize="sm" color="lucera.textMuted">
+                      <Text
+                        fontSize="sm"
+                        color="lucera.textMuted"
+                        fontFamily="body"
+                      >
                         {p.desc}
                       </Text>
                     </Box>
@@ -738,7 +822,7 @@ export default function LandingPage() {
       <Box bg="crema.50" py={{ base: 12, md: 20 }}>
         <Container maxW="5xl">
           <FadeInSection>
-            <VStack spacing={3} mb={12} textAlign="center">
+            <VStack spacing={3} mb={12} alignItems="flex-start">
               <Heading size="lg" fontFamily="heading">
                 Planes para cada familia
               </Heading>
@@ -862,7 +946,7 @@ export default function LandingPage() {
             </Heading>
             <Text color="lucera.textMuted" mb={8}>
               Accede al panel de administración para gestionar pacientes,
-              monitorear sesiones y optimizar la atención pediátrica.
+              monitorear sesiones y optimizar la Teleorientación pediátrica.
             </Text>
             <Button
               as={RouterLink}
@@ -908,7 +992,7 @@ export default function LandingPage() {
                 opacity={0.7}
                 textAlign={{ base: "center", md: "left" }}
               >
-                Atención pediátrica con IA · Panamá
+                Teleorientación pediátrica con IA · Panamá
               </Text>
             </VStack>
 
@@ -959,7 +1043,9 @@ export default function LandingPage() {
               </Text>
               <Text>© {year} Lucera — Todos los derechos reservados</Text>
               <Text>
-                Cumple con la Ley 81 de 2019 de Protección de Datos Personales
+                Lucera es un servicio de teleorientación en salud, conforma a la
+                Ley 203 de 2021. Protegemos los datos de acuerdo a la Ley 81 de
+                2019 de Protección de Datos Personales
               </Text>
             </VStack>
           </SimpleGrid>

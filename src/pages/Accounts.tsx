@@ -1,15 +1,34 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { useAuth } from "@/lib/auth";
+import { useFetch } from "@/hooks/useFetch";
 import { useFetchAll } from "@/hooks/useFetchAll";
-import type { UserApi } from "@/lib/apiTypes";
+import { apiFetch } from "@/lib/apiClient";
+import type {
+  UserApi,
+  UserCreatePayload,
+  UserCreateResponse,
+  PasswordResetResponse,
+  RolesCatalogResponse,
+} from "@/lib/apiTypes";
 import {
   Box,
+  Button,
   Flex,
+  FormControl,
+  FormLabel,
   HStack,
+  IconButton,
   Input,
   InputGroup,
   InputLeftElement,
+  Modal,
+  ModalBody,
+  ModalCloseButton,
+  ModalContent,
+  ModalFooter,
+  ModalHeader,
+  ModalOverlay,
   Select,
   Table,
   Thead,
@@ -20,34 +39,50 @@ import {
   Badge,
   Text,
   TableContainer,
+  VStack,
+  useDisclosure,
 } from "@chakra-ui/react";
-import { Search, Mail, CheckCircle2, XCircle } from "lucide-react";
+import { Search, Mail, CheckCircle2, XCircle, Plus, KeyRound } from "lucide-react";
 import { StatCard } from "@/components/StatCard";
 import { Pagination } from "@/components/Pagination";
 import { LoadingState } from "@/components/LoadingState";
 import { ExportButton } from "@/components/ExportButton";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { RevealSecretDialog } from "@/components/RevealSecretDialog";
 import { toast } from "@/lib/toast";
 
-// Rol del panel a etiqueta legible en español.
+// Rol del panel a etiqueta legible en español. Cubre tanto el dashboardRole
+// (Admin/Doctor/Sales) como el rol interno (admin/doctor/marketing) de /api/roles.
 const roleLabel: Record<string, string> = {
   Admin: "Admin",
   Doctor: "Médico",
   Sales: "Ventas",
   Guest: "Invitado",
+  admin: "Admin",
+  doctor: "Médico",
+  marketing: "Ventas",
 };
 
 const PER_PAGE = 12;
 
 export default function Accounts() {
-  const { user, token } = useAuth();
+  const { user, token, getValidToken } = useAuth();
   const canExport = user?.role !== "Invitado";
+  const canManage = user?.role === "Admin";
 
-  // Solo lectura: se muestra lo que devuelve GET /api/users.
   const {
     data: usersData,
     loading,
     error,
+    refetch,
   } = useFetchAll<UserApi>(token ? "/api/users" : null);
+
+  // Catálogo de roles para el alta (solo admin lo necesita). El endpoint
+  // devuelve { items: [{ value, label, dashboardRole }] }.
+  const { data: rolesData } = useFetch<RolesCatalogResponse>(
+    canManage && token ? "/api/roles" : null
+  );
+  const roleCatalog = useMemo(() => rolesData?.items ?? [], [rolesData]);
 
   useEffect(() => {
     if (error) {
@@ -107,6 +142,84 @@ export default function Accounts() {
 
   const totalPages = Math.ceil(filtered.length / PER_PAGE);
   const paginated = filtered.slice((page - 1) * PER_PAGE, page * PER_PAGE);
+
+  // --- Alta de usuario (admin) ---
+  const createModal = useDisclosure();
+  const [savingUser, setSavingUser] = useState(false);
+  // Secreto a mostrar una sola vez (alta o reset).
+  const [secret, setSecret] = useState<{
+    title: string;
+    description: string;
+    secret?: string | null;
+    note?: string;
+  } | null>(null);
+
+  const handleCreate = async (form: HTMLFormElement) => {
+    const fd = new FormData(form);
+    const payload: UserCreatePayload = {
+      name: String(fd.get("name") || "").trim(),
+      email: String(fd.get("email") || "").trim(),
+      role: String(fd.get("role") || ""),
+      idNumber: String(fd.get("idNumber") || "").trim(),
+    };
+    setSavingUser(true);
+    try {
+      const freshToken = await getValidToken();
+      const res = await apiFetch<UserCreateResponse>("/api/users", freshToken, {
+        method: "POST",
+        body: JSON.stringify(payload),
+      });
+      createModal.onClose();
+      refetch();
+      setSecret({
+        title: "Usuario creado",
+        description:
+          "Comparte esta contraseña inicial con la persona; deberá cambiarla en su primer ingreso.",
+        secret: res.initialPassword,
+      });
+    } catch (err) {
+      toast.error("No se pudo crear el usuario", {
+        description: err instanceof Error ? err.message : undefined,
+      });
+    } finally {
+      setSavingUser(false);
+    }
+  };
+
+  // --- Restablecer contraseña (admin) ---
+  const [toReset, setToReset] = useState<UserApi | null>(null);
+
+  const handleReset = async () => {
+    if (!toReset) return;
+    try {
+      const freshToken = await getValidToken();
+      const res = await apiFetch<PasswordResetResponse>(
+        `/api/users/${toReset.id}/password/reset`,
+        freshToken,
+        { method: "POST" }
+      );
+      const name = toReset.name;
+      setToReset(null);
+      if (res.derivedFromIdNumber) {
+        setSecret({
+          title: "Contraseña restablecida",
+          description: `Se restableció la contraseña de ${name}.`,
+          note: "Se dejó como su cédula (Lucera + su número de cédula). Deberá cambiarla al entrar.",
+        });
+      } else {
+        setSecret({
+          title: "Contraseña restablecida",
+          description: `Contraseña temporal de ${name}. Compártela; deberá cambiarla al entrar.`,
+          secret: res.temporaryPassword,
+        });
+      }
+    } catch (err) {
+      setToReset(null);
+      toast.error("No se pudo restablecer la contraseña", {
+        description: err instanceof Error ? err.message : undefined,
+      });
+    }
+  };
 
   return (
     <DashboardLayout title="Cuentas" subtitle="Usuarios del panel">
@@ -194,22 +307,33 @@ export default function Accounts() {
           <Text fontSize="sm" color="lucera.textMuted">
             {filtered.length} usuario{filtered.length === 1 ? "" : "s"}
           </Text>
-          <ExportButton
-            isDisabled={!canExport}
-            filename="usuarios-lucera"
-            sheetName="Usuarios"
-            data={filtered.map((u) => ({
-              Nombre: u.name,
-              Email: u.email,
-              Rol: roleLabel[u.dashboardRole] ?? u.dashboardRole,
-              Estado: u.isActive ? "Activo" : "Inactivo",
-              "Acceso al panel": u.dashboardAccess ? "Sí" : "No",
-              Especialidad: u.specialty ?? "",
-              Cédula: u.idNumber ?? "",
-              Licencia: u.licenseId ?? "",
-              "Fecha de registro": u.createdAt,
-            }))}
-          />
+          <HStack spacing={2}>
+            <ExportButton
+              isDisabled={!canExport}
+              filename="usuarios-lucera"
+              sheetName="Usuarios"
+              data={filtered.map((u) => ({
+                Nombre: u.name,
+                Email: u.email,
+                Rol: roleLabel[u.dashboardRole] ?? u.dashboardRole,
+                Estado: u.isActive ? "Activo" : "Inactivo",
+                "Acceso al panel": u.dashboardAccess ? "Sí" : "No",
+                Especialidad: u.specialty ?? "",
+                Cédula: u.idNumber ?? "",
+                Licencia: u.licenseId ?? "",
+                "Fecha de registro": u.createdAt,
+              }))}
+            />
+            {canManage && (
+              <Button
+                colorScheme="vino"
+                leftIcon={<Plus size={16} />}
+                onClick={createModal.onOpen}
+              >
+                Nuevo usuario
+              </Button>
+            )}
+          </HStack>
         </Flex>
 
         {(loading && !usersData) || searching ? (
@@ -239,6 +363,7 @@ export default function Accounts() {
                     <Th display={{ base: "none", lg: "table-cell" }}>
                       Registro
                     </Th>
+                    {canManage && <Th textAlign="right">Acciones</Th>}
                   </Tr>
                 </Thead>
                 <Tbody>
@@ -312,11 +437,22 @@ export default function Accounts() {
                       >
                         {u.createdAt}
                       </Td>
+                      {canManage && (
+                        <Td textAlign="right">
+                          <IconButton
+                            aria-label="Restablecer contraseña"
+                            icon={<KeyRound size={14} />}
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => setToReset(u)}
+                          />
+                        </Td>
+                      )}
                     </Tr>
                   ))}
                   {paginated.length === 0 && (
                     <Tr>
-                      <Td colSpan={9}>
+                      <Td colSpan={canManage ? 10 : 9}>
                         <Text
                           fontSize="sm"
                           color="lucera.textMuted"
@@ -342,6 +478,93 @@ export default function Accounts() {
           </>
         )}
       </StatCard>
+
+      {/* Alta de usuario */}
+      <Modal
+        isOpen={createModal.isOpen}
+        onClose={createModal.onClose}
+        size="md"
+      >
+        <ModalOverlay />
+        <ModalContent>
+          <ModalHeader>Nuevo usuario del panel</ModalHeader>
+          <ModalCloseButton />
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              handleCreate(e.currentTarget);
+            }}
+          >
+            <ModalBody>
+              <Text fontSize="xs" color="lucera.textMuted" mb={3}>
+                Se crea con la cédula; el sistema genera una contraseña inicial
+                que se mostrará una sola vez.
+              </Text>
+              <VStack spacing={4} align="stretch">
+                <FormControl isRequired>
+                  <FormLabel>Nombre completo</FormLabel>
+                  <Input name="name" placeholder="Nombre del usuario" />
+                </FormControl>
+                <FormControl isRequired>
+                  <FormLabel>Email</FormLabel>
+                  <Input name="email" type="email" placeholder="correo@lucera.pa" />
+                </FormControl>
+                <FormControl isRequired>
+                  <FormLabel>Cédula / documento</FormLabel>
+                  <Input name="idNumber" placeholder="8-123-4567" />
+                </FormControl>
+                <FormControl isRequired>
+                  <FormLabel>Rol</FormLabel>
+                  <Select name="role" placeholder="Seleccionar rol">
+                    {roleCatalog.map((r) => (
+                      <option key={r.value} value={r.value}>
+                        {r.label}
+                      </option>
+                    ))}
+                  </Select>
+                </FormControl>
+              </VStack>
+            </ModalBody>
+            <ModalFooter>
+              <Button
+                variant="outline"
+                mr={2}
+                onClick={createModal.onClose}
+                isDisabled={savingUser}
+              >
+                Cancelar
+              </Button>
+              <Button type="submit" colorScheme="vino" isLoading={savingUser}>
+                Crear usuario
+              </Button>
+            </ModalFooter>
+          </form>
+        </ModalContent>
+      </Modal>
+
+      {/* Confirmar restablecimiento */}
+      <ConfirmDialog
+        open={!!toReset}
+        onOpenChange={(o) => !o && setToReset(null)}
+        title="Restablecer contraseña"
+        description={
+          <>
+            ¿Restablecer la contraseña de <strong>{toReset?.name}</strong>? Se
+            generará una temporal y deberá cambiarla en su próximo ingreso.
+          </>
+        }
+        onConfirm={handleReset}
+      />
+
+      {/* Credencial generada (una sola vez) */}
+      <RevealSecretDialog
+        isOpen={!!secret}
+        onClose={() => setSecret(null)}
+        title={secret?.title ?? ""}
+        description={secret?.description}
+        secret={secret?.secret}
+        note={secret?.note}
+      />
     </DashboardLayout>
   );
 }

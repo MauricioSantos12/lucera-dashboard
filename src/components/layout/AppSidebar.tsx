@@ -200,8 +200,11 @@ function SidebarLink({
         mx={2}
         borderRadius="md"
         color={active ? "white" : "lucera.sidebarFg"}
-        bg={active ? "vino.900" : "transparent"}
-        _hover={{ bg: "naranja.500", color: "white" }}
+        bgGradient={
+          active ? "linear(135deg, naranja.400 0%, naranja.600 100%)" : undefined
+        }
+        _hover={active ? undefined : { bg: "whiteAlpha.200", color: "white" }}
+        boxShadow={active ? "0 6px 16px -8px rgba(240,129,89,0.6)" : undefined}
         transition="background 120ms"
         fontWeight={active ? 700 : 500}
         fontSize="sm"
@@ -228,7 +231,7 @@ function SidebarBody({ onNav }: { onNav?: () => void }) {
       direction="column"
       h="100%"
       w="100%"
-      bg="lucera.sidebar"
+      bgGradient="linear(180deg, vino.700 0%, vino.900 100%)"
       color="lucera.sidebarFg"
     >
       <HStack
@@ -316,11 +319,9 @@ function SidebarBody({ onNav }: { onNav?: () => void }) {
         fontSize="10px"
         opacity={0.6}
       >
-        Cumple con la{" "}
-        <Text as="span" fontWeight={600}>
-          Ley 81
-        </Text>{" "}
-        de Protección de Datos · Panamá
+        Lucera es un servicio de teleorientación en salud, conforma a la Ley 203
+        de 2021. Protegemos los datos de acuerdo a la Ley 81 de 2019 de
+        Protección de Datos Personales
       </Box>
     </Flex>
   );

@@ -179,7 +179,7 @@ export default function MyChildren() {
                     <StatCard>
                       <HStack align="flex-start" spacing={3}>
                         <Flex h={12} w={12} borderRadius="xl" bg="naranja.50" align="center" justify="center" flexShrink={0}>
-                          <Baby size={22} color="#ef7d54" />
+                          <Baby size={22} color="#f08159" />
                         </Flex>
                         <Box flex={1}>
                           <Flex justify="space-between" align="flex-start">

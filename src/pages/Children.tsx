@@ -684,7 +684,7 @@ export default function Children() {
                               justify="center"
                               flexShrink={0}
                             >
-                              <Baby size={14} color="#ef7d54" />
+                              <Baby size={14} color="#f08159" />
                             </Flex>
                             <Text
                               fontSize="sm"
@@ -855,7 +855,7 @@ export default function Children() {
         <ModalContent>
           <ModalHeader>
             <HStack spacing={2}>
-              <Baby size={18} color="#ef7d54" />
+              <Baby size={18} color="#f08159" />
               <Text>{detail?.name}</Text>
             </HStack>
           </ModalHeader>
@@ -957,7 +957,7 @@ export default function Children() {
 
                 <Divider mb={3} />
                 <HStack mb={3} spacing={2}>
-                  <MessageSquare size={15} color="#6d122b" />
+                  <MessageSquare size={15} color="#6c122b" />
                   <Text fontSize="sm" fontWeight={700}>
                     Historial de chats
                     {selectedGuardian ? ` · ${selectedGuardian}` : ""} (

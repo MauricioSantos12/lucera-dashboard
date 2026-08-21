@@ -11,7 +11,67 @@ export interface LoginResponse {
     name: string;
     role: string;
     id: string;
+    // Los usuarios recién creados (clave inicial generada por el backend) deben
+    // cambiar la contraseña en el primer ingreso.
+    mustChangePassword?: boolean;
   };
+}
+
+// POST /api/users/me/password → cambia la propia contraseña. Devuelve tokens
+// nuevos (sin expires_in) y baja el flag mustChangePassword.
+export interface ChangePasswordPayload {
+  currentPassword: string;
+  newPassword: string;
+}
+
+// POST /auth/guardian/login → login del acudiente por teléfono. Devuelve un
+// token con scope=portal (solo /portal/*). Respuesta sin tipar en el spec; se
+// asume forma tipo LoginResponse (el id del acudiente puede venir como gid).
+export interface GuardianLoginPayload {
+  phone: string;
+  password: string;
+}
+export interface GuardianLoginResponse {
+  access_token: string;
+  refresh_token: string;
+  expires_in?: number;
+  user?: {
+    name?: string;
+    role?: string;
+    id?: string;
+    gid?: string;
+    phone?: string;
+    email?: string;
+  };
+}
+export interface ChangePasswordResponse {
+  ok?: boolean;
+  mustChangePassword?: boolean;
+  access_token: string;
+  refresh_token: string;
+}
+
+// POST /api/users → alta de usuario del panel. initialPassword solo viene aquí
+// (se muestra una sola vez).
+export interface UserCreatePayload {
+  name: string;
+  email: string;
+  role: string;
+  idNumber: string;
+}
+export interface UserCreateResponse {
+  id: string;
+  idNumber: string | null;
+  initialPassword: string;
+  mustChangePassword: boolean;
+}
+
+// POST /api/users/{id}/password/reset → restablece la clave de otro usuario.
+// Si derivedFromIdNumber es true, la clave se derivó de la cédula (no aleatoria).
+export interface PasswordResetResponse {
+  temporaryPassword: string;
+  derivedFromIdNumber: boolean;
+  mustChangePassword: boolean;
 }
 
 export interface KpisResponse {
@@ -105,7 +165,15 @@ export interface TriageStatApi {
   color: string;
 }
 
-export type PlanApi = "free" | "premium_monthly" | "premium_annual";
+export type PlanApi =
+  | "free"
+  | "premium_monthly"
+  | "premium_annual"
+  | "1_hijo"
+  | "2_hijos"
+  | "3_hijos"
+  | "4_5_hijos"
+  | "validacion_full";
 
 export interface PlanStatApi {
   plan: PlanApi;
@@ -231,6 +299,10 @@ export interface GuardianPatchPayload {
   policyNumber?: string;
   gender?: string;
   idNumber?: string;
+  // Pediatra de cabecera (nombre + celular). El backend los acepta aunque no
+  // estén tipados en el spec (additionalProperties).
+  medico_cabecera_nombre?: string;
+  medico_cabecera_celular?: string;
 }
 
 // name, phone y email son obligatorios; crea el acudiente y su cuenta de
@@ -251,11 +323,19 @@ export interface GuardianCreatePayload {
   policyNumber?: string;
   gender?: string;
   idNumber?: string;
+  medico_cabecera_nombre?: string;
+  medico_cabecera_celular?: string;
 }
 
 export interface DeleteResponse {
   deleted: boolean;
   id: string;
+}
+
+// --- Portal del acudiente (fijar clave / link de onboarding) ---
+// POST /api/guardians/{gid}/portal-password → el admin fija la clave del portal.
+export interface PortalPasswordPayload {
+  password: string;
 }
 
 // GET /api/accounts → cuentas titulares (una por acudiente; account.id === el
@@ -282,6 +362,17 @@ export interface AccountApi {
   createdAt: string;
   subscriptionExpiresAt: string | null;
   subscriptionState: string;
+}
+
+// GET /api/roles → catálogo de roles del panel. Devuelve { items: [...] } con
+// el valor interno, la etiqueta en español y el dashboardRole asociado.
+export interface RoleCatalogItem {
+  value: string; // interno: "admin" | "doctor" | "marketing" | "gerente_cuenta"…
+  label: string; // etiqueta legible: "Administrador", "Médico"…
+  dashboardRole: string; // "Admin" | "Doctor" | "Sales"
+}
+export interface RolesCatalogResponse {
+  items: RoleCatalogItem[];
 }
 
 // GET /api/users → usuarios del panel (staff: admin, médico, ventas), no
@@ -342,6 +433,7 @@ export interface PatientCreatePayload {
   insuranceId?: number;
   address?: string;
   school?: string;
+  idNumber?: string;
   gender?: string;
 }
 
