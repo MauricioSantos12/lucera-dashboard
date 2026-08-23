@@ -6,6 +6,7 @@ import { ReactNode } from "react";
 import Dashboard from "./pages/Dashboard";
 import LandingPage from "./pages/LandingPage";
 import Register from "./pages/Register";
+import Faq from "./pages/Faq";
 import Statistics from "./pages/Statistics";
 import Performance from "./pages/Performance";
 import BotStatus from "./pages/BotStatus";
@@ -50,6 +51,7 @@ const App = () => (
         <Routes>
           <Route path="/" element={<LandingPage />} />
           <Route path="/register" element={<Register />} />
+          <Route path="/faq" element={<Faq />} />
           <Route
             path="/dashboard"
             element={

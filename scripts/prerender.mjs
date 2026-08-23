@@ -12,7 +12,7 @@ import puppeteer from "puppeteer";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DIST = path.resolve(__dirname, "..", "dist");
 const PORT = 4319;
-const ROUTES = ["/", "/register"];
+const ROUTES = ["/", "/register", "/faq"];
 
 const MIME = {
   ".html": "text/html; charset=utf-8",
