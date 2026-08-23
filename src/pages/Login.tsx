@@ -21,6 +21,7 @@ import { ShieldCheck, Smartphone } from "lucide-react";
 import logoVertical from "@/assets/lucera-vertical.jpg";
 import logoSymbol from "@/assets/lucera-symbol.jpg";
 import { toast } from "@/lib/toast";
+import { Seo } from "@/components/Seo";
 import { BACKEND_URL } from "@/lib/config";
 import type { LoginResponse, GuardianLoginResponse } from "@/lib/apiTypes";
 
@@ -138,6 +139,7 @@ export default function Login() {
 
   return (
     <SimpleGrid minH="100vh" columns={{ base: 1, lg: 2 }}>
+      <Seo noindex title="Iniciar sesión" description="Acceso al panel de Lucera." />
       <Flex
         display={{ base: "none", lg: "flex" }}
         direction="column"

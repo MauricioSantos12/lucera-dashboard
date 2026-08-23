@@ -1,14 +1,27 @@
-User-agent: Googlebot
-Allow: /
-
-User-agent: Bingbot
-Allow: /
-
-User-agent: Twitterbot
-Allow: /
-
-User-agent: facebookexternalhit
-Allow: /
-
+# Lucera — robots
 User-agent: *
-Allow: /
+Allow: /$
+Allow: /register
+
+# Áreas privadas / de app: no indexar
+Disallow: /dashboard
+Disallow: /login
+Disallow: /profile
+Disallow: /accounts
+Disallow: /guardians
+Disallow: /children
+Disallow: /chats
+Disallow: /payments
+Disallow: /statistics
+Disallow: /performance
+Disallow: /uses
+Disallow: /usage
+Disallow: /centers
+Disallow: /insurances
+Disallow: /specialties
+Disallow: /bot-status
+Disallow: /my-children
+Disallow: /my-subscription
+Disallow: /my-appointments
+
+Sitemap: https://lucera.mauriciosantosdev.cloud/sitemap.xml

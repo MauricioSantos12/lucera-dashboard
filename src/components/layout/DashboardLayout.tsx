@@ -19,6 +19,7 @@ import {
 } from "@chakra-ui/react";
 import { Bell, LogOut, Search, Menu as MenuIcon, UserCog } from "lucide-react";
 import { AppSidebar, SidebarProvider, useSidebarCtx } from "./AppSidebar";
+import { Seo } from "@/components/Seo";
 import { useAuth } from "@/lib/auth";
 import { useLocation, useNavigate } from "react-router-dom";
 import { MotionPage } from "@/components/MotionPage";
@@ -216,6 +217,12 @@ export function DashboardLayout({
 }) {
   return (
     <SidebarProvider>
+      {/* Todo el panel es privado: no debe indexarse. */}
+      <Seo
+        noindex
+        title={title}
+        description={subtitle ?? "Panel de administración de Lucera."}
+      />
       <Inner title={title} subtitle={subtitle}>
         {children}
       </Inner>

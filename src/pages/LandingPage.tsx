@@ -43,6 +43,8 @@ import {
 import logoSymbol from "@/assets/lucera-symbol.jpg";
 import { FadeInSection } from "@/components/landing/FadeInSection";
 import { AnimatedCounter } from "@/components/landing/AnimatedCounter";
+import { Seo } from "@/components/Seo";
+import { SITE_URL, absoluteUrl } from "@/lib/seo";
 
 const MotionBox = motion(Box);
 
@@ -161,6 +163,32 @@ const pricingPlans = [
 
 const year = new Date().getFullYear();
 
+// Datos estructurados (JSON-LD) para rich results / knowledge graph.
+const landingJsonLd = [
+  {
+    "@context": "https://schema.org",
+    "@type": "MedicalOrganization",
+    name: "Lucera",
+    url: SITE_URL,
+    logo: absoluteUrl("/favicon.jpg"),
+    description:
+      "Teleorientación pediátrica por WhatsApp con triaje por IA y seguimiento de un pediatra, para familias en Panamá.",
+    areaServed: { "@type": "Country", name: "Panamá" },
+    medicalSpecialty: "Pediatric",
+    availableService: {
+      "@type": "MedicalTherapy",
+      name: "Teleorientación pediátrica",
+    },
+  },
+  {
+    "@context": "https://schema.org",
+    "@type": "WebSite",
+    name: "Lucera",
+    url: SITE_URL,
+    inLanguage: "es-PA",
+  },
+];
+
 // Trazos de luciérnaga (universo gráfico del Brandbook): líneas finas con punta
 // redonda y relleno en gradiente que evocan la estela de luz. Se usan siempre
 // con degradado y flotan sutilmente para transmitir "movimiento y luz".
@@ -275,6 +303,13 @@ export default function LandingPage() {
 
   return (
     <Box overflowX="hidden">
+      <Seo
+        isRoot
+        title="Lucera — Teleorientación pediátrica por WhatsApp en Panamá"
+        description="Orientación pediátrica confiable por WhatsApp, con triaje por IA y seguimiento de un pediatra. Para familias en Panamá. Lucera no da diagnósticos ni reemplaza a tu médico o a urgencias."
+        path="/"
+        jsonLd={landingJsonLd}
+      />
       {/* Navbar: fijo y transparente sobre el hero, sólido al scrollear */}
       <Flex
         as="nav"

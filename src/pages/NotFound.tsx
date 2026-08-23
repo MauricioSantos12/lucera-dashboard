@@ -2,6 +2,7 @@ import { useLocation, Link as RouterLink } from "react-router-dom";
 import { useEffect } from "react";
 import { Box, Button, Flex, Heading, Icon, Text } from "@chakra-ui/react";
 import { Compass, Home } from "lucide-react";
+import { Seo } from "@/components/Seo";
 
 const NotFound = () => {
   const location = useLocation();
@@ -11,6 +12,7 @@ const NotFound = () => {
 
   return (
     <Flex minH="100vh" align="center" justify="center" bg="lucera.bg" px={4}>
+      <Seo noindex title="Página no encontrada" description="La página que buscas no existe." />
       <Box textAlign="center" maxW="sm">
         <Flex
           h="72px"

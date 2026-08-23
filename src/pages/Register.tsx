@@ -19,6 +19,7 @@ import {
 import { Link as RouterLink, useNavigate } from "react-router-dom";
 import { ArrowLeft, Plus, Trash2 } from "lucide-react";
 import logoSymbol from "@/assets/lucera-symbol.jpg";
+import { Seo } from "@/components/Seo";
 import { countriesCities } from "@/lib/mockData";
 import { toast } from "@/lib/toast";
 import { apiFetch } from "@/lib/apiClient";
@@ -140,6 +141,11 @@ export default function Register() {
 
   return (
     <Box minH="100vh" bg="crema.50">
+      <Seo
+        title="Registrarse"
+        description="Crea tu cuenta en Lucera y recibe orientación pediátrica por WhatsApp con seguimiento de un pediatra. Planes para cada familia en Panamá."
+        path="/register"
+      />
       {/* Navbar */}
       <Flex
         as="nav"
