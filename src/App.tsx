@@ -1,35 +1,51 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Route, Routes, Navigate } from "react-router-dom";
+import { Flex, Spinner } from "@chakra-ui/react";
 import { AuthProvider, useAuth, UserRole } from "@/lib/auth";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
-import { ReactNode } from "react";
-import Dashboard from "./pages/Dashboard";
+import { ReactNode, lazy, Suspense } from "react";
+
+// Páginas públicas (prerenderizadas): eager, para no mostrar un spinner encima
+// del HTML ya renderizado y mantener el LCP inmediato.
 import LandingPage from "./pages/LandingPage";
 import Register from "./pages/Register";
 import Faq from "./pages/Faq";
-import Statistics from "./pages/Statistics";
-import Performance from "./pages/Performance";
-import BotStatus from "./pages/BotStatus";
-import Guardians from "./pages/Guardians";
-import Children from "./pages/Children";
-// import Specialists from "./pages/Specialists"; // oculto temporalmente
-import Centers from "./pages/Centers";
-import Chats from "./pages/Chats";
-// import Medications from "./pages/Medications"; // oculto temporalmente
-import Payments from "./pages/Payments";
-import UsageLLM from "./pages/UsageLLM";
-import Insurances from "./pages/Insurances";
-import Specialties from "./pages/Specialties";
-import Profile from "./pages/Profile";
-// import Schedule from "./pages/Schedule"; // oculto temporalmente
-import MyChildren from "./pages/MyChildren";
-// import MyAppointments from "./pages/MyAppointments"; // reemplazado por Chats (misma vista que el admin, filtrada al propio acudiente)
-import MySubscription from "./pages/MySubscription";
 import NotFound from "./pages/NotFound";
-import Uses from "./pages/Uses";
-import Accounts from "./pages/Accounts";
+
+// Páginas del panel (privadas): lazy — se cargan bajo demanda. Así el bundle
+// inicial del visitante público no incluye recharts ni el código del dashboard.
+const Dashboard = lazy(() => import("./pages/Dashboard"));
+const Statistics = lazy(() => import("./pages/Statistics"));
+const Performance = lazy(() => import("./pages/Performance"));
+const BotStatus = lazy(() => import("./pages/BotStatus"));
+const Guardians = lazy(() => import("./pages/Guardians"));
+const Children = lazy(() => import("./pages/Children"));
+// const Specialists = lazy(() => import("./pages/Specialists")); // oculto temporalmente
+const Centers = lazy(() => import("./pages/Centers"));
+const Chats = lazy(() => import("./pages/Chats"));
+// const Medications = lazy(() => import("./pages/Medications")); // oculto temporalmente
+const Payments = lazy(() => import("./pages/Payments"));
+const UsageLLM = lazy(() => import("./pages/UsageLLM"));
+const Insurances = lazy(() => import("./pages/Insurances"));
+const Specialties = lazy(() => import("./pages/Specialties"));
+const Profile = lazy(() => import("./pages/Profile"));
+// const Schedule = lazy(() => import("./pages/Schedule")); // oculto temporalmente
+const MyChildren = lazy(() => import("./pages/MyChildren"));
+// MyAppointments reemplazado por Chats (misma vista que el admin, filtrada al acudiente)
+const MySubscription = lazy(() => import("./pages/MySubscription"));
+const Uses = lazy(() => import("./pages/Uses"));
+const Accounts = lazy(() => import("./pages/Accounts"));
 
 const queryClient = new QueryClient();
+
+// Spinner mientras carga un chunk de página (solo aplica a las rutas lazy).
+function RouteFallback() {
+  return (
+    <Flex minH="100vh" align="center" justify="center" bg="lucera.bg">
+      <Spinner thickness="3px" color="vino.500" size="lg" />
+    </Flex>
+  );
+}
 
 function RoleRoute({
   roles,
@@ -48,6 +64,7 @@ const App = () => (
   <QueryClientProvider client={queryClient}>
     <AuthProvider>
       <BrowserRouter>
+        <Suspense fallback={<RouteFallback />}>
         <Routes>
           <Route path="/" element={<LandingPage />} />
           <Route path="/register" element={<Register />} />
@@ -268,6 +285,7 @@ const App = () => (
 
           <Route path="*" element={<NotFound />} />
         </Routes>
+        </Suspense>
       </BrowserRouter>
     </AuthProvider>
   </QueryClientProvider>
