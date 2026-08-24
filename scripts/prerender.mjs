@@ -76,6 +76,31 @@ async function run() {
         })
         .catch(() => {});
 
+      // Materializa el CSS de Emotion (Chakra) en un <style>. En producción
+      // Emotion inserta reglas vía insertRule (CSSOM), así que los <style> que
+      // captura Puppeteer salen vacíos → FOUC (el logo se ve gigante y luego se
+      // acomoda). Recogemos las reglas reales de las hojas inyectadas por JS y
+      // las volcamos como texto para que el primer render ya venga con estilos.
+      await page.evaluate(() => {
+        let css = "";
+        for (const sheet of document.styleSheets) {
+          const node = sheet.ownerNode;
+          if (node && node.tagName === "STYLE") {
+            try {
+              for (const rule of sheet.cssRules) css += rule.cssText;
+            } catch {
+              /* hoja inaccesible (cross-origin): se ignora */
+            }
+          }
+        }
+        if (css) {
+          const style = document.createElement("style");
+          style.setAttribute("data-prerender-css", "");
+          style.textContent = css;
+          document.head.appendChild(style);
+        }
+      });
+
       const html = "<!doctype html>\n" + (await page.content());
 
       const outDir =
