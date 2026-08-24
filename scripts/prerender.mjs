@@ -12,7 +12,9 @@ import puppeteer from "puppeteer";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DIST = path.resolve(__dirname, "..", "dist");
 const PORT = 4319;
-const ROUTES = ["/", "/register", "/faq"];
+const SITE_URL = "https://lucera-ai.com";
+// Rutas base. Los artículos del blog se descubren solos crawleando /blog.
+const ROUTES = ["/", "/register", "/faq", "/blog"];
 
 const MIME = {
   ".html": "text/html; charset=utf-8",
@@ -61,8 +63,14 @@ async function run() {
     args: ["--no-sandbox", "--disable-setuid-sandbox"],
   });
 
+  // Cola de rutas a renderizar; puede crecer al descubrir artículos en /blog.
+  const queue = [...ROUTES];
+  const seen = new Set(queue);
+  const rendered = [];
+
   try {
-    for (const route of ROUTES) {
+    while (queue.length) {
+      const route = queue.shift();
       const page = await browser.newPage();
       await page.goto(`http://localhost:${PORT}${route}`, {
         waitUntil: "networkidle2",
@@ -70,6 +78,19 @@ async function run() {
       });
       // Asegura que React montó el contenido y que el SEO escribió el <head>.
       await page.waitForSelector("h1, h2", { timeout: 15000 });
+
+      // En el índice del blog, descubre los artículos y encólalos.
+      if (route === "/blog") {
+        const links = await page.$$eval('a[href^="/blog/"]', (els) =>
+          els.map((e) => new URL(e.href).pathname)
+        );
+        for (const link of links) {
+          if (!seen.has(link)) {
+            seen.add(link);
+            queue.push(link);
+          }
+        }
+      }
       await page
         .waitForFunction(() => !!document.querySelector('link[rel="canonical"]'), {
           timeout: 8000,
@@ -109,12 +130,31 @@ async function run() {
       const outFile = path.join(outDir, "index.html");
       fs.writeFileSync(outFile, html, "utf-8");
       console.log(`[prerender] ${route} -> ${path.relative(DIST, outFile)}`);
+      rendered.push(route);
       await page.close();
     }
+
+    // Genera el sitemap con todas las rutas públicas renderizadas (incluye los
+    // artículos descubiertos), para no mantener listas a mano.
+    writeSitemap(rendered);
   } finally {
     await browser.close();
     server.close();
   }
+}
+
+// Escribe dist/sitemap.xml a partir de las rutas renderizadas.
+function writeSitemap(routes) {
+  const priority = (r) => (r === "/" ? "1.0" : r.startsWith("/blog/") ? "0.7" : "0.8");
+  const urls = routes
+    .map(
+      (r) =>
+        `  <url>\n    <loc>${SITE_URL}${r === "/" ? "/" : r}</loc>\n    <changefreq>weekly</changefreq>\n    <priority>${priority(r)}</priority>\n  </url>`
+    )
+    .join("\n");
+  const xml = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls}\n</urlset>\n`;
+  fs.writeFileSync(path.join(DIST, "sitemap.xml"), xml, "utf-8");
+  console.log(`[prerender] sitemap.xml -> ${routes.length} URLs`);
 }
 
 run().catch((e) => {

@@ -3,6 +3,7 @@ User-agent: *
 Allow: /$
 Allow: /register
 Allow: /faq
+Allow: /blog
 
 # Áreas privadas / de app: no indexar
 Disallow: /dashboard

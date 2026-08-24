@@ -1061,6 +1061,15 @@ export default function LandingPage() {
               </Text>
               <Text
                 as={RouterLink}
+                to="/blog"
+                fontSize="sm"
+                opacity={0.85}
+                _hover={{ opacity: 1, textDecoration: "underline" }}
+              >
+                Recursos y guías
+              </Text>
+              <Text
+                as={RouterLink}
                 to="/dashboard"
                 fontSize="sm"
                 opacity={0.85}

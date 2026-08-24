@@ -10,6 +10,8 @@ import { ReactNode, lazy, Suspense } from "react";
 import LandingPage from "./pages/LandingPage";
 import Register from "./pages/Register";
 import Faq from "./pages/Faq";
+import Blog from "./pages/Blog";
+import BlogArticle from "./pages/BlogArticle";
 import NotFound from "./pages/NotFound";
 
 // Páginas del panel (privadas): lazy — se cargan bajo demanda. Así el bundle
@@ -69,6 +71,8 @@ const App = () => (
           <Route path="/" element={<LandingPage />} />
           <Route path="/register" element={<Register />} />
           <Route path="/faq" element={<Faq />} />
+          <Route path="/blog" element={<Blog />} />
+          <Route path="/blog/:slug" element={<BlogArticle />} />
           <Route
             path="/dashboard"
             element={
