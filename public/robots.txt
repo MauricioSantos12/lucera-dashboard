@@ -25,4 +25,4 @@ Disallow: /my-children
 Disallow: /my-subscription
 Disallow: /my-appointments
 
-Sitemap: https://lucera.mauriciosantosdev.cloud/sitemap.xml
+Sitemap: https://lucera-ai.com/sitemap.xml
