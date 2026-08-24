@@ -1,3 +1,4 @@
+import { useState } from "react";
 import {
   Button,
   Modal,
@@ -12,7 +13,6 @@ import {
   type ButtonProps,
 } from "@chakra-ui/react";
 import { Download, FileSpreadsheet, FileText } from "lucide-react";
-import { exportToExcel, exportToCsv } from "@/lib/exportToExcel";
 
 type ExportButtonProps<T extends Record<string, unknown>> = {
   data: T[];
@@ -30,11 +30,21 @@ export function ExportButton<T extends Record<string, unknown>>({
   size,
 }: ExportButtonProps<T>) {
   const { isOpen, onOpen, onClose } = useDisclosure();
+  const [isExporting, setIsExporting] = useState(false);
 
-  const handleExport = (format: "xlsx" | "csv") => {
-    if (format === "xlsx") exportToExcel(data, filename, sheetName);
-    else exportToCsv(data, filename);
-    onClose();
+  // La librería de exportación (xlsx, ~pesada) se carga bajo demanda con
+  // import() dinámico solo al hacer clic, para no incluirla en el bundle de las
+  // páginas del dashboard.
+  const handleExport = async (format: "xlsx" | "csv") => {
+    setIsExporting(true);
+    try {
+      const { exportToExcel, exportToCsv } = await import("@/lib/exportToExcel");
+      if (format === "xlsx") exportToExcel(data, filename, sheetName);
+      else exportToCsv(data, filename);
+      onClose();
+    } finally {
+      setIsExporting(false);
+    }
   };
 
   return (
@@ -63,6 +73,8 @@ export function ExportButton<T extends Record<string, unknown>>({
                 colorScheme="vino"
                 leftIcon={<FileSpreadsheet size={16} />}
                 onClick={() => handleExport("xlsx")}
+                isLoading={isExporting}
+                loadingText="Preparando…"
               >
                 Excel (.xlsx)
               </Button>
@@ -70,6 +82,7 @@ export function ExportButton<T extends Record<string, unknown>>({
                 variant="outline"
                 leftIcon={<FileText size={16} />}
                 onClick={() => handleExport("csv")}
+                isDisabled={isExporting}
               >
                 CSV (.csv)
               </Button>

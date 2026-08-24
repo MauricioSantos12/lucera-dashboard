@@ -30,6 +30,14 @@
   <link rel="icon" type="image/jpeg" href="/favicon.jpg">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <!-- Preload de las fuentes críticas (títulos Corben 400/700 y cuerpo Figtree
+       variable) para arrancar su descarga en paralelo y reducir el FOUT. -->
+  <link rel="preload" as="font" type="font/woff2" crossorigin
+    href="https://fonts.gstatic.com/s/corben/v23/LYjAdGzzklQtCMpFHCZQqnoq.woff2">
+  <link rel="preload" as="font" type="font/woff2" crossorigin
+    href="https://fonts.gstatic.com/s/corben/v23/LYjDdGzzklQtCMpNpwNF.woff2">
+  <link rel="preload" as="font" type="font/woff2" crossorigin
+    href="https://fonts.gstatic.com/s/figtree/v9/_Xms-HUzqDCFdgfMm4S9DQ.woff2">
   <!-- Corben se declara en src/index.css con unicode-range recortado (omite ¿ y
        ¡, que Corben dibuja como ? y !); así esos dos caen a la serif Fraunces. -->
   <link
