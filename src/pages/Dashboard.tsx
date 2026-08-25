@@ -60,7 +60,10 @@ const chipStyleByBg: Record<string, { bg: string; color: string }> = {
 };
 
 function Stat({ icon, label, value, accent, sub }: StatProps) {
-  const chipProps = chipStyleByBg[accent.bg] ?? { bg: accent.bg, color: accent.fg };
+  const chipProps = chipStyleByBg[accent.bg] ?? {
+    bg: accent.bg,
+    color: accent.fg,
+  };
 
   return (
     <StatCard position="relative" overflow="hidden">
@@ -108,7 +111,7 @@ function Stat({ icon, label, value, accent, sub }: StatProps) {
 
 function SectionTitle({ children }: { children: React.ReactNode }) {
   return (
-    <Heading size="sm" fontFamily="heading" mt={6} mb={3}>
+    <Heading size="md" fontFamily="heading" fontWeight={700} mt={6} mb={3}>
       {children}
     </Heading>
   );

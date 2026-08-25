@@ -263,7 +263,7 @@ function SidebarBody({ onNav }: { onNav?: () => void }) {
           <Text
             fontFamily="heading"
             fontSize="xl"
-            fontWeight={700}
+            fontWeight={400}
             color="amarillo.300"
             lineHeight={1}
           >

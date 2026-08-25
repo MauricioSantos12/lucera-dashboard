@@ -73,14 +73,16 @@ const colors = {
 };
 
 const fonts = {
-  heading: `'Corben', 'Fraunces', Georgia, serif`,
+  "lucera.bg": { default: "white" },
+  heading: `'Coben', 'Fraunces', Georgia, serif`,
   body: `'Figtree', ui-sans-serif, system-ui, sans-serif`,
   mono: `ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace`,
 };
 
 const semanticTokens = {
   colors: {
-    "lucera.bg": { default: "crema.300" }, // fondo crema de marca (#f5e7d3)
+    "lucera.bg": { default: "white" },
+    // "lucera.bg": { default: "crema.300" }, // fondo crema de marca (#f5e7d3)
     "lucera.surface": { default: "white" }, // tarjetas blancas sobre crema
     "lucera.surfaceAlt": { default: "#fbeaef" }, // vino 50
     "lucera.border": { default: "#f3c5d1" }, // vino 100
@@ -170,6 +172,9 @@ const components = {
       fontFamily: "heading",
       color: "lucera.text",
       letterSpacing: "tight",
+      // Corben solo trae 400 y 700; 700 se ve muy grueso, así que los títulos
+      // usan el peso regular (400) por defecto.
+      fontWeight: 400,
     },
   },
   Input: {
@@ -224,7 +229,7 @@ const components = {
   Modal: {
     baseStyle: {
       dialog: { borderRadius: "xl", bg: "lucera.surface" },
-      header: { fontFamily: "heading" },
+      header: { fontFamily: "heading", fontWeight: 400 },
     },
   },
 };

@@ -53,7 +53,7 @@ export function ConfirmDialog({
               >
                 <AlertTriangle size={20} />
               </Box>
-              <Text fontFamily="heading" fontSize="lg" fontWeight={700}>{title}</Text>
+              <Text fontFamily="heading" fontSize="lg" fontWeight={400}>{title}</Text>
             </HStack>
           </AlertDialogHeader>
           {description && (

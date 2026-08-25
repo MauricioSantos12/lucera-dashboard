@@ -719,7 +719,7 @@ export default function LandingPage() {
                       justify="center"
                       fontFamily="heading"
                       fontSize="xl"
-                      fontWeight={700}
+                      fontWeight={400}
                       boxShadow="0 0 0 6px var(--chakra-colors-crema-100)"
                     >
                       {item.step}
@@ -821,7 +821,7 @@ export default function LandingPage() {
                     <Text
                       fontFamily="heading"
                       fontSize="3xl"
-                      fontWeight={800}
+                      fontWeight={400}
                       color="naranja.400"
                       lineHeight={1}
                       flexShrink={0}

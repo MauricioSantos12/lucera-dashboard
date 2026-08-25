@@ -61,7 +61,7 @@ function Header({ title, subtitle }: { title: string; subtitle?: string }) {
           />
         )}
         <Box minW={0} display={{ base: "none", md: "block" }}>
-          <Heading as="h1" size="sm" noOfLines={1}>
+          <Heading as="h1" size="sm" fontWeight={700} noOfLines={1}>
             {title}
           </Heading>
           {subtitle && (
@@ -147,15 +147,13 @@ function Inner({
   const year = new Date().getFullYear();
 
   return (
-    // En el dashboard los títulos usan la fuente body (Figtree), no la serif de
-    // titulares. Se logra redefiniendo la variable de Chakra para todo el
-    // subárbol: cualquier `fontFamily="heading"` hereda el stack body sin tocar
-    // cada componente. (La landing conserva su serif.)
+    // Todos los títulos del panel en negrita (700), como la vista de Resumen.
+    // Se scopea al subárbol del dashboard para no afectar la landing.
     <Flex
       minH="100vh"
       w="100%"
       bg="lucera.bg"
-      sx={{ "--chakra-fonts-heading": "var(--chakra-fonts-body)" }}
+      sx={{ "& .chakra-heading": { fontWeight: 700 } }}
     >
       <AppSidebar />
       <Flex direction="column" flex={1} minW={0}>
