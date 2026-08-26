@@ -1,12 +1,11 @@
 import { extendTheme, transition, type ThemeConfig } from "@chakra-ui/react";
 
-// Lucera brand palette (HEX exactos del Brandbook 2026)
-//   vino    #6c122b   (primary / brand)      PANTONE 7421c
-//   naranja #f08159   (accent)               PANTONE 2025c  (en gradientes: #f07e55)
-//   crema   #f5e7d3   (fondo base)           PANTONE 8401c  — "usar siempre en fondo crema"
-//   amarillo#f6ca35   (luz / highlight)      PANTONE 122c
+// Lucera brand palette
+//   vino    #6d122b   (primary / brand)
+//   naranja #ef7d54   (accent)
+//   crema   #f4e3ce   (background / soft surfaces)
+//   amarillo#f8cc37   (warning / highlight)
 //   white / black
-// Gradientes de marca: ver `luceraGradients` al final del archivo.
 
 const config: ThemeConfig = {
   initialColorMode: "light",
@@ -73,8 +72,7 @@ const colors = {
 };
 
 const fonts = {
-  "lucera.bg": { default: "white" },
-  heading: `'Coben', 'Fraunces', Georgia, serif`,
+  heading: `'Fraunces', Georgia, serif`,
   body: `'Figtree', ui-sans-serif, system-ui, sans-serif`,
   mono: `ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace`,
 };
@@ -83,7 +81,7 @@ const semanticTokens = {
   colors: {
     "lucera.bg": { default: "white" },
     // "lucera.bg": { default: "crema.300" }, // fondo crema de marca (#f5e7d3)
-    "lucera.surface": { default: "white" }, // tarjetas blancas sobre crema
+    "lucera.surface": { default: "white" },
     "lucera.surfaceAlt": { default: "#fbeaef" }, // vino 50
     "lucera.border": { default: "#f3c5d1" }, // vino 100
     "lucera.borderSoft": { default: "#fbeaef" },
@@ -172,9 +170,6 @@ const components = {
       fontFamily: "heading",
       color: "lucera.text",
       letterSpacing: "tight",
-      // Corben solo trae 400 y 700; 700 se ve muy grueso, así que los títulos
-      // usan el peso regular (400) por defecto.
-      fontWeight: 400,
     },
   },
   Input: {
@@ -229,7 +224,7 @@ const components = {
   Modal: {
     baseStyle: {
       dialog: { borderRadius: "xl", bg: "lucera.surface" },
-      header: { fontFamily: "heading", fontWeight: 400 },
+      header: { fontFamily: "heading" },
     },
   },
 };
@@ -242,7 +237,6 @@ export const theme = extendTheme({
   styles,
   components,
 });
-
 // Gradientes de marca (Brandbook 2026). Strings listos para usar en Chakra:
 //   <Box bgGradient={luceraGradients.warm} />
 // Los degradados planos (coral/vino/amarillo) nacen SIEMPRE del crema, según el

@@ -658,7 +658,7 @@ export default function LandingPage() {
             justifyContent="center"
             alignItems="center"
             w="100%"
-            spacing={6}
+            spacing={10}
           >
             {stats.map((s, i) => (
               <FadeInSection key={s.label} delay={i * 0.1}>
