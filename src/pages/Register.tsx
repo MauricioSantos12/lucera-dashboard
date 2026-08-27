@@ -26,11 +26,14 @@ import { apiFetch } from "@/lib/apiClient";
 import { relationToApi, countryEsToApi } from "@/lib/apiMappings";
 import {
   PLAN_TIERS,
+  BILLING_CYCLES,
+  isPaidPlan,
   emptyChild,
   type ChildForm,
 } from "@/lib/guardianForm";
 import type { Relationship } from "@/lib/mockData";
 import type {
+  BillingCycle,
   GuardianApi,
   GuardianCreatePayload,
   PatientApi,
@@ -43,6 +46,7 @@ export default function Register() {
   const [country, setCountry] = useState("");
   const [gender, setGender] = useState("");
   const [plan, setPlan] = useState("free");
+  const [billingCycle, setBillingCycle] = useState<BillingCycle>("monthly");
   const [childForms, setChildForms] = useState<ChildForm[]>([]);
   const [loading, setLoading] = useState(false);
 
@@ -70,6 +74,7 @@ export default function Register() {
       address: String(fd.get("address") || "") || undefined,
       gender: gender || undefined,
       plan: (plan || undefined) as PlanApi | undefined,
+      billingCycle: isPaidPlan(plan) ? billingCycle : undefined,
       medico_cabecera_nombre:
         String(fd.get("medico_cabecera_nombre") || "") || undefined,
       medico_cabecera_celular:
@@ -349,18 +354,35 @@ export default function Register() {
                         {t.hint}
                       </Text>
                     </Box>
-                    <Box textAlign="right">
-                      <Text fontWeight={700} color="vino.500">
-                        ${t.price}
-                      </Text>
-                      <Text fontSize="xs" color="lucera.textMuted">
-                        {t.period}
-                      </Text>
-                    </Box>
+                    <Text
+                      fontSize="xs"
+                      fontWeight={600}
+                      color={active ? "vino.500" : "lucera.textMuted"}
+                      flexShrink={0}
+                    >
+                      {t.maxDependents} niño{t.maxDependents > 1 ? "s" : ""}
+                    </Text>
                   </Flex>
                 );
               })}
             </VStack>
+
+            {/* Ciclo de cobro (solo planes de pago) */}
+            {isPaidPlan(plan) && (
+              <FormControl mt={3}>
+                <FormLabel fontSize="sm">Ciclo de cobro</FormLabel>
+                <Select
+                  value={billingCycle}
+                  onChange={(e) => setBillingCycle(e.target.value as BillingCycle)}
+                >
+                  {BILLING_CYCLES.map((c) => (
+                    <option key={c.value} value={c.value}>
+                      {c.label}
+                    </option>
+                  ))}
+                </Select>
+              </FormControl>
+            )}
 
             {/* Tus hijos */}
             <Divider my={5} borderColor="lucera.borderSoft" />

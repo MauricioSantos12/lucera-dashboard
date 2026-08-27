@@ -1,6 +1,8 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { useAuth } from "@/lib/auth";
+import { useFetch } from "@/hooks/useFetch";
+import type { GuardianApi } from "@/lib/apiTypes";
 import {
   Avatar,
   Box,
@@ -29,16 +31,30 @@ import { StatCard } from "@/components/StatCard";
 import { MultiSelect } from "@/components/MultiSelect";
 import { centers } from "@/lib/mockData";
 import { toast } from "@/lib/toast";
-import { changePassword } from "@/lib/passwordApi";
+import { changePassword, changePortalPassword } from "@/lib/passwordApi";
 
 const MIN_LENGTH = 8;
 
 export default function Profile() {
-  const { user, updateProfile, getValidToken, applyPasswordChanged } = useAuth();
+  const { user, token, updateProfile, getValidToken, applyPasswordChanged } =
+    useAuth();
+  // Para el acudiente, la fuente real de sus datos es /portal/me (el login no
+  // los puebla). Para operadores se usan los del propio `user`.
+  const { data: me } = useFetch<GuardianApi>(
+    user?.isPortal && token ? "/portal/me" : null
+  );
   const [name, setName] = useState(user?.name ?? "");
   const [email, setEmail] = useState(user?.email ?? "");
   const [phone, setPhone] = useState(user?.phone ?? "");
   const [selectedCenters, setSelectedCenters] = useState<string[]>([]);
+
+  useEffect(() => {
+    if (me) {
+      setName(me.name ?? "");
+      setEmail(me.email ?? "");
+      setPhone(me.phone ?? "");
+    }
+  }, [me]);
 
   // Modal de cambio de contraseña voluntario.
   const pwd = useDisclosure();
@@ -60,7 +76,10 @@ export default function Profile() {
     setSavingPwd(true);
     try {
       const token = await getValidToken();
-      const res = await changePassword(currentPassword, newPassword, token);
+      // Acudiente (portal) → /portal/password; operador → /api/users/me/password.
+      const res = user?.isPortal
+        ? await changePortalPassword(currentPassword, newPassword, token)
+        : await changePassword(currentPassword, newPassword, token);
       applyPasswordChanged(res.access_token, res.refresh_token);
       toast.success("Contraseña actualizada");
       setCurrentPassword("");
@@ -80,7 +99,7 @@ export default function Profile() {
   const centerOptions = centers.map((c) => ({ value: c.id, label: c.name }));
 
   if (!user) return null;
-  const initials = user.name
+  const initials = (name || user.name)
     .split(" ")
     .map((p) => p[0])
     .slice(0, 2)
@@ -108,10 +127,10 @@ export default function Profile() {
               mb={2}
             />
             <Heading size="md" fontFamily="heading">
-              {user.name}
+              {name || user.name}
             </Heading>
             <Text fontSize="xs" color="lucera.textMuted">
-              {user.email}
+              {email || user.email}
             </Text>
             <Badge colorScheme="vino">{user.role}</Badge>
             {user.refId && (

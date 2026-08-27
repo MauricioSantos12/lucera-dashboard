@@ -1,26 +1,16 @@
-import { useState } from "react";
+import { useEffect } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { useAuth } from "@/lib/auth";
-import { guardians, payments } from "@/lib/mockData";
+import { useFetch } from "@/hooks/useFetch";
+import type { GuardianApi, PortalPayment } from "@/lib/apiTypes";
+import { planLabelEs } from "@/lib/guardianForm";
 import {
   Box,
-  Button,
   Flex,
   HStack,
-  SimpleGrid,
   Text,
   Badge,
   Heading,
-  List,
-  ListItem,
-  ListIcon,
-  Modal,
-  ModalOverlay,
-  ModalContent,
-  ModalHeader,
-  ModalBody,
-  ModalFooter,
-  ModalCloseButton,
   Table,
   Thead,
   Tbody,
@@ -28,73 +18,66 @@ import {
   Th,
   Td,
   TableContainer,
-  useDisclosure,
 } from "@chakra-ui/react";
-import { Check, CreditCard, Crown, Sparkles } from "lucide-react";
+import { CreditCard, Crown } from "lucide-react";
 import { StatCard } from "@/components/StatCard";
+import { LoadingState } from "@/components/LoadingState";
 import { formatCurrency } from "@/lib/format";
 import { toast } from "@/lib/toast";
 
-const plans = [
-  {
-    key: "Gratuito",
-    price: 0,
-    period: "siempre",
-    features: ["3 consultas IA/mes", "Triaje básico", "Directorio de centros"],
-  },
-  {
-    key: "Premium Mensual",
-    price: 9.99,
-    period: "mes",
-    features: [
-      "Consultas IA ilimitadas",
-      "Resumen clínico para tu pediatra",
-      "Historial multi-niño",
-      "Soporte prioritario",
-    ],
-  },
-  {
-    key: "Premium Anual",
-    price: 89.99,
-    period: "año",
-    features: [
-      "Todo Premium Mensual",
-      "2 meses gratis",
-      "Recordatorios de vacunas",
-      "Llamada con pediatra (1/año)",
-    ],
-  },
-];
+// Vista de solo lectura: plan actual (/portal/me) e historial de pagos
+// (/portal/payments). Los cambios de plan los gestiona el admin/soporte.
+const statusColor = (s: string) =>
+  /confirm|paid|success/i.test(s)
+    ? "green"
+    : /pend/i.test(s)
+    ? "yellow"
+    : /fail|reject|cancel/i.test(s)
+    ? "red"
+    : "gray";
 
-function getEndDate(date: string, plan: string): string {
-  const start = new Date(date);
-  if (plan === "Premium Anual") start.setFullYear(start.getFullYear() + 1);
-  else start.setMonth(start.getMonth() + 1);
-  return start.toISOString().slice(0, 10);
-}
+const cycleLabel = (planTier?: string | null) =>
+  planTier === "premium_annual"
+    ? "Anual"
+    : planTier === "premium_monthly"
+    ? "Mensual"
+    : null;
 
 export default function MySubscription() {
-  const { user } = useAuth();
-  const guardian = guardians.find((g) => g.id === user?.refId) ?? guardians[0];
-  const myPayments = payments.filter((p) => p.guardian === guardian.name);
-  const { isOpen, onOpen, onClose } = useDisclosure();
-  const [selectedPlan, setSelectedPlan] = useState<string | null>(null);
+  const { token } = useAuth();
+  const { data: me, loading: meLoading, error: meError } = useFetch<GuardianApi>(
+    token ? "/portal/me" : null
+  );
+  const {
+    data: paymentsData,
+    loading: payLoading,
+    error: payError,
+  } = useFetch<PortalPayment[]>(token ? "/portal/payments" : null);
+  const payments = paymentsData ?? [];
 
-  const handleChangePlan = (planKey: string) => {
-    setSelectedPlan(planKey);
-    onOpen();
-  };
+  useEffect(() => {
+    const err = meError || payError;
+    if (err) {
+      toast.error("No se pudo cargar tu suscripción", { description: err });
+    }
+  }, [meError, payError]);
 
-  const confirmChange = () => {
-    toast.success(`Cambio a ${selectedPlan} solicitado`);
-    onClose();
-    setSelectedPlan(null);
-  };
+  if (meLoading && !me) {
+    return (
+      <DashboardLayout title="Mi suscripción" subtitle="Plan actual e historial de pagos">
+        <LoadingState label="Cargando tu suscripción…" />
+      </DashboardLayout>
+    );
+  }
+
+  const planName = me ? planLabelEs[me.plan] ?? me.plan : "—";
+  const isPaid = !!me && me.plan !== "free";
+  const cycle = cycleLabel(me?.planTier);
 
   return (
     <DashboardLayout
       title="Mi suscripción"
-      subtitle="Plan actual y método de pago"
+      subtitle="Plan actual e historial de pagos"
     >
       <Box
         bgGradient="linear(135deg, vino.700 0%, vino.500 60%, naranja.600 100%)"
@@ -110,55 +93,28 @@ export default function MySubscription() {
             </Badge>
             <Heading size="lg" fontFamily="heading" color="white">
               <HStack>
-                <Text>{guardian.plan}</Text>
-                {guardian.plan !== "Gratuito" && <Crown size={20} color="#f6ca35" />}
+                <Text>{planName}</Text>
+                {isPaid && <Crown size={20} color="#f6ca35" />}
               </HStack>
             </Heading>
-            <Text opacity={0.7} fontSize="sm" mt={1}>
-              Activo desde {guardian.registeredAt}
+            <Text opacity={0.75} fontSize="sm" mt={1}>
+              {isPaid && cycle ? `Cobro ${cycle.toLowerCase()}` : "Sin costo"}
+              {me?.subscriptionExpiresAt
+                ? ` · Vence ${me.subscriptionExpiresAt.slice(0, 10)}`
+                : ""}
             </Text>
           </Box>
           <CreditCard size={32} color="rgba(255,255,255,0.4)" />
         </Flex>
       </Box>
 
-      {/* <Heading size="sm" mb={3} fontFamily="heading">Cambiar plan</Heading>
-      <SimpleGrid columns={{ base: 1, md: 3 }} spacing={4} mb={6}>
-        {plans.map(p => {
-          const current = p.key === guardian.plan;
-          return (
-            <StatCard key={p.key} display="flex" flexDirection="column" boxShadow={current ? "0 0 0 2px var(--chakra-colors-vino-500)" : undefined}>
-              <Flex justify="space-between" align="center" mb={2}>
-                <Heading size="sm" fontFamily="heading">{p.key}</Heading>
-                {current && <Badge colorScheme="vino">Actual</Badge>}
-              </Flex>
-              <Box mb={4}>
-                <Heading size="xl" fontFamily="heading" sx={{ fontVariantNumeric: "tabular-nums" }} display="inline">${p.price}</Heading>
-                <Text as="span" fontSize="xs" color="lucera.textMuted">/{p.period}</Text>
-              </Box>
-              <List spacing={1.5} flex={1} mb={4}>
-                {p.features.map(f => (
-                  <ListItem key={f} fontSize="sm"><ListIcon as={Check} color="exito.500" />{f}</ListItem>
-                ))}
-              </List>
-              <Button
-                isDisabled={current}
-                colorScheme="naranja"
-                onClick={() => handleChangePlan(p.key)}
-                leftIcon={!current ? <Sparkles size={14} /> : undefined}
-              >
-                {current ? "Plan actual" : "Cambiar"}
-              </Button>
-            </StatCard>
-          );
-        })}
-      </SimpleGrid> */}
-
       <StatCard>
         <Heading size="sm" mb={3} fontFamily="heading">
           Historial de pagos
         </Heading>
-        {myPayments.length === 0 ? (
+        {payLoading && !paymentsData ? (
+          <LoadingState label="Cargando pagos…" />
+        ) : payments.length === 0 ? (
           <Text fontSize="sm" color="lucera.textMuted">
             Aún no tienes pagos registrados.
           </Text>
@@ -171,50 +127,34 @@ export default function MySubscription() {
             <Table size="sm">
               <Thead bg="crema.100">
                 <Tr>
-                  <Th>ID</Th>
                   <Th>Plan</Th>
                   <Th>Método</Th>
-                  <Th>Tipo</Th>
                   <Th isNumeric>Monto</Th>
                   <Th>Estado</Th>
-                  <Th>Fecha inicio</Th>
-                  <Th>Fecha fin</Th>
+                  <Th>Fecha</Th>
                 </Tr>
               </Thead>
               <Tbody>
-                {myPayments.map((p) => (
+                {payments.map((p) => (
                   <Tr key={p.id} _hover={{ bg: "crema.50" }}>
-                    <Td
-                      fontFamily="mono"
-                      fontSize="xs"
-                      color="lucera.textMuted"
-                    >
-                      {p.id}
-                    </Td>
-                    <Td fontSize="sm">{p.plan}</Td>
+                    <Td fontSize="sm">{planLabelEs[p.plan] ?? p.plan}</Td>
                     <Td>
-                      <Badge variant="outline">{p.method}</Badge>
+                      <Badge variant="outline" textTransform="capitalize">
+                        {p.method}
+                      </Badge>
                     </Td>
-                    <Td fontSize="sm">{p.paymentType ?? "Crédito"}</Td>
                     <Td isNumeric fontWeight={700}>
                       {formatCurrency(p.amount)}
                     </Td>
                     <Td>
                       <Badge
-                        colorScheme={
-                          p.status === "confirmado"
-                            ? "green"
-                            : p.status === "pendiente"
-                            ? "yellow"
-                            : "gray"
-                        }
+                        colorScheme={statusColor(p.status)}
                         textTransform="capitalize"
                       >
                         {p.status}
                       </Badge>
                     </Td>
-                    <Td fontSize="xs">{p.date.slice(0, 10)}</Td>
-                    <Td fontSize="xs">{getEndDate(p.date, p.plan)}</Td>
+                    <Td fontSize="xs">{p.date?.slice(0, 10)}</Td>
                   </Tr>
                 ))}
               </Tbody>
@@ -223,30 +163,10 @@ export default function MySubscription() {
         )}
       </StatCard>
 
-      <Modal isOpen={isOpen} onClose={onClose} isCentered>
-        <ModalOverlay />
-        <ModalContent>
-          <ModalHeader>Confirmar cambio de plan</ModalHeader>
-          <ModalCloseButton />
-          <ModalBody>
-            <Text>
-              ¿Estás seguro que deseas cambiar tu plan a{" "}
-              <strong>{selectedPlan}</strong>?
-            </Text>
-            <Text fontSize="xs" color="lucera.textMuted" mt={2}>
-              El cambio se aplicará de inmediato y se ajustará tu próximo cobro.
-            </Text>
-          </ModalBody>
-          <ModalFooter>
-            <Button variant="outline" mr={2} onClick={onClose}>
-              Cancelar
-            </Button>
-            <Button colorScheme="vino" onClick={confirmChange}>
-              Confirmar cambio
-            </Button>
-          </ModalFooter>
-        </ModalContent>
-      </Modal>
+      <Text fontSize="xs" color="lucera.textMuted" mt={6} textAlign="center">
+        ¿Quieres cambiar de plan? Escríbenos por WhatsApp y el equipo de Lucera
+        te ayuda.
+      </Text>
     </DashboardLayout>
   );
 }

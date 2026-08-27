@@ -143,6 +143,8 @@ export type Guardian = {
   address?: string | null;
   province?: string | null;
   planApi?: string; // valor crudo del plan del API (free, 1_hijo, …)
+  planTierApi?: string | null; // etiqueta legacy (premium_monthly/annual/free)
+  updatedAt?: string;
   chats?: number;
 };
 

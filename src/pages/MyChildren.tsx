@@ -1,173 +1,67 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { useAuth } from "@/lib/auth";
-import { useFetchAll } from "@/hooks/useFetchAll";
-import { apiFetch } from "@/lib/apiClient";
-import type {
-  PatientApi,
-  PatientCreatePayload,
-  PatientPatchPayload,
-  GuardianApi,
-  DeleteResponse,
-  BloodType,
-} from "@/lib/apiTypes";
+import { useFetch } from "@/hooks/useFetch";
+import type { ChildApi } from "@/lib/apiTypes";
 import {
-  Box, Button, Flex, FormControl, FormLabel, HStack, IconButton, Input, Modal, ModalBody,
-  ModalCloseButton, ModalContent, ModalFooter, ModalHeader, ModalOverlay, Select, SimpleGrid,
-  Text, Badge, useDisclosure, Heading, VStack, Wrap, WrapItem,
+  Box,
+  Flex,
+  HStack,
+  Text,
+  Badge,
+  Heading,
+  SimpleGrid,
+  Wrap,
+  WrapItem,
 } from "@chakra-ui/react";
-import { Baby, Droplet, AlertTriangle, Plus, Pencil, Trash2 } from "lucide-react";
+import { Baby, Droplet, AlertTriangle } from "lucide-react";
 import { StatCard } from "@/components/StatCard";
-import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { LoadingState } from "@/components/LoadingState";
 import { toast } from "@/lib/toast";
 import { motion, AnimatePresence } from "framer-motion";
 
 const MotionDiv = motion(Box);
 
-// ⚠️ Nota de seguridad (misma que en Chats.tsx): este login usa /auth/login
-// (el mismo flujo de los operadores), cuyo access_token tiene acceso completo
-// a /api/* — el filtrado a "solo mis hijos" ocurre SOLO en el navegador. El
-// backend sí tiene un flujo aislado por diseño (/auth/guardian/login con
-// teléfono+clave → token scope=portal+gid, endpoints /portal/*), pero migrar
-// el login del acudiente a ese flujo es un cambio de arquitectura aparte.
+// Vista de solo lectura del portal del acudiente. Lee de /portal/children (token
+// scope=portal). La gestión de hijos (crear/editar/eliminar) queda para el admin;
+// aquí el acudiente solo consulta.
+function ageFromBirth(birthDate: string): number | null {
+  const d = new Date(`${birthDate}T00:00:00`);
+  if (Number.isNaN(d.getTime())) return null;
+  const now = new Date();
+  let age = now.getFullYear() - d.getFullYear();
+  const m = now.getMonth() - d.getMonth();
+  if (m < 0 || (m === 0 && now.getDate() < d.getDate())) age--;
+  return age < 0 ? null : age;
+}
+
 export default function MyChildren() {
-  const { user, token, getValidToken } = useAuth();
-
-  const { data: guardiansData } = useFetchAll<GuardianApi>(
-    token ? "/api/guardians" : null
+  const { token } = useAuth();
+  const { data, loading, error } = useFetch<ChildApi[]>(
+    token ? "/portal/children" : null
   );
-  const ownGuardian = useMemo(
-    () => (guardiansData?.items ?? []).find((g) => g.email === user?.email),
-    [guardiansData, user?.email]
-  );
-
-  const {
-    data: patientsData,
-    loading: patientsLoading,
-    error: patientsError,
-    refetch: refetchPatients,
-  } = useFetchAll<PatientApi>(token ? "/api/patients" : null);
-
-  const myChildren = useMemo(
-    () =>
-      (patientsData?.items ?? []).filter(
-        (p) => p.guardianId === ownGuardian?.id
-      ),
-    [patientsData, ownGuardian]
-  );
+  const children = data ?? [];
 
   useEffect(() => {
-    if (patientsError) {
-      toast.error("No se pudieron cargar tus hijos", {
-        description: patientsError,
-      });
+    if (error) {
+      toast.error("No se pudieron cargar tus hijos", { description: error });
     }
-  }, [patientsError]);
-
-  const [editing, setEditing] = useState<PatientApi | null>(null);
-  const { isOpen, onOpen, onClose } = useDisclosure();
-  const [toDelete, setToDelete] = useState<PatientApi | null>(null);
-  const [saving, setSaving] = useState(false);
-
-  const openEdit = (n: PatientApi | null) => {
-    setEditing(n);
-    onOpen();
-  };
-
-  const handleSave = async (form: HTMLFormElement) => {
-    if (!ownGuardian) return;
-    // Defensa en profundidad: la lista ya viene escopada, pero verificamos
-    // de nuevo antes de escribir que el registro es realmente propio.
-    if (editing && editing.guardianId !== ownGuardian.id) {
-      toast.error("No puedes editar este registro");
-      return;
-    }
-
-    const fd = new FormData(form);
-    const allergies = String(fd.get("allergies") || "")
-      .split(",")
-      .map((s) => s.trim())
-      .filter(Boolean);
-    const conditions = String(fd.get("conditions") || "")
-      .split(",")
-      .map((s) => s.trim())
-      .filter(Boolean);
-    const birthDate = String(fd.get("birthDate"));
-    const weightKg = Number(fd.get("weightKg")) || undefined;
-    const bloodType = (fd.get("bloodType") as BloodType) || undefined;
-
-    setSaving(true);
-    try {
-      const freshToken = await getValidToken();
-      if (editing) {
-        const payload: PatientPatchPayload = {
-          name: String(fd.get("name")),
-          birthDate,
-          weightKg,
-          bloodType,
-          conditions,
-          allergies,
-        };
-        await apiFetch<PatientApi>(`/api/patients/${editing.id}`, freshToken, {
-          method: "PATCH",
-          body: JSON.stringify(payload),
-        });
-        toast.success("Datos actualizados");
-      } else {
-        const payload: PatientCreatePayload = {
-          guardianId: ownGuardian.id,
-          name: String(fd.get("name")),
-          birthDate,
-          weightKg,
-          bloodType,
-          conditions,
-          allergies,
-        };
-        await apiFetch<PatientApi>("/api/patients", freshToken, {
-          method: "POST",
-          body: JSON.stringify(payload),
-        });
-        toast.success("Hijo/a registrado");
-      }
-      onClose();
-      setEditing(null);
-      refetchPatients();
-    } catch (err) {
-      toast.error(
-        editing ? "No se pudo actualizar" : "No se pudo registrar",
-        { description: err instanceof Error ? err.message : undefined }
-      );
-    } finally {
-      setSaving(false);
-    }
-  };
+  }, [error]);
 
   return (
-    <DashboardLayout title="Mis hijos" subtitle="Niños registrados en tu cuenta de Lucera">
-      {guardiansData && !ownGuardian ? (
-        <Text color="lucera.textMuted" textAlign="center" py={10}>
-          No encontramos tu cuenta de acudiente con este correo.
-        </Text>
+    <DashboardLayout
+      title="Mis hijos"
+      subtitle="Niños registrados en tu cuenta de Lucera"
+    >
+      {loading && !data ? (
+        <LoadingState label="Cargando tus hijos…" />
       ) : (
         <>
-          <Flex justify="flex-end" mb={4}>
-            <Button
-              colorScheme="naranja"
-              leftIcon={<Plus size={16} />}
-              onClick={() => openEdit(null)}
-              isDisabled={!ownGuardian}
-            >
-              Registrar hijo/a
-            </Button>
-          </Flex>
-
-          {patientsLoading && !patientsData ? (
-            <LoadingState label="Cargando tus hijos…" />
-          ) : (
-            <SimpleGrid columns={{ base: 1, md: 2 }} spacing={4}>
-              <AnimatePresence mode="popLayout">
-                {myChildren.map((n) => (
+          <SimpleGrid columns={{ base: 1, md: 2 }} spacing={4}>
+            <AnimatePresence mode="popLayout">
+              {children.map((n) => {
+                const age = ageFromBirth(n.birthDate);
+                return (
                   <MotionDiv
                     key={n.id}
                     layout
@@ -178,30 +72,49 @@ export default function MyChildren() {
                   >
                     <StatCard>
                       <HStack align="flex-start" spacing={3}>
-                        <Flex h={12} w={12} borderRadius="xl" bg="naranja.50" align="center" justify="center" flexShrink={0}>
+                        <Flex
+                          h={12}
+                          w={12}
+                          borderRadius="xl"
+                          bg="naranja.50"
+                          align="center"
+                          justify="center"
+                          flexShrink={0}
+                        >
                           <Baby size={22} color="#f08159" />
                         </Flex>
                         <Box flex={1}>
-                          <Flex justify="space-between" align="flex-start">
-                            <Box>
-                              <Heading size="sm" fontFamily="heading">{n.name}</Heading>
-                              <Text fontSize="xs" color="lucera.textMuted">
-                                {n.age} años · Nacido {n.birthDate}
-                              </Text>
-                            </Box>
-                            <HStack spacing={1}>
-                              <IconButton aria-label="Editar" size="sm" variant="ghost" icon={<Pencil size={14} />} onClick={() => openEdit(n)} />
-                              <IconButton aria-label="Eliminar" size="sm" variant="ghost" color="peligro.500" icon={<Trash2 size={14} />} onClick={() => setToDelete(n)} />
-                            </HStack>
-                          </Flex>
+                          <Heading size="sm" fontFamily="heading">
+                            {n.name}
+                          </Heading>
+                          <Text fontSize="xs" color="lucera.textMuted">
+                            {age != null ? `${age} años · ` : ""}Nacido{" "}
+                            {n.birthDate}
+                          </Text>
 
                           <SimpleGrid columns={2} spacing={3} mt={4}>
                             <Box>
-                              <Text fontSize="10px" textTransform="uppercase" color="lucera.textMuted" letterSpacing="wider">Peso</Text>
-                              <Text fontWeight={700}>{n.weightKg ? `${n.weightKg} kg` : "—"}</Text>
+                              <Text
+                                fontSize="10px"
+                                textTransform="uppercase"
+                                color="lucera.textMuted"
+                                letterSpacing="wider"
+                              >
+                                Peso
+                              </Text>
+                              <Text fontWeight={700}>
+                                {n.weightKg ? `${n.weightKg} kg` : "—"}
+                              </Text>
                             </Box>
                             <Box>
-                              <Text fontSize="10px" textTransform="uppercase" color="lucera.textMuted" letterSpacing="wider">Tipo de sangre</Text>
+                              <Text
+                                fontSize="10px"
+                                textTransform="uppercase"
+                                color="lucera.textMuted"
+                                letterSpacing="wider"
+                              >
+                                Tipo de sangre
+                              </Text>
                               {n.bloodType ? (
                                 <Badge variant="outline">
                                   <HStack spacing={1}>
@@ -210,13 +123,28 @@ export default function MyChildren() {
                                   </HStack>
                                 </Badge>
                               ) : (
-                                <Text fontSize="xs" color="lucera.textMuted">—</Text>
+                                <Text fontSize="xs" color="lucera.textMuted">
+                                  —
+                                </Text>
                               )}
                             </Box>
                           </SimpleGrid>
 
-                          <Box mt={3} pt={3} borderTopWidth="1px" borderColor="lucera.borderSoft">
-                            <Text fontSize="10px" textTransform="uppercase" color="lucera.textMuted" letterSpacing="wider" mb={1.5}>Antecedentes</Text>
+                          <Box
+                            mt={3}
+                            pt={3}
+                            borderTopWidth="1px"
+                            borderColor="lucera.borderSoft"
+                          >
+                            <Text
+                              fontSize="10px"
+                              textTransform="uppercase"
+                              color="lucera.textMuted"
+                              letterSpacing="wider"
+                              mb={1.5}
+                            >
+                              Antecedentes
+                            </Text>
                             <Wrap spacing={1}>
                               {(n.allergies ?? []).map((a) => (
                                 <WrapItem key={a}>
@@ -233,83 +161,39 @@ export default function MyChildren() {
                                   <Badge colorScheme="blue">{c}</Badge>
                                 </WrapItem>
                               ))}
-                              {!n.allergies?.length && !n.conditions?.length && (
-                                <Text fontSize="xs" color="lucera.textMuted">Sin antecedentes</Text>
-                              )}
+                              {!n.allergies?.length &&
+                                !n.conditions?.length && (
+                                  <Text fontSize="xs" color="lucera.textMuted">
+                                    Sin antecedentes
+                                  </Text>
+                                )}
                             </Wrap>
                           </Box>
                         </Box>
                       </HStack>
                     </StatCard>
                   </MotionDiv>
-                ))}
-              </AnimatePresence>
-              {myChildren.length === 0 && (
-                <Text color="lucera.textMuted" gridColumn={{ md: "span 2" }} textAlign="center" py={6}>
-                  Aún no tienes hijos registrados.
-                </Text>
-              )}
-            </SimpleGrid>
-          )}
+                );
+              })}
+            </AnimatePresence>
+            {children.length === 0 && (
+              <Text
+                color="lucera.textMuted"
+                gridColumn={{ md: "span 2" }}
+                textAlign="center"
+                py={6}
+              >
+                Aún no tienes hijos registrados.
+              </Text>
+            )}
+          </SimpleGrid>
+
+          <Text fontSize="xs" color="lucera.textMuted" mt={6} textAlign="center">
+            ¿Necesitas agregar o actualizar los datos de un hijo? Escríbenos por
+            WhatsApp y el equipo de Lucera lo gestiona por ti.
+          </Text>
         </>
       )}
-
-      <Modal isOpen={isOpen} onClose={onClose} size="xl">
-        <ModalOverlay />
-        <ModalContent>
-          <ModalHeader>{editing ? "Editar hijo/a" : "Registrar nuevo hijo/a"}</ModalHeader>
-          <ModalCloseButton />
-          <form onSubmit={(e) => { e.preventDefault(); handleSave(e.currentTarget); }}>
-            <ModalBody>
-              <Text fontSize="xs" color="lucera.textMuted" mb={3}>Estos datos permiten a Lucera IA calcular dosis y dar recomendaciones más seguras.</Text>
-              <SimpleGrid columns={2} spacing={3}>
-                <FormControl gridColumn="span 2" isRequired><FormLabel>Nombre completo</FormLabel><Input name="name" defaultValue={editing?.name} /></FormControl>
-                <FormControl isRequired><FormLabel>Fecha de nacimiento</FormLabel><Input name="birthDate" type="date" defaultValue={editing?.birthDate} /></FormControl>
-                <FormControl><FormLabel>Peso (kg)</FormLabel><Input name="weightKg" type="number" step="0.1" min="0" defaultValue={editing?.weightKg ?? undefined} /></FormControl>
-                <FormControl gridColumn="span 2"><FormLabel>Tipo de sangre</FormLabel>
-                  <Select name="bloodType" defaultValue={editing?.bloodType ?? ""} placeholder="Sin especificar">
-                    {["A+","A-","B+","B-","AB+","AB-","O+","O-"].map((t) => <option key={t} value={t}>{t}</option>)}
-                  </Select>
-                </FormControl>
-                <FormControl gridColumn="span 2"><FormLabel>Alergias (separadas por coma)</FormLabel><Input name="allergies" placeholder="Penicilina, Maní…" defaultValue={editing?.allergies?.join(", ")} /></FormControl>
-                <FormControl gridColumn="span 2"><FormLabel>Condiciones médicas (separadas por coma)</FormLabel><Input name="conditions" placeholder="Asma leve…" defaultValue={editing?.conditions?.join(", ")} /></FormControl>
-              </SimpleGrid>
-            </ModalBody>
-            <ModalFooter>
-              <Button variant="outline" mr={2} onClick={onClose} isDisabled={saving}>Cancelar</Button>
-              <Button type="submit" colorScheme="vino" isLoading={saving}>
-                {editing ? "Actualizar" : "Crear"}
-              </Button>
-            </ModalFooter>
-          </form>
-        </ModalContent>
-      </Modal>
-
-      <ConfirmDialog
-        open={!!toDelete}
-        onOpenChange={(o) => !o && setToDelete(null)}
-        title="Eliminar registro"
-        description={<>¿Eliminar el perfil de <strong>{toDelete?.name}</strong>? Se perderá su historial clínico vinculado y no se puede deshacer.</>}
-        onConfirm={async () => {
-          if (!toDelete || !ownGuardian) return;
-          if (toDelete.guardianId !== ownGuardian.id) {
-            toast.error("No puedes eliminar este registro");
-            return;
-          }
-          try {
-            const freshToken = await getValidToken();
-            await apiFetch<DeleteResponse>(`/api/patients/${toDelete.id}`, freshToken, {
-              method: "DELETE",
-            });
-            toast.success("Registro eliminado");
-            refetchPatients();
-          } catch (err) {
-            toast.error("No se pudo eliminar el registro", {
-              description: err instanceof Error ? err.message : undefined,
-            });
-          }
-        }}
-      />
     </DashboardLayout>
   );
 }

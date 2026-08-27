@@ -85,16 +85,39 @@ export default function Login() {
         return;
       }
 
-      // Fallback: acudiente del portal (login por teléfono, token scope=portal).
+      // Fallback: acudiente del portal (token scope=portal). El backend acepta
+      // `identifier` = correo o teléfono.
       const gRes = await fetch(`${BACKEND_URL}/auth/guardian/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phone: identifier, password }),
+        body: JSON.stringify({ identifier, password }),
       });
       if (!gRes.ok) {
         throw new Error("Correo/teléfono o contraseña incorrectos");
       }
       const gData: GuardianLoginResponse = await gRes.json();
+      // Detección de primer ingreso forzado: usamos el flag del login si viene,
+      // y si no, probamos el gate del portal (todo /portal/* da 403 "Password
+      // change required" mientras no cambie la clave). Así es determinista.
+      let mustChange = gData.mustChangePassword ?? false;
+      if (!mustChange) {
+        try {
+          const probe = await fetch(`${BACKEND_URL}/portal/children`, {
+            headers: { Authorization: `Bearer ${gData.access_token}` },
+          });
+          if (probe.status === 403) {
+            const pb = await probe.json().catch(() => null);
+            if (
+              typeof pb?.detail === "string" &&
+              pb.detail.includes("Password change required")
+            ) {
+              mustChange = true;
+            }
+          }
+        } catch {
+          /* sin red: seguimos sin forzar */
+        }
+      }
       const gAcc: AuthUser = {
         email: gData.user?.email ?? "",
         name: gData.user?.name ?? "Acudiente",
@@ -102,6 +125,8 @@ export default function Login() {
         id: gData.user?.id ?? gData.user?.gid ?? "",
         phone: gData.user?.phone ?? identifier,
         isPortal: true,
+        // Si aplica, ProtectedRoute muestra el cambio de clave (/portal/password).
+        mustChangePassword: mustChange,
       };
       setLoading(false);
       login(

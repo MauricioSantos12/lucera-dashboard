@@ -6,10 +6,10 @@ import ChangePassword from "@/pages/ChangePassword";
 export function ProtectedRoute({ children }: { children: ReactNode }) {
   const { user } = useAuth();
   if (!user) return <Login />;
-  // Primer ingreso / cambio obligatorio: bloquea todo el panel hasta cambiarla.
-  // Solo aplica a usuarios del panel (operadores); la clave del acudiente la
-  // fija el admin (POST /api/guardians/{gid}/portal-password), no por este flujo.
-  if (user.role !== "Acudiente" && user.mustChangePassword) {
+  // Primer ingreso / cambio obligatorio: bloquea todo hasta cambiar la clave.
+  // Aplica a operadores (/api/users/me/password) y a acudientes del portal
+  // (/portal/password); la propia pantalla elige el endpoint según isPortal.
+  if (user.mustChangePassword) {
     return <ChangePassword />;
   }
   return <>{children}</>;

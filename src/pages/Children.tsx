@@ -89,6 +89,8 @@ type Row = Child & {
   address: string;
   school: string;
   accountCode: string;
+  createdAt?: string;
+  updatedAt?: string;
 };
 
 export const chatStatusLabel: Record<string, string> = {
@@ -127,6 +129,8 @@ function patientToRow(
     address: p.address ?? "",
     school: p.school ?? "",
     accountCode: p.accountCode ?? "",
+    createdAt: p.createdAt,
+    updatedAt: p.updatedAt,
   };
 }
 
@@ -182,17 +186,38 @@ export default function Children() {
     () => Object.fromEntries(guardians.map((g) => [g.id, g.country])),
     [guardians]
   );
+  // /api/patients no trae created/updatedAt; sí vienen en los hijos anidados de
+  // /api/guardians. Se indexan por id del niño para enriquecer las filas.
+  const timestampsByChildId = useMemo(() => {
+    const map = new Map<string, { createdAt?: string; updatedAt?: string }>();
+    guardians.forEach((g) =>
+      g.children.forEach((c) =>
+        map.set(c.id, { createdAt: c.createdAt, updatedAt: c.updatedAt })
+      )
+    );
+    return map;
+  }, [guardians]);
   const data = useMemo(
     () =>
-      (patientsData?.items ?? []).map((p) =>
-        patientToRow(
+      (patientsData?.items ?? []).map((p) => {
+        const row = patientToRow(
           p,
           relationshipByGuardianId,
           countryByGuardianId,
           chatsByPatient
-        )
-      ),
-    [patientsData, relationshipByGuardianId, countryByGuardianId, chatsByPatient]
+        );
+        const ts = timestampsByChildId.get(p.id);
+        row.createdAt = ts?.createdAt;
+        row.updatedAt = ts?.updatedAt;
+        return row;
+      }),
+    [
+      patientsData,
+      relationshipByGuardianId,
+      countryByGuardianId,
+      chatsByPatient,
+      timestampsByChildId,
+    ]
   );
   const insurances = useMemo(
     () => insurancesData?.items ?? [],
@@ -595,6 +620,8 @@ export default function Children() {
               País: r.country,
               Acudiente: r.guardianName,
               Teléfono: r.phone,
+              "Fecha de creación": r.createdAt ? r.createdAt.slice(0, 10) : "",
+              "Fecha de actualización": r.updatedAt ? r.updatedAt.slice(0, 10) : "",
             }))}
           />
           {canEdit && (
@@ -644,6 +671,10 @@ export default function Children() {
                       Alergias / Condiciones
                     </Th>
                     <Th>Acudiente</Th>
+                    <Th display={{ base: "none", xl: "table-cell" }}>Creación</Th>
+                    <Th display={{ base: "none", xl: "table-cell" }}>
+                      Actualización
+                    </Th>
                     <Th textAlign="right">Acciones</Th>
                   </Tr>
                 </Thead>
@@ -795,6 +826,22 @@ export default function Children() {
                           <Text color="lucera.textMuted">
                             {r.relationship} · {r.phone}
                           </Text>
+                        </Td>
+                        <Td
+                          display={{ base: "none", xl: "table-cell" }}
+                          fontSize="xs"
+                          color="lucera.textMuted"
+                          sx={{ fontVariantNumeric: "tabular-nums" }}
+                        >
+                          {r.createdAt ? r.createdAt.slice(0, 10) : "—"}
+                        </Td>
+                        <Td
+                          display={{ base: "none", xl: "table-cell" }}
+                          fontSize="xs"
+                          color="lucera.textMuted"
+                          sx={{ fontVariantNumeric: "tabular-nums" }}
+                        >
+                          {r.updatedAt ? r.updatedAt.slice(0, 10) : "—"}
                         </Td>
                         <Td textAlign="right">
                           {canEdit && (

@@ -10,9 +10,13 @@ import {
   planLabelEs,
   PLAN_TIERS,
   ACCEPTED_PLANS,
+  BILLING_CYCLES,
+  planMaxDependents,
+  isPaidPlan,
   emptyChild,
   type ChildForm,
 } from "@/lib/guardianForm";
+import type { BillingCycle } from "@/lib/apiTypes";
 import {
   relationToEs,
   relationToApi,
@@ -27,6 +31,7 @@ import {
 } from "@/lib/apiMappings";
 import type {
   GuardianApi,
+  GuardianCreateResponse,
   GuardianPatchPayload,
   GuardianCreatePayload,
   PatientApi,
@@ -36,6 +41,7 @@ import type {
   PlanApi,
   DeleteResponse,
 } from "@/lib/apiTypes";
+import { RevealSecretDialog } from "@/components/RevealSecretDialog";
 import {
   Box,
   Button,
@@ -46,6 +52,7 @@ import {
   InputGroup,
   InputLeftElement,
   Select,
+  Checkbox,
   Table,
   Thead,
   Tbody,
@@ -118,6 +125,8 @@ function guardianApiToRow(g: GuardianApi): Guardian {
     address: g.address,
     province: g.province,
     planApi: g.plan,
+    planTierApi: g.planTier,
+    updatedAt: g.updatedAt,
     chats: g.chats,
     children: g.children.map(
       (c): Child => ({
@@ -200,6 +209,14 @@ export default function Guardians() {
   // Estado del formulario de creación/edición: plan (tier), ciclo de cobro y
   // los hijos a crear (solo en creación).
   const [plan, setPlan] = useState("free");
+  const [billingCycle, setBillingCycle] = useState<BillingCycle>("monthly");
+  const [noPassword, setNoPassword] = useState(false);
+  // Secreto (clave inicial / temporal) que se muestra UNA vez tras crear/reset.
+  const [revealSecret, setRevealSecret] = useState<{
+    title: string;
+    description: string;
+    secret: string;
+  } | null>(null);
   const [childForms, setChildForms] = useState<ChildForm[]>([]);
   const [saving, setSaving] = useState(false);
   // Loading breve para dar feedback al cambiar filtros o tras crear/editar.
@@ -276,7 +293,7 @@ export default function Guardians() {
       const okStatus = status === "todos" || g.status === status;
       const okCountry =
         countryFilter === "todos" || g.country === countryFilter;
-      const okPlan = planFilter === "todos" || g.plan === planFilter;
+      const okPlan = planFilter === "todos" || g.planApi === planFilter;
       const okInsurance =
         insuranceFilter === "todos" ||
         (insuranceFilter === "sin_seguro"
@@ -295,6 +312,8 @@ export default function Guardians() {
     setProvince(g?.province ?? "");
     setGender(genderToValue(g?.gender));
     setPlan(g?.planApi ?? "free");
+    setBillingCycle(g?.planTierApi === "premium_annual" ? "annual" : "monthly");
+    setNoPassword(false);
     setChildForms([]); // los hijos solo se agregan al crear
     onOpen();
   };
@@ -311,6 +330,7 @@ export default function Guardians() {
       setProvince(row.province ?? "");
       setGender(genderToValue(row?.gender));
       setPlan(row.planApi ?? "free");
+      setBillingCycle(row.planTierApi === "premium_annual" ? "annual" : "monthly");
       setChildForms([]);
       onOpen();
       setSearchParams({}, { replace: true });
@@ -338,6 +358,10 @@ export default function Guardians() {
         address: String(fd.get("address") || "") || undefined,
         status: statusToApi[fd.get("status") as AccountStatus],
         plan: (plan || undefined) as PlanApi | undefined,
+        billingCycle: isPaidPlan(plan) ? billingCycle : undefined,
+        // Default: el API genera la clave (initialPassword). Marcar "sin clave"
+        // crea la cuenta sin acceso al portal hasta fijar/restablecer.
+        generatePassword: noPassword ? false : undefined,
         gender: gender || undefined,
         insuranceId: insuranceIdNew ? Number(insuranceIdNew) : undefined,
         policyNumber: policyNumberNew || undefined,
@@ -355,7 +379,7 @@ export default function Guardians() {
       setSaving(true);
       try {
         const freshToken = await getValidToken();
-        const created = await apiFetch<GuardianApi>(
+        const created = await apiFetch<GuardianCreateResponse>(
           "/api/guardians",
           freshToken,
           { method: "POST", body: JSON.stringify(payload) }
@@ -401,6 +425,14 @@ export default function Guardians() {
               : "Acudiente creado"
           );
         }
+        // Si el API generó clave, se muestra UNA vez.
+        if (created.initialPassword) {
+          setRevealSecret({
+            title: "Clave del portal creada",
+            description: `Comparte esta clave con ${created.name}. Deberá cambiarla en su primer ingreso.`,
+            secret: created.initialPassword,
+          });
+        }
         onClose();
         setEditing(null);
         refetchGuardians();
@@ -436,6 +468,7 @@ export default function Guardians() {
       relationship: relationToApi[fd.get("relationship") as Relationship],
       status: statusToApi[fd.get("status") as AccountStatus],
       plan: (plan || undefined) as PlanApi | undefined,
+      billingCycle: isPaidPlan(plan) ? billingCycle : undefined,
       insuranceId: insuranceId ? Number(insuranceId) : undefined,
       policyNumber: policyNumber || undefined,
       gender: gender || undefined,
@@ -542,11 +575,13 @@ export default function Guardians() {
               onChange={(e) => setPlanFilter(e.target.value)}
             >
               <option value="todos">Todos los planes</option>
-              {["Gratuito", "Premium Mensual", "Premium Anual"].map((p) => (
-                <option key={p} value={p}>
-                  {p}
-                </option>
-              ))}
+              {[...new Set(data.map((g) => g.planApi).filter(Boolean))].map(
+                (p) => (
+                  <option key={p} value={p as string}>
+                    {planLabelEs[p as string] ?? p}
+                  </option>
+                )
+              )}
             </Select>
           </Box>
           <Box>
@@ -589,6 +624,7 @@ export default function Guardians() {
               Niños: g.children.length,
               Chats: chatCountOf(g),
               "Fecha de creación": g.registeredAt ? g.registeredAt.slice(0, 10) : "",
+              "Fecha de actualización": g.updatedAt ? g.updatedAt.slice(0, 10) : "",
             }))}
           />
           {canEdit && (
@@ -633,6 +669,9 @@ export default function Guardians() {
                     <Th display={{ base: "none", md: "table-cell" }}>Seguro</Th>
                     <Th>Estado</Th>
                     <Th display={{ base: "none", lg: "table-cell" }}>Creación</Th>
+                    <Th display={{ base: "none", lg: "table-cell" }}>
+                      Actualización
+                    </Th>
                     <Th textAlign="right">Acciones</Th>
                   </Tr>
                 </Thead>
@@ -768,6 +807,14 @@ export default function Guardians() {
                         sx={{ fontVariantNumeric: "tabular-nums" }}
                       >
                         {g.registeredAt ? g.registeredAt.slice(0, 10) : "—"}
+                      </Td>
+                      <Td
+                        display={{ base: "none", lg: "table-cell" }}
+                        fontSize="xs"
+                        color="lucera.textMuted"
+                        sx={{ fontVariantNumeric: "tabular-nums" }}
+                      >
+                        {g.updatedAt ? g.updatedAt.slice(0, 10) : "—"}
                       </Td>
                       <Td textAlign="right">
                         {canEdit && (
@@ -1227,6 +1274,7 @@ export default function Guardians() {
                   />
                 </FormControl>
                 {editing && (
+                  <>
                   <FormControl>
                     <FormLabel>Plan</FormLabel>
                     <Select
@@ -1253,6 +1301,24 @@ export default function Guardians() {
                       Un plan pago registra el pago correspondiente.
                     </Text>
                   </FormControl>
+                  {isPaidPlan(plan) && (
+                    <FormControl>
+                      <FormLabel>Ciclo de cobro</FormLabel>
+                      <Select
+                        value={billingCycle}
+                        onChange={(e) =>
+                          setBillingCycle(e.target.value as BillingCycle)
+                        }
+                      >
+                        {BILLING_CYCLES.map((c) => (
+                          <option key={c.value} value={c.value}>
+                            {c.label}
+                          </option>
+                        ))}
+                      </Select>
+                    </FormControl>
+                  )}
+                  </>
                 )}
                 <FormControl>
                   <FormLabel>Estado</FormLabel>
@@ -1306,18 +1372,55 @@ export default function Guardians() {
                               {t.hint}
                             </Text>
                           </Box>
-                          <Box textAlign="right">
-                            <Text fontWeight={700} color="vino.500">
-                              ${t.price}
-                            </Text>
-                            <Text fontSize="xs" color="lucera.textMuted">
-                              {t.period}
-                            </Text>
-                          </Box>
+                          <Text
+                            fontSize="xs"
+                            fontWeight={600}
+                            color={active ? "vino.500" : "lucera.textMuted"}
+                            flexShrink={0}
+                          >
+                            {t.maxDependents} niño{t.maxDependents > 1 ? "s" : ""}
+                          </Text>
                         </Flex>
                       );
                     })}
                   </VStack>
+
+                  {/* Ciclo de cobro (solo planes de pago) */}
+                  {isPaidPlan(plan) && (
+                    <FormControl mt={3}>
+                      <FormLabel fontSize="sm">Ciclo de cobro</FormLabel>
+                      <Select
+                        value={billingCycle}
+                        onChange={(e) =>
+                          setBillingCycle(e.target.value as BillingCycle)
+                        }
+                      >
+                        {BILLING_CYCLES.map((c) => (
+                          <option key={c.value} value={c.value}>
+                            {c.label}
+                          </option>
+                        ))}
+                      </Select>
+                    </FormControl>
+                  )}
+
+                  {/* Acceso al portal */}
+                  <Divider my={5} borderColor="lucera.borderSoft" />
+                  <Text fontSize="sm" fontWeight={700} color="vino.500" mb={1}>
+                    Acceso al portal
+                  </Text>
+                  <Checkbox
+                    isChecked={noPassword}
+                    onChange={(e) => setNoPassword(e.target.checked)}
+                    colorScheme="vino"
+                  >
+                    <Text fontSize="sm">Crear sin clave (la fijas después)</Text>
+                  </Checkbox>
+                  <Text fontSize="xs" color="lucera.textMuted" mt={1}>
+                    {noPassword
+                      ? "La cuenta quedará sin acceso hasta que le fijes o restablezcas una clave."
+                      : "Se generará una clave y se mostrará una sola vez tras crear."}
+                  </Text>
 
                   {/* Tus hijos */}
                   <Divider my={5} borderColor="lucera.borderSoft" />
@@ -1433,9 +1536,17 @@ export default function Guardians() {
                       colorScheme="vino"
                       leftIcon={<Plus size={16} />}
                       onClick={addChild}
+                      isDisabled={childForms.length >= planMaxDependents(plan)}
                     >
                       Agregar hijo
                     </Button>
+                    {childForms.length >= planMaxDependents(plan) && (
+                      <Text fontSize="xs" color="lucera.textMuted" textAlign="center">
+                        El plan seleccionado permite hasta{" "}
+                        {planMaxDependents(plan)} niño
+                        {planMaxDependents(plan) > 1 ? "s" : ""}.
+                      </Text>
+                    )}
                     <Text
                       fontSize="xs"
                       color="lucera.textMuted"
@@ -1467,6 +1578,17 @@ export default function Guardians() {
       <GuardianPortalModal
         guardian={portalGuardian}
         onClose={() => setPortalGuardian(null)}
+        onSecret={(title, description, secret) =>
+          setRevealSecret({ title, description, secret })
+        }
+      />
+
+      <RevealSecretDialog
+        isOpen={!!revealSecret}
+        onClose={() => setRevealSecret(null)}
+        title={revealSecret?.title ?? ""}
+        description={revealSecret?.description}
+        secret={revealSecret?.secret}
       />
 
       <ConfirmDialog

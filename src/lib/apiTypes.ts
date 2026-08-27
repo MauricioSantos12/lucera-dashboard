@@ -35,6 +35,7 @@ export interface GuardianLoginResponse {
   access_token: string;
   refresh_token: string;
   expires_in?: number;
+  mustChangePassword?: boolean;
   user?: {
     name?: string;
     role?: string;
@@ -175,6 +176,9 @@ export type PlanApi =
   | "4_5_hijos"
   | "validacion_full";
 
+// Ciclo de cobro para planes de pago (write-only en create/patch de guardián).
+export type BillingCycle = "monthly" | "annual";
+
 export interface PlanStatApi {
   plan: PlanApi;
   users: number;
@@ -258,6 +262,10 @@ export interface ChildApi {
   conditions: string[];
   allergies: string[];
   insurance: InsuranceRef | null;
+  // El API los devuelve en los hijos anidados de /api/guardians (no en la lista
+  // /api/patients), así que Niños los toma de esta fuente.
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface GuardianApi {
@@ -275,8 +283,15 @@ export interface GuardianApi {
   city: string;
   status: GuardianStatus;
   plan: PlanApi;
+  // Etiqueta legacy que refleja el ciclo (premium_monthly/annual/free) y tope
+  // de hijos del plan, ambos derivados por el server.
+  planTier?: PlanApi | null;
+  planMaxDependents?: number | null;
   insurance: InsuranceRef | null;
   registeredAt: string;
+  updatedAt?: string;
+  subscriptionExpiresAt?: string | null;
+  subscriptionState?: string;
   portalEnabled?: boolean;
   chats: number;
   children: ChildApi[];
@@ -295,6 +310,7 @@ export interface GuardianPatchPayload {
   relationship?: GuardianRelationship;
   status?: GuardianStatus;
   plan?: PlanApi;
+  billingCycle?: BillingCycle;
   insuranceId?: number;
   policyNumber?: string;
   gender?: string;
@@ -319,12 +335,48 @@ export interface GuardianCreatePayload {
   address?: string;
   status?: GuardianStatus;
   plan?: PlanApi;
+  billingCycle?: BillingCycle;
+  // Clave del portal: por defecto el API genera una y la devuelve como
+  // `initialPassword` (generatePassword true). `password` la fija manualmente;
+  // `generatePassword:false` crea la cuenta SIN clave (sin acceso al portal).
+  password?: string;
+  generatePassword?: boolean;
   insuranceId?: number;
   policyNumber?: string;
   gender?: string;
   idNumber?: string;
   medico_cabecera_nombre?: string;
   medico_cabecera_celular?: string;
+}
+
+// Respuesta del alta: el guardián creado + la clave inicial (solo si se generó)
+// que se muestra UNA vez.
+export interface GuardianCreateResponse extends GuardianApi {
+  initialPassword?: string | null;
+  mustChangePassword?: boolean;
+}
+
+// Pago tal como lo devuelve /portal/payments (portal del acudiente).
+export interface PortalPayment {
+  id: string;
+  guardian: string;
+  amount: number;
+  method: string;
+  plan: PlanApi;
+  status: string;
+  date: string;
+  providerResponse?: string | null;
+  paymentType?: string | null;
+}
+
+// Respuesta de POST /api/guardians/{id}/portal-password/reset.
+export interface PortalPasswordResetResponse {
+  ok: boolean;
+  id: string;
+  name: string;
+  phone: string;
+  temporaryPassword: string;
+  mustChangePassword: boolean;
 }
 
 export interface DeleteResponse {
@@ -419,6 +471,8 @@ export interface PatientApi {
   status: string;
   chats: number;
   lastConsultation: string | null;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 // guardianId, name y birthDate son obligatorios

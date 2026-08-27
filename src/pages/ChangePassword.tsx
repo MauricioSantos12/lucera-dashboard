@@ -15,7 +15,7 @@ import {
 } from "@chakra-ui/react";
 import { KeyRound, ShieldCheck } from "lucide-react";
 import { useAuth } from "@/lib/auth";
-import { changePassword } from "@/lib/passwordApi";
+import { changePassword, changePortalPassword } from "@/lib/passwordApi";
 import { toast } from "@/lib/toast";
 import logoSymbol from "@/assets/lucera-symbol.jpg";
 import logoVertical from "@/assets/lucera-vertical.jpg";
@@ -51,7 +51,10 @@ export default function ChangePassword() {
     setLoading(true);
     try {
       const token = await getValidToken();
-      const res = await changePassword(currentPassword, newPassword, token);
+      // Acudiente (portal) → /portal/password; operador → /api/users/me/password.
+      const res = user?.isPortal
+        ? await changePortalPassword(currentPassword, newPassword, token)
+        : await changePassword(currentPassword, newPassword, token);
       applyPasswordChanged(res.access_token, res.refresh_token);
       toast.success("Contraseña actualizada. ¡Bienvenido(a) a Lucera!");
       // Al bajar mustChangePassword, ProtectedRoute renderiza el panel.
