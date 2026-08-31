@@ -21,10 +21,13 @@ interface RevealSecretDialogProps {
   onClose: () => void;
   title: string;
   description?: string;
-  // Código copiable (clave inicial / temporal). Si viene note en su lugar, se
-  // muestra el mensaje amable (p. ej. clave derivada de la cédula).
+  // Código copiable (clave inicial / temporal / link de registro). Si viene note
+  // en su lugar, se muestra el mensaje amable (p. ej. clave derivada de la cédula).
   secret?: string | null;
   note?: string;
+  // Texto del aviso inferior. Por defecto es el de una contraseña; para un link
+  // de registro se pasa otro (p. ej. "Válido 72h · un solo uso").
+  warning?: string;
 }
 
 // Diálogo que muestra un secreto UNA sola vez, con botón de copiar y aviso de
@@ -36,6 +39,7 @@ export function RevealSecretDialog({
   description,
   secret,
   note,
+  warning,
 }: RevealSecretDialogProps) {
   const [copied, setCopied] = useState(false);
 
@@ -117,8 +121,8 @@ export function RevealSecretDialog({
               <TriangleAlert size={14} />
             </Box>
             <Text>
-              Guárdala o compártela ahora: por seguridad no volverá a mostrarse.
-              La persona deberá cambiarla en su primer ingreso.
+              {warning ??
+                "Guárdala o compártela ahora: por seguridad no volverá a mostrarse. La persona deberá cambiarla en su primer ingreso."}
             </Text>
           </HStack>
         </ModalBody>

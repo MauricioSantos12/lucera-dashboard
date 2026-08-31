@@ -1,29 +1,17 @@
-import { FormEvent, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Badge,
   Box,
   Button,
   Container,
   Flex,
-  FormControl,
-  FormLabel,
   Heading,
   HStack,
   Icon,
   Image,
-  Input,
-  Modal,
-  ModalBody,
-  ModalCloseButton,
-  ModalContent,
-  ModalFooter,
-  ModalHeader,
-  ModalOverlay,
   SimpleGrid,
   Stack,
   Text,
-  useDisclosure,
-  useToast,
   VStack,
 } from "@chakra-ui/react";
 import { Link as RouterLink } from "react-router-dom";
@@ -45,6 +33,7 @@ import { FadeInSection } from "@/components/landing/FadeInSection";
 import { AnimatedCounter } from "@/components/landing/AnimatedCounter";
 import { Seo } from "@/components/Seo";
 import { SITE_URL, absoluteUrl } from "@/lib/seo";
+import { whatsappUrl } from "@/lib/whatsapp";
 
 const MotionBox = motion(Box);
 
@@ -163,6 +152,10 @@ const pricingPlans = [
 
 const year = new Date().getFullYear();
 
+// El registro es por link (el admin genera el link de invitación y lo envía).
+// Desde la landing no hay auto-registro: los CTA "Registrarse" abren WhatsApp.
+const WHATSAPP_URL = whatsappUrl();
+
 // Datos estructurados (JSON-LD) para rich results / knowledge graph.
 const landingJsonLd = [
   {
@@ -274,32 +267,6 @@ export default function LandingPage() {
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
-  const { isOpen, onOpen, onClose } = useDisclosure();
-  const toast = useToast();
-  const [selectedPlan, setSelectedPlan] = useState<string | null>(null);
-  const [planForm, setPlanForm] = useState({
-    name: "",
-    email: "",
-    phone: "",
-  });
-
-  const handleSelectPlan = (planName: string) => {
-    setSelectedPlan(planName);
-    onOpen();
-  };
-
-  const handlePlanFormSubmit = (e: FormEvent) => {
-    e.preventDefault();
-    toast({
-      title: "¡Solicitud recibida!",
-      description: `Te contactaremos pronto sobre el plan ${selectedPlan}.`,
-      status: "success",
-      duration: 4000,
-      isClosable: true,
-    });
-    onClose();
-    setPlanForm({ name: "", email: "", phone: "" });
-  };
 
   return (
     <Box overflowX="hidden">
@@ -364,8 +331,10 @@ export default function LandingPage() {
         </HStack>
         <HStack spacing={3}>
           <Button
-            as={RouterLink}
-            to="/register"
+            as="a"
+            href={WHATSAPP_URL}
+            target="_blank"
+            rel="noopener noreferrer"
             variant="outline"
             size="sm"
             color={scrolled ? undefined : "white"}
@@ -495,8 +464,10 @@ export default function LandingPage() {
                 Acceder al panel
               </Button>
               <HStack
-                as={RouterLink}
-                to="/register"
+                as="a"
+                href={WHATSAPP_URL}
+                target="_blank"
+                rel="noopener noreferrer"
                 spacing={2}
                 fontWeight={600}
                 fontSize="sm"
@@ -941,7 +912,10 @@ export default function LandingPage() {
                     ))}
                   </VStack>
                   <Button
-                    onClick={() => handleSelectPlan(plan.name)}
+                    as="a"
+                    href={WHATSAPP_URL}
+                    target="_blank"
+                    rel="noopener noreferrer"
                     colorScheme={plan.highlighted ? "vino" : undefined}
                     variant={plan.highlighted ? "solid" : "outline"}
                     size="sm"
@@ -1042,8 +1016,10 @@ export default function LandingPage() {
                 Accesos
               </Text>
               <Text
-                as={RouterLink}
-                to="/register"
+                as="a"
+                href={WHATSAPP_URL}
+                target="_blank"
+                rel="noopener noreferrer"
                 fontSize="sm"
                 opacity={0.85}
                 _hover={{ opacity: 1, textDecoration: "underline" }}
@@ -1104,65 +1080,6 @@ export default function LandingPage() {
           </SimpleGrid>
         </Container>
       </Box>
-
-      {/* Modal de solicitud de plan */}
-      <Modal isOpen={isOpen} onClose={onClose} isCentered>
-        <ModalOverlay />
-        <ModalContent as="form" onSubmit={handlePlanFormSubmit} mx={4}>
-          <ModalHeader fontFamily="heading">
-            Quiero el plan {selectedPlan}
-          </ModalHeader>
-          <ModalCloseButton />
-          <ModalBody>
-            <Text fontSize="sm" color="lucera.textMuted" mb={4}>
-              Déjanos tus datos y te contactaremos para activar tu plan en
-              cuanto esté disponible.
-            </Text>
-            <VStack spacing={4}>
-              <FormControl isRequired>
-                <FormLabel fontSize="sm">Nombre completo</FormLabel>
-                <Input
-                  value={planForm.name}
-                  onChange={(e) =>
-                    setPlanForm((f) => ({ ...f, name: e.target.value }))
-                  }
-                  placeholder="María Mendoza"
-                />
-              </FormControl>
-              <FormControl isRequired>
-                <FormLabel fontSize="sm">Correo electrónico</FormLabel>
-                <Input
-                  type="email"
-                  value={planForm.email}
-                  onChange={(e) =>
-                    setPlanForm((f) => ({ ...f, email: e.target.value }))
-                  }
-                  placeholder="maria@correo.com"
-                />
-              </FormControl>
-              <FormControl isRequired>
-                <FormLabel fontSize="sm">Teléfono</FormLabel>
-                <Input
-                  type="tel"
-                  value={planForm.phone}
-                  onChange={(e) =>
-                    setPlanForm((f) => ({ ...f, phone: e.target.value }))
-                  }
-                  placeholder="+507 6000-0000"
-                />
-              </FormControl>
-            </VStack>
-          </ModalBody>
-          <ModalFooter>
-            <Button variant="ghost" mr={3} onClick={onClose}>
-              Cancelar
-            </Button>
-            <Button type="submit" colorScheme="vino">
-              Enviar solicitud
-            </Button>
-          </ModalFooter>
-        </ModalContent>
-      </Modal>
     </Box>
   );
 }

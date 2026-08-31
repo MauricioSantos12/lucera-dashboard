@@ -336,10 +336,8 @@ export interface GuardianCreatePayload {
   status?: GuardianStatus;
   plan?: PlanApi;
   billingCycle?: BillingCycle;
-  // Clave del portal: por defecto el API genera una y la devuelve como
-  // `initialPassword` (generatePassword true). `password` la fija manualmente;
-  // `generatePassword:false` crea la cuenta SIN clave (sin acceso al portal).
-  password?: string;
+  // El alta crea la cuenta SIN clave (`generatePassword:false`): el acudiente
+  // la activa y define su contraseña con el link de registro (portal-link).
   generatePassword?: boolean;
   insuranceId?: number;
   policyNumber?: string;
@@ -349,11 +347,63 @@ export interface GuardianCreatePayload {
   medico_cabecera_celular?: string;
 }
 
-// Respuesta del alta: el guardián creado + la clave inicial (solo si se generó)
-// que se muestra UNA vez.
-export interface GuardianCreateResponse extends GuardianApi {
-  initialPassword?: string | null;
-  mustChangePassword?: boolean;
+// Respuesta del alta: el guardián creado. La activación (clave) va aparte, por
+// el link de registro; ya no se devuelve clave inicial en el alta.
+export type GuardianCreateResponse = GuardianApi;
+
+// ---- Flujo de registro por link (portal) ----------------------------------
+// El admin/bot emite un link firmado; el acudiente lo abre y fija su contraseña
+// + confirma sus datos. El token es un JWT de un solo uso (typ=register, 72h).
+
+// POST /api/guardians/{gid}/portal-link → el `url` viene null (lo arma el front).
+export interface PortalLinkResponse {
+  token: string;
+  url: string | null;
+  expiresInHours: number;
+}
+
+// POST /portal/register/info { token } → precarga del formulario.
+export interface PortalRegisterInfoResponse {
+  guardianId: string;
+  name: string | null;
+  phone: string | null;
+  email: string | null;
+  hasPassword: boolean;
+}
+
+// Hijo dentro del payload de registro (snake_case). Shape a confirmar en vivo.
+export interface PortalRegisterChild {
+  full_name: string;
+  birth_date: string;
+  weight_kg?: number;
+  blood_type?: string;
+  id_number?: string;
+  school?: string;
+  allergies?: string[];
+  conditions?: string[];
+}
+
+// POST /portal/register — registro completo + contraseña (snake_case, anidado).
+// La contraseña va en la RAÍZ (`body.password`), no dentro de `guardian`.
+export interface PortalRegisterPayload {
+  token: string;
+  password: string;
+  plan_name: string;
+  billing_cycle?: string;
+  guardian: {
+    full_name: string;
+    id_number?: string;
+    relationship_type?: string;
+    email?: string;
+    country?: string;
+    province?: string;
+    city?: string;
+    address?: string;
+    gender?: string;
+    medico_nombre?: string;
+    medico_celular?: string;
+  };
+  children: PortalRegisterChild[];
 }
 
 // Pago tal como lo devuelve /portal/payments (portal del acudiente).
@@ -382,12 +432,6 @@ export interface PortalPasswordResetResponse {
 export interface DeleteResponse {
   deleted: boolean;
   id: string;
-}
-
-// --- Portal del acudiente (fijar clave / link de onboarding) ---
-// POST /api/guardians/{gid}/portal-password → el admin fija la clave del portal.
-export interface PortalPasswordPayload {
-  password: string;
 }
 
 // GET /api/accounts → cuentas titulares (una por acudiente; account.id === el

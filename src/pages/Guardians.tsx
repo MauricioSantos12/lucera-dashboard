@@ -11,10 +11,7 @@ import {
   PLAN_TIERS,
   ACCEPTED_PLANS,
   BILLING_CYCLES,
-  planMaxDependents,
   isPaidPlan,
-  emptyChild,
-  type ChildForm,
 } from "@/lib/guardianForm";
 import type { BillingCycle } from "@/lib/apiTypes";
 import {
@@ -34,14 +31,14 @@ import type {
   GuardianCreateResponse,
   GuardianPatchPayload,
   GuardianCreatePayload,
-  PatientApi,
-  PatientCreatePayload,
   InsuranceRef,
   ChatApi,
   PlanApi,
   DeleteResponse,
+  PortalLinkResponse,
 } from "@/lib/apiTypes";
 import { RevealSecretDialog } from "@/components/RevealSecretDialog";
+import { SITE_URL } from "@/lib/seo";
 import {
   Box,
   Button,
@@ -52,7 +49,6 @@ import {
   InputGroup,
   InputLeftElement,
   Select,
-  Checkbox,
   Table,
   Thead,
   Tbody,
@@ -89,7 +85,7 @@ import {
   MessageSquare,
   ChevronRight,
   Eye,
-  KeyRound,
+  Link2,
 } from "lucide-react";
 import { TriageBadge } from "@/components/TriageBadge";
 import { StatCard } from "@/components/StatCard";
@@ -210,14 +206,13 @@ export default function Guardians() {
   // los hijos a crear (solo en creación).
   const [plan, setPlan] = useState("free");
   const [billingCycle, setBillingCycle] = useState<BillingCycle>("monthly");
-  const [noPassword, setNoPassword] = useState(false);
-  // Secreto (clave inicial / temporal) que se muestra UNA vez tras crear/reset.
+  // Secreto (link de registro / clave temporal) que se muestra UNA vez.
   const [revealSecret, setRevealSecret] = useState<{
     title: string;
     description: string;
     secret: string;
+    warning?: string;
   } | null>(null);
-  const [childForms, setChildForms] = useState<ChildForm[]>([]);
   const [saving, setSaving] = useState(false);
   // Loading breve para dar feedback al cambiar filtros o tras crear/editar.
   const [searching, setSearching] = useState(false);
@@ -313,8 +308,6 @@ export default function Guardians() {
     setGender(genderToValue(g?.gender));
     setPlan(g?.planApi ?? "free");
     setBillingCycle(g?.planTierApi === "premium_annual" ? "annual" : "monthly");
-    setNoPassword(false);
-    setChildForms([]); // los hijos solo se agregan al crear
     onOpen();
   };
 
@@ -331,7 +324,6 @@ export default function Guardians() {
       setGender(genderToValue(row?.gender));
       setPlan(row.planApi ?? "free");
       setBillingCycle(row.planTierApi === "premium_annual" ? "annual" : "monthly");
-      setChildForms([]);
       onOpen();
       setSearchParams({}, { replace: true });
     }
@@ -359,9 +351,9 @@ export default function Guardians() {
         status: statusToApi[fd.get("status") as AccountStatus],
         plan: (plan || undefined) as PlanApi | undefined,
         billingCycle: isPaidPlan(plan) ? billingCycle : undefined,
-        // Default: el API genera la clave (initialPassword). Marcar "sin clave"
-        // crea la cuenta sin acceso al portal hasta fijar/restablecer.
-        generatePassword: noPassword ? false : undefined,
+        // Se crea SIN clave: el acudiente activa su cuenta y pone su propia
+        // contraseña con el link de registro. Los hijos los agrega él ahí.
+        generatePassword: false,
         gender: gender || undefined,
         insuranceId: insuranceIdNew ? Number(insuranceIdNew) : undefined,
         policyNumber: policyNumberNew || undefined,
@@ -370,11 +362,6 @@ export default function Guardians() {
         medico_cabecera_celular:
           String(fd.get("medico_cabecera_celular") || "") || undefined,
       };
-
-      // Solo los hijos con nombre y fecha de nacimiento se envían.
-      const validChildren = childForms.filter(
-        (c) => c.name.trim() && c.birthDate
-      );
 
       setSaving(true);
       try {
@@ -385,53 +372,33 @@ export default function Guardians() {
           { method: "POST", body: JSON.stringify(payload) }
         );
 
-        let childFailures = 0;
-        for (const c of validChildren) {
-          const childPayload: PatientCreatePayload = {
-            guardianId: created.id,
-            name: c.name.trim(),
-            birthDate: c.birthDate,
-            weightKg: c.weightKg ? Number(c.weightKg) : undefined,
-            idNumber: c.idNumber.trim() || undefined,
-            school: c.school.trim() || undefined,
-            allergies: c.allergies
-              .split(",")
-              .map((s) => s.trim())
-              .filter(Boolean),
-            conditions: c.conditions
-              .split(",")
-              .map((s) => s.trim())
-              .filter(Boolean),
-          };
-          try {
-            await apiFetch<PatientApi>("/api/patients", freshToken, {
-              method: "POST",
-              body: JSON.stringify(childPayload),
-            });
-          } catch {
-            childFailures++;
-          }
+        // Emite el link de registro (token en el #fragment) para enviárselo.
+        let linkUrl: string | null = null;
+        let expiry = 72;
+        try {
+          const link = await apiFetch<PortalLinkResponse>(
+            `/api/guardians/${created.id}/portal-link`,
+            freshToken,
+            { method: "POST" }
+          );
+          linkUrl = `${SITE_URL}/register#token=${link.token}`;
+          expiry = link.expiresInHours ?? 72;
+        } catch {
+          /* el guardián se creó; el link se puede regenerar desde el modal */
         }
 
-        if (childFailures > 0) {
-          toast.error(
-            `Acudiente creado, pero ${childFailures} hijo(s) no se pudieron registrar`,
-            { description: "Puedes agregarlos luego desde la sección Niños." }
-          );
-        } else {
-          toast.success(
-            validChildren.length
-              ? `Acudiente creado con ${validChildren.length} hijo(s)`
-              : "Acudiente creado"
-          );
-        }
-        // Si el API generó clave, se muestra UNA vez.
-        if (created.initialPassword) {
+        if (linkUrl) {
           setRevealSecret({
-            title: "Clave del portal creada",
-            description: `Comparte esta clave con ${created.name}. Deberá cambiarla en su primer ingreso.`,
-            secret: created.initialPassword,
+            title: "Link de registro creado",
+            description: `Comparte este link con ${created.name} para que active su cuenta y defina su contraseña.`,
+            secret: linkUrl,
+            warning: `Válido ${expiry} horas · un solo uso.`,
           });
+          toast.success("Acudiente creado");
+        } else {
+          toast.error(
+            "Acudiente creado, pero no se pudo generar el link. Genéralo desde 'Acceso al portal'."
+          );
         }
         onClose();
         setEditing(null);
@@ -498,14 +465,6 @@ export default function Guardians() {
       setSaving(false);
     }
   };
-
-  const addChild = () => setChildForms((prev) => [...prev, emptyChild()]);
-  const removeChild = (i: number) =>
-    setChildForms((prev) => prev.filter((_, idx) => idx !== i));
-  const updateChild = (i: number, patch: Partial<ChildForm>) =>
-    setChildForms((prev) =>
-      prev.map((c, idx) => (idx === i ? { ...c, ...patch } : c))
-    );
 
   return (
     <DashboardLayout title="Acudientes (Tutores)" subtitle="Cuentas titulares">
@@ -832,7 +791,7 @@ export default function Guardians() {
                               aria-label="Acceso al portal"
                               size="sm"
                               variant="ghost"
-                              icon={<KeyRound size={14} />}
+                              icon={<Link2 size={14} />}
                               onClick={() =>
                                 setPortalGuardian({ id: g.id, name: g.name })
                               }
@@ -1404,157 +1363,26 @@ export default function Guardians() {
                     </FormControl>
                   )}
 
-                  {/* Acceso al portal */}
+                  {/* Al crear se genera un link de registro; el acudiente activa
+                      su cuenta, define su clave y agrega a sus hijos. */}
                   <Divider my={5} borderColor="lucera.borderSoft" />
-                  <Text fontSize="sm" fontWeight={700} color="vino.500" mb={1}>
-                    Acceso al portal
-                  </Text>
-                  <Checkbox
-                    isChecked={noPassword}
-                    onChange={(e) => setNoPassword(e.target.checked)}
-                    colorScheme="vino"
+                  <Box
+                    bg="crema.50"
+                    borderWidth="1px"
+                    borderColor="lucera.border"
+                    borderRadius="md"
+                    p={3}
                   >
-                    <Text fontSize="sm">Crear sin clave (la fijas después)</Text>
-                  </Checkbox>
-                  <Text fontSize="xs" color="lucera.textMuted" mt={1}>
-                    {noPassword
-                      ? "La cuenta quedará sin acceso hasta que le fijes o restablezcas una clave."
-                      : "Se generará una clave y se mostrará una sola vez tras crear."}
-                  </Text>
-
-                  {/* Tus hijos */}
-                  <Divider my={5} borderColor="lucera.borderSoft" />
-                  <Text fontSize="sm" fontWeight={700} color="vino.500" mb={1}>
-                    Tus hijos
-                  </Text>
-                  <Text fontSize="xs" color="lucera.textMuted" mb={3}>
-                    Opcional — puedes agregarlos ahora o más tarde. Los hijos se
-                    editan luego desde la sección Niños.
-                  </Text>
-                  <VStack align="stretch" spacing={3}>
-                    {childForms.map((c, i) => (
-                      <Box
-                        key={i}
-                        borderWidth="1px"
-                        borderStyle="dashed"
-                        borderColor="lucera.border"
-                        borderRadius="md"
-                        p={3}
-                      >
-                        <Flex justify="flex-end" mb={1}>
-                          <Button
-                            size="xs"
-                            variant="ghost"
-                            colorScheme="red"
-                            leftIcon={<Trash2 size={12} />}
-                            onClick={() => removeChild(i)}
-                          >
-                            quitar
-                          </Button>
-                        </Flex>
-                        <SimpleGrid columns={2} spacing={3}>
-                          <FormControl gridColumn="span 2">
-                            <FormLabel>Nombre</FormLabel>
-                            <Input
-                              placeholder="Nombre del hijo/a"
-                              value={c.name}
-                              onChange={(e) =>
-                                updateChild(i, { name: e.target.value })
-                              }
-                            />
-                          </FormControl>
-                          <FormControl>
-                            <FormLabel>Fecha de nacimiento</FormLabel>
-                            <Input
-                              type="date"
-                              value={c.birthDate}
-                              onChange={(e) =>
-                                updateChild(i, { birthDate: e.target.value })
-                              }
-                            />
-                          </FormControl>
-                          <FormControl>
-                            <FormLabel>Peso (kg)</FormLabel>
-                            <Input
-                              type="number"
-                              step="0.1"
-                              min="0"
-                              placeholder="0"
-                              value={c.weightKg}
-                              onChange={(e) =>
-                                updateChild(i, { weightKg: e.target.value })
-                              }
-                            />
-                          </FormControl>
-                          <FormControl>
-                            <FormLabel>Cédula / documento</FormLabel>
-                            <Input
-                              placeholder="Documento del paciente"
-                              value={c.idNumber}
-                              onChange={(e) =>
-                                updateChild(i, { idNumber: e.target.value })
-                              }
-                            />
-                          </FormControl>
-                          <FormControl>
-                            <FormLabel>Centro educativo</FormLabel>
-                            <Input
-                              placeholder="Escuela o colegio"
-                              value={c.school}
-                              onChange={(e) =>
-                                updateChild(i, { school: e.target.value })
-                              }
-                            />
-                          </FormControl>
-                          <FormControl gridColumn="span 2">
-                            <FormLabel>Alergias (separadas por coma)</FormLabel>
-                            <Input
-                              placeholder="Ej: Penicilina (o ninguna)"
-                              value={c.allergies}
-                              onChange={(e) =>
-                                updateChild(i, { allergies: e.target.value })
-                              }
-                            />
-                          </FormControl>
-                          <FormControl gridColumn="span 2">
-                            <FormLabel>
-                              Condiciones (separadas por coma)
-                            </FormLabel>
-                            <Input
-                              placeholder="Opcional"
-                              value={c.conditions}
-                              onChange={(e) =>
-                                updateChild(i, { conditions: e.target.value })
-                              }
-                            />
-                          </FormControl>
-                        </SimpleGrid>
-                      </Box>
-                    ))}
-                    <Button
-                      variant="outline"
-                      colorScheme="vino"
-                      leftIcon={<Plus size={16} />}
-                      onClick={addChild}
-                      isDisabled={childForms.length >= planMaxDependents(plan)}
-                    >
-                      Agregar hijo
-                    </Button>
-                    {childForms.length >= planMaxDependents(plan) && (
-                      <Text fontSize="xs" color="lucera.textMuted" textAlign="center">
-                        El plan seleccionado permite hasta{" "}
-                        {planMaxDependents(plan)} niño
-                        {planMaxDependents(plan) > 1 ? "s" : ""}.
-                      </Text>
-                    )}
-                    <Text
-                      fontSize="xs"
-                      color="lucera.textMuted"
-                      textAlign="center"
-                    >
-                      Puedes dejarlo vacío y continuar.
+                    <Text fontSize="sm" fontWeight={700} color="vino.500" mb={1}>
+                      Activación por link
                     </Text>
-                  </VStack>
+                    <Text fontSize="xs" color="lucera.textMuted">
+                      Al crear se generará un <strong>link de registro</strong> para
+                      enviar al acudiente. Con él, la persona <strong>activa su
+                      cuenta</strong>, define su contraseña y agrega a sus hijos.
+                      Válido 72 horas y de un solo uso.
+                    </Text>
+                  </Box>
                 </>
               )}
             </ModalBody>
@@ -1578,8 +1406,8 @@ export default function Guardians() {
       <GuardianPortalModal
         guardian={portalGuardian}
         onClose={() => setPortalGuardian(null)}
-        onSecret={(title, description, secret) =>
-          setRevealSecret({ title, description, secret })
+        onSecret={(title, description, secret, warning) =>
+          setRevealSecret({ title, description, secret, warning })
         }
       />
 
@@ -1589,6 +1417,7 @@ export default function Guardians() {
         title={revealSecret?.title ?? ""}
         description={revealSecret?.description}
         secret={revealSecret?.secret}
+        warning={revealSecret?.warning}
       />
 
       <ConfirmDialog
