@@ -39,8 +39,13 @@ import type {
 import { LoadingState } from "@/components/LoadingState";
 import { whatsappUrl } from "@/lib/whatsapp";
 
-const WHATSAPP_URL = whatsappUrl();
 const MIN_LENGTH = 8;
+
+// Mensajes que precargan el chat de WhatsApp según el estado del link.
+const WA_MSG_NO_TOKEN =
+  "Hola, quiero activar mi cuenta en Lucera pero necesito un link de invitación.";
+const WA_MSG_EXPIRED =
+  "Hola, mi link de registro de Lucera expiró o no es válido. ¿Me pueden enviar uno nuevo?";
 
 // Lee el token del fragmento (#token=…), donde lo pone el portal-link (fuera de
 // logs/Referer). Puro cliente; nunca viaja al servidor por la URL.
@@ -276,6 +281,9 @@ export default function Register() {
               link.kind === "invalid"
                 ? link.message
                 : "Para crear tu cuenta necesitas el link que te enviamos. Escríbenos por WhatsApp y te lo compartimos."
+            }
+            whatsappMessage={
+              link.kind === "invalid" ? WA_MSG_EXPIRED : WA_MSG_NO_TOKEN
             }
           />
         )}
@@ -624,14 +632,17 @@ export default function Register() {
 }
 
 // Tarjeta de mensaje (sin token / inválido / ya activo), con CTA a WhatsApp.
+// whatsappMessage precarga el texto del chat según el caso (pedir link, etc.).
 function MessageCard({
   title,
   body,
   action,
+  whatsappMessage,
 }: {
   title: string;
   body: string;
   action?: React.ReactNode;
+  whatsappMessage?: string;
 }) {
   return (
     <Box
@@ -651,7 +662,7 @@ function MessageCard({
       {action ?? (
         <Button
           as="a"
-          href={WHATSAPP_URL}
+          href={whatsappUrl(whatsappMessage)}
           target="_blank"
           rel="noopener noreferrer"
           colorScheme="vino"

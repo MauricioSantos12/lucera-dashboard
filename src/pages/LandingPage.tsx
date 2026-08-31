@@ -154,7 +154,9 @@ const year = new Date().getFullYear();
 
 // El registro es por link (el admin genera el link de invitación y lo envía).
 // Desde la landing no hay auto-registro: los CTA "Registrarse" abren WhatsApp.
-const WHATSAPP_URL = whatsappUrl();
+const WHATSAPP_URL = whatsappUrl(
+  "Hola, estoy interesado en Lucera y quiero saber más."
+);
 
 // Datos estructurados (JSON-LD) para rich results / knowledge graph.
 const landingJsonLd = [
