@@ -22,7 +22,7 @@ import logoSymbol from "@/assets/lucera-symbol.jpg";
 import { Seo } from "@/components/Seo";
 import { toast } from "@/lib/toast";
 import { apiFetch } from "@/lib/apiClient";
-import { countryEsToApi, countryApiToEs } from "@/lib/apiMappings";
+import { countryToApi, countryFromApi } from "@/lib/apiMappings";
 import {
   PLAN_TIERS,
   BILLING_CYCLES,
@@ -128,7 +128,7 @@ export default function Register() {
   const countryNames = useMemo(() => geo.map((c) => c.name), [geo]);
   const statesOf = useCallback(
     (name: string): string[] => {
-      const target = countryApiToEs[name] ?? name;
+      const target = countryFromApi[name] ?? name;
       return geo.find((c) => c.name === target)?.states ?? [];
     },
     [geo]
@@ -172,7 +172,7 @@ export default function Register() {
         id_number: String(fd.get("idNumber") || "") || undefined,
         relationship_type: String(fd.get("relationship") || "") || undefined,
         email: String(fd.get("email") || "") || undefined,
-        country: countryEsToApi[country] ?? (country || undefined),
+        country: countryToApi[country] ?? (country || undefined),
         province: province || undefined,
         city: String(fd.get("city") || "") || undefined,
         address: String(fd.get("address") || "") || undefined,
@@ -220,7 +220,7 @@ export default function Register() {
   const info = link.kind === "ok" ? link.info : null;
 
   return (
-    <Box minH="100vh" bg="crema.50">
+    <Box minH="100vh" bg="cream.50">
       <Seo
         noindex
         title="Activar cuenta"
@@ -255,7 +255,7 @@ export default function Register() {
           >
             <Image src={logoSymbol} alt="Lucera" boxSize="36px" objectFit="contain" />
           </Box>
-          <Heading size="md" fontFamily="heading" color="vino.500">
+          <Heading size="md" fontFamily="heading" color="brand.500">
             Lucera
           </Heading>
         </HStack>
@@ -293,7 +293,7 @@ export default function Register() {
             title="Esta cuenta ya está activa"
             body="Tu cuenta ya tiene contraseña. Inicia sesión para continuar."
             action={
-              <Button as={RouterLink} to="/dashboard" colorScheme="vino">
+              <Button as={RouterLink} to="/dashboard" colorScheme="brand">
                 Iniciar sesión
               </Button>
             }
@@ -319,7 +319,7 @@ export default function Register() {
 
             <form onSubmit={handleSubmit}>
               {/* Tus datos */}
-              <Text fontSize="sm" fontWeight={700} color="vino.500" mb={3}>
+              <Text fontSize="sm" fontWeight={700} color="brand.500" mb={3}>
                 Tus datos
               </Text>
               <SimpleGrid columns={{ base: 1, md: 2 }} spacing={4}>
@@ -329,7 +329,7 @@ export default function Register() {
                 </FormControl>
                 <FormControl>
                   <FormLabel>Teléfono (WhatsApp)</FormLabel>
-                  <Input value={info?.phone ?? ""} isReadOnly bg="crema.50" />
+                  <Input value={info?.phone ?? ""} isReadOnly bg="cream.50" />
                 </FormControl>
                 <FormControl isRequired>
                   <FormLabel>Email</FormLabel>
@@ -413,7 +413,7 @@ export default function Register() {
 
               {/* Elige tu plan */}
               <Divider my={5} borderColor="lucera.borderSoft" />
-              <Text fontSize="sm" fontWeight={700} color="vino.500" mb={3}>
+              <Text fontSize="sm" fontWeight={700} color="brand.500" mb={3}>
                 Elige tu plan
               </Text>
               <VStack align="stretch" spacing={2}>
@@ -432,9 +432,9 @@ export default function Register() {
                       borderWidth="1px"
                       borderRadius="md"
                       textAlign="left"
-                      borderColor={active ? "vino.500" : "lucera.border"}
-                      bg={active ? "naranja.50" : "white"}
-                      _hover={active ? undefined : { bg: "crema.50" }}
+                      borderColor={active ? "brand.500" : "lucera.border"}
+                      bg={active ? "accent.50" : "white"}
+                      _hover={active ? undefined : { bg: "cream.50" }}
                       transition="all 120ms"
                     >
                       <Box>
@@ -448,7 +448,7 @@ export default function Register() {
                       <Text
                         fontSize="xs"
                         fontWeight={600}
-                        color={active ? "vino.500" : "lucera.textMuted"}
+                        color={active ? "brand.500" : "lucera.textMuted"}
                         flexShrink={0}
                       >
                         {t.maxDependents} niño{t.maxDependents > 1 ? "s" : ""}
@@ -475,7 +475,7 @@ export default function Register() {
 
               {/* Tus hijos */}
               <Divider my={5} borderColor="lucera.borderSoft" />
-              <Text fontSize="sm" fontWeight={700} color="vino.500" mb={1}>
+              <Text fontSize="sm" fontWeight={700} color="brand.500" mb={1}>
                 Tus hijos
               </Text>
               <Text fontSize="xs" color="lucera.textMuted" mb={3}>
@@ -579,7 +579,7 @@ export default function Register() {
                 ))}
                 <Button
                   variant="outline"
-                  colorScheme="vino"
+                  colorScheme="brand"
                   leftIcon={<Plus size={16} />}
                   onClick={addChild}
                   isDisabled={childForms.length >= 5}
@@ -590,7 +590,7 @@ export default function Register() {
 
               {/* Contraseña */}
               <Divider my={5} borderColor="lucera.borderSoft" />
-              <Text fontSize="sm" fontWeight={700} color="vino.500" mb={3}>
+              <Text fontSize="sm" fontWeight={700} color="brand.500" mb={3}>
                 Tu contraseña
               </Text>
               <SimpleGrid columns={{ base: 1, md: 2 }} spacing={4}>
@@ -615,7 +615,7 @@ export default function Register() {
 
               <Button
                 type="submit"
-                colorScheme="vino"
+                colorScheme="brand"
                 w="100%"
                 mt={6}
                 size="lg"
@@ -666,7 +666,7 @@ function MessageCard({
           href={whatsappUrl(whatsappMessage)}
           target="_blank"
           rel="noopener noreferrer"
-          colorScheme="vino"
+          colorScheme="brand"
           leftIcon={<MessageCircle size={16} />}
         >
           Escribir por WhatsApp

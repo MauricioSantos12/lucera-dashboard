@@ -1,11 +1,12 @@
-import { extendTheme, transition, type ThemeConfig } from "@chakra-ui/react";
+import { extendTheme, type ThemeConfig } from "@chakra-ui/react";
 
-// Lucera brand palette
-//   vino    #6d122b   (primary / brand)
-//   naranja #ef7d54   (accent)
-//   crema   #f4e3ce   (background / soft surfaces)
-//   amarillo#f8cc37   (warning / highlight)
-//   white / black
+// Lucera brand palette (color scales are named by their semantic role):
+//   brand   #6c122b  wine — primary / brand
+//   accent  #f08159  coral — accent
+//   cream   #f5e7d3  soft background surfaces
+//   gold    #f6ca35  warning / highlight
+//   success / danger / info — status colors
+//   triageGreen / triageYellow / triageRed — triage levels
 
 const config: ThemeConfig = {
   initialColorMode: "light",
@@ -13,35 +14,35 @@ const config: ThemeConfig = {
 };
 
 const colors = {
-  vino: {
+  brand: {
     50: "#fbeaef",
     100: "#f3c5d1",
     200: "#e89aae",
     300: "#d96f8b",
     400: "#b94464",
-    500: "#6c122b", // base — Brandbook exacto
+    500: "#6c122b", // base — exact Brandbook
     600: "#5e0f25",
     700: "#4d0c1e",
     800: "#3c0917",
     900: "#28060f",
   },
-  naranja: {
+  accent: {
     50: "#fdeee7",
     100: "#fbd5c4",
     200: "#f7b89a",
     300: "#f49a72",
     400: "#f28e6a",
-    500: "#f08159", // base — Brandbook exacto
+    500: "#f08159", // base — exact Brandbook
     600: "#d96a44",
     700: "#b85636",
     800: "#8d4127",
     900: "#5d2b1a",
   },
-  crema: {
+  cream: {
     50: "#fdf8f0",
     100: "#faefdc",
     200: "#f9ecda",
-    300: "#f5e7d3", // base — Brandbook exacto (fondo de marca)
+    300: "#f5e7d3", // base — exact Brandbook (brand background)
     400: "#e9d2b1",
     500: "#d8bb8e",
     600: "#b89968",
@@ -49,26 +50,26 @@ const colors = {
     800: "#5e4a2d",
     900: "#332815",
   },
-  amarillo: {
+  gold: {
     50: "#fff8e1",
     100: "#feeeb6",
     200: "#fde288",
     300: "#fbd75a",
     400: "#f8d047",
-    500: "#f6ca35", // base — Brandbook exacto
+    500: "#f6ca35", // base — exact Brandbook
     600: "#e0b426",
     700: "#b08a18",
     800: "#806211",
     900: "#503c08",
   },
-  exito: { 500: "#2f9e6b" },
-  alerta: { 500: "#d97706" },
-  peligro: { 500: "#b91c1c" },
+  success: { 500: "#2f9e6b" },
+  warning: { 500: "#d97706" },
+  danger: { 500: "#b91c1c" },
   info: { 500: "#1e6e8b" },
   // Triage
-  triajeVerde: { 500: "#2f9e6b" },
-  triajeAmarillo: { 500: "#f8cc37" },
-  triajeRojo: { 500: "#b91c1c" },
+  triageGreen: { 500: "#2f9e6b" },
+  triageYellow: { 500: "#f8cc37" },
+  triageRed: { 500: "#b91c1c" },
 };
 
 const fonts = {
@@ -80,26 +81,25 @@ const fonts = {
 const semanticTokens = {
   colors: {
     "lucera.bg": { default: "white" },
-    // "lucera.bg": { default: "crema.300" }, // fondo crema de marca (#f5e7d3)
     "lucera.surface": { default: "white" },
-    "lucera.surfaceAlt": { default: "#fbeaef" }, // vino 50
-    "lucera.border": { default: "#f3c5d1" }, // vino 100
+    "lucera.surfaceAlt": { default: "#fbeaef" }, // brand 50
+    "lucera.border": { default: "#f3c5d1" }, // brand 100
     "lucera.borderSoft": { default: "#fbeaef" },
-    "lucera.text": { default: "#28060f" }, // vino 900
+    "lucera.text": { default: "#28060f" }, // brand 900
     "lucera.textMuted": { default: "#6b4a55" },
-    "lucera.brand": { default: "vino.500" },
-    "lucera.brandSoft": { default: "vino.50" },
-    "lucera.accent": { default: "naranja.500" },
-    "lucera.accentSoft": { default: "naranja.50" },
-    "lucera.warning": { default: "amarillo.500" },
-    "lucera.warningSoft": { default: "amarillo.50" },
-    "lucera.success": { default: "exito.500" },
-    "lucera.danger": { default: "peligro.500" },
+    "lucera.brand": { default: "brand.500" },
+    "lucera.brandSoft": { default: "brand.50" },
+    "lucera.accent": { default: "accent.500" },
+    "lucera.accentSoft": { default: "accent.50" },
+    "lucera.warning": { default: "gold.500" },
+    "lucera.warningSoft": { default: "gold.50" },
+    "lucera.success": { default: "success.500" },
+    "lucera.danger": { default: "danger.500" },
     "lucera.info": { default: "info.500" },
-    "lucera.sidebar": { default: "vino.700" },
+    "lucera.sidebar": { default: "brand.700" },
     "lucera.sidebarFg": { default: "white" },
-    "lucera.sidebarHover": { default: "naranja.500" },
-    "lucera.sidebarActive": { default: "naranja.500" },
+    "lucera.sidebarHover": { default: "accent.500" },
+    "lucera.sidebarActive": { default: "accent.500" },
   },
 };
 
@@ -123,46 +123,46 @@ const components = {
       borderRadius: "lg",
       transition: "all 0.3s ease-in-out",
     },
-    defaultProps: { colorScheme: "vino" },
+    defaultProps: { colorScheme: "brand" },
     variants: {
-      solid: (props: any) => {
-        if (props.colorScheme === "naranja") {
+      solid: (props: { colorScheme?: string }) => {
+        if (props.colorScheme === "accent") {
           return {
-            bg: "naranja.500",
+            bg: "accent.500",
             color: "white",
-            _hover: { bg: "naranja.600" },
-            _active: { bg: "naranja.700" },
+            _hover: { bg: "accent.600" },
+            _active: { bg: "accent.700" },
           };
         }
-        if (props.colorScheme === "amarillo") {
+        if (props.colorScheme === "gold") {
           return {
-            bg: "amarillo.500",
-            color: "vino.900",
-            _hover: { bg: "amarillo.600" },
+            bg: "gold.500",
+            color: "brand.900",
+            _hover: { bg: "gold.600" },
           };
         }
         return {
-          bg: "vino.500",
+          bg: "brand.500",
           color: "white",
-          _hover: { bg: "naranja.500" },
-          _active: { bg: "naranja.600" },
+          _hover: { bg: "accent.500" },
+          _active: { bg: "accent.600" },
         };
       },
       outline: {
-        borderColor: "vino.500",
-        color: "vino.500",
+        borderColor: "brand.500",
+        color: "brand.500",
         _hover: {
-          bg: "naranja.500",
+          bg: "accent.500",
           color: "white",
-          borderColor: "naranja.500",
+          borderColor: "accent.500",
         },
       },
       ghost: {
-        color: "vino.500",
-        _hover: { bg: "naranja.50", color: "naranja.600" },
+        color: "brand.500",
+        _hover: { bg: "accent.50", color: "accent.600" },
       },
-      brand: { bg: "vino.500", color: "white", _hover: { bg: "naranja.500" } },
-      accent: { bg: "naranja.500", color: "white", _hover: { bg: "vino.500" } },
+      brand: { bg: "brand.500", color: "white", _hover: { bg: "accent.500" } },
+      accent: { bg: "accent.500", color: "white", _hover: { bg: "brand.500" } },
     },
   },
   Heading: {
@@ -173,19 +173,19 @@ const components = {
     },
   },
   Input: {
-    defaultProps: { variant: "outline", focusBorderColor: "vino.500" },
+    defaultProps: { variant: "outline", focusBorderColor: "brand.500" },
     variants: {
       outline: {
         field: {
           borderColor: "lucera.border",
           bg: "white",
-          _hover: { borderColor: "naranja.300" },
+          _hover: { borderColor: "accent.300" },
         },
       },
     },
   },
   Select: {
-    defaultProps: { variant: "outline", focusBorderColor: "vino.500" },
+    defaultProps: { variant: "outline", focusBorderColor: "brand.500" },
     variants: {
       outline: {
         field: { borderColor: "lucera.border", bg: "white" },
@@ -193,7 +193,7 @@ const components = {
     },
   },
   Textarea: {
-    defaultProps: { variant: "outline", focusBorderColor: "vino.500" },
+    defaultProps: { variant: "outline", focusBorderColor: "brand.500" },
     variants: {
       outline: { borderColor: "lucera.border", bg: "white" },
     },
@@ -219,7 +219,7 @@ const components = {
     },
   },
   Tabs: {
-    defaultProps: { colorScheme: "vino" },
+    defaultProps: { colorScheme: "brand" },
   },
   Modal: {
     baseStyle: {
@@ -237,19 +237,20 @@ export const theme = extendTheme({
   styles,
   components,
 });
-// Gradientes de marca (Brandbook 2026). Strings listos para usar en Chakra:
+
+// Brand gradients (Brandbook 2026). Ready-to-use Chakra strings:
 //   <Box bgGradient={luceraGradients.warm} />
-// Los degradados planos (coral/vino/amarillo) nacen SIEMPRE del crema, según el
-// manual. `warm` es el mesh cálido para héroes/fondos (dirección libre).
+// The flat gradients always start from cream (per the manual). `warm` is the
+// warm mesh for heroes/large backgrounds.
 export const luceraGradients = {
-  // Mesh cálido con toda la paleta — héroes y fondos grandes.
-  warm: "linear(135deg, vino.500 0%, naranja.500 55%, amarillo.500 100%)",
-  // Degradados de marca sobre crema (fondo → color).
-  coral: "linear(180deg, crema.300 0%, naranja.500 100%)",
-  vino: "linear(180deg, crema.300 0%, vino.500 100%)",
-  amarillo: "linear(180deg, crema.300 0%, amarillo.500 100%)",
-  // Variante para chips/iconos pequeños (más saturada, sin el crema).
-  chipCoral: "linear(135deg, naranja.400 0%, vino.500 100%)",
-  chipAmarillo: "linear(135deg, amarillo.400 0%, naranja.500 100%)",
-  chipVino: "linear(135deg, vino.400 0%, vino.700 100%)",
+  // Warm mesh with the full palette — heroes and large backgrounds.
+  warm: "linear(135deg, brand.500 0%, accent.500 55%, gold.500 100%)",
+  // Brand gradients over cream (background → color).
+  accent: "linear(180deg, cream.300 0%, accent.500 100%)",
+  brand: "linear(180deg, cream.300 0%, brand.500 100%)",
+  gold: "linear(180deg, cream.300 0%, gold.500 100%)",
+  // Variant for small chips/icons (more saturated, no cream).
+  chipAccent: "linear(135deg, accent.400 0%, brand.500 100%)",
+  chipGold: "linear(135deg, gold.400 0%, accent.500 100%)",
+  chipBrand: "linear(135deg, brand.400 0%, brand.700 100%)",
 } as const;

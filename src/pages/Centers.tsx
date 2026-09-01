@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
-import { Center, countriesCities } from "@/lib/mockData";
+import { Center, citiesByCountry } from "@/lib/mockData";
 import { useFetchAll } from "@/hooks/useFetchAll";
 import { apiFetch } from "@/lib/apiClient";
-import { centerTypeToEs, countryEsToApi } from "@/lib/apiMappings";
+import { centerTypeFromApi, countryToApi } from "@/lib/apiMappings";
 import type {
   CenterApi,
   CenterCreatePayload,
@@ -52,17 +52,17 @@ import { useAuth } from "@/lib/auth";
 import { toast } from "@/lib/toast";
 
 const typeTone: Record<Center["type"], string> = {
-  Hospital: "vino",
-  Clínica: "naranja",
-  Farmacia: "amarillo",
+  Hospital: "brand",
+  Clínica: "accent",
+  Farmacia: "gold",
   Laboratorio: "blue",
   Urgencias: "red",
 };
 
 // El GET no expone país por centro, solo ciudad. Lo derivamos de
-// countriesCities (mockData.ts) para poder filtrar por país.
+// citiesByCountry (mockData.ts) para poder filtrar por país.
 const cityToCountry: Record<string, string> = Object.entries(
-  countriesCities
+  citiesByCountry
 ).reduce((acc, [country, cities]) => {
   cities.forEach((c) => {
     acc[c] = country;
@@ -90,7 +90,7 @@ export default function Centers() {
         (c): CenterRow => ({
           id: c.id,
           name: c.name,
-          type: centerTypeToEs[c.type] ?? "Hospital",
+          type: centerTypeFromApi[c.type] ?? "Hospital",
           city: c.city,
           country: cityToCountry[c.city] ?? "Otro",
           address: c.address,
@@ -197,7 +197,7 @@ export default function Centers() {
       } else {
         const payload: CenterCreatePayload = {
           ...common,
-          country: countryEsToApi[country] ?? (country || undefined),
+          country: countryToApi[country] ?? (country || undefined),
         };
         await apiFetch<CenterApi>("/api/centers", freshToken, {
           method: "POST",
@@ -315,7 +315,7 @@ export default function Centers() {
           />
           {canEdit && (
             <Button
-              colorScheme="vino"
+              colorScheme="brand"
               variant="solid"
               leftIcon={<Plus size={16} />}
               onClick={() => openEdit(null)}
@@ -335,7 +335,7 @@ export default function Centers() {
           borderRadius="md"
         >
           <Table size="sm">
-            <Thead bg="crema.100">
+            <Thead bg="cream.100">
               <Tr>
                 <Th>Nombre</Th>
                 <Th>Tipo</Th>
@@ -349,14 +349,14 @@ export default function Centers() {
             </Thead>
             <Tbody>
               {paginated.map((c) => (
-                <Tr key={c.id} _hover={{ bg: "crema.50" }}>
+                <Tr key={c.id} _hover={{ bg: "cream.50" }}>
                   <Td>
                     <HStack>
                       <Flex
                         h={8}
                         w={8}
                         borderRadius="full"
-                        bg="vino.50"
+                        bg="brand.50"
                         align="center"
                         justify="center"
                       >
@@ -398,7 +398,7 @@ export default function Centers() {
                   </Td>
                   <Td textAlign="center">
                     {c.recommended ? (
-                      <Badge colorScheme="amarillo">
+                      <Badge colorScheme="gold">
                         <HStack spacing={1}>
                           <Star size={10} fill="currentColor" />
                           <Text>Sí</Text>
@@ -423,7 +423,7 @@ export default function Centers() {
                         aria-label="Eliminar"
                         size="sm"
                         variant="ghost"
-                        color="peligro.500"
+                        color="danger.500"
                         icon={<Trash2 size={14} />}
                         onClick={() => setToDelete(c)}
                       />
@@ -480,7 +480,7 @@ export default function Centers() {
                       onChange={(e) => setCountry(e.target.value)}
                       placeholder="Seleccionar país"
                     >
-                      {Object.keys(countriesCities).map((p) => (
+                      {Object.keys(citiesByCountry).map((p) => (
                         <option key={p} value={p}>
                           {p}
                         </option>
@@ -523,7 +523,7 @@ export default function Centers() {
                   <Switch
                     isChecked={recommended}
                     onChange={(e) => setRecommended(e.target.checked)}
-                    colorScheme="naranja"
+                    colorScheme="accent"
                   />
                 </FormControl>
               </SimpleGrid>
@@ -532,7 +532,7 @@ export default function Centers() {
               <Button variant="outline" mr={2} onClick={onClose} isDisabled={saving}>
                 Cancelar
               </Button>
-              <Button type="submit" colorScheme="vino" isLoading={saving}>
+              <Button type="submit" colorScheme="brand" isLoading={saving}>
                 {editing ? "Actualizar" : "Crear"}
               </Button>
             </ModalFooter>

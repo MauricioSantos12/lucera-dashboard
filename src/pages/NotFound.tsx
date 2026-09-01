@@ -18,8 +18,8 @@ const NotFound = () => {
           h="72px"
           w="72px"
           borderRadius="full"
-          bg="vino.50"
-          color="vino.500"
+          bg="brand.50"
+          color="brand.500"
           align="center"
           justify="center"
           mx="auto"
@@ -39,7 +39,7 @@ const NotFound = () => {
         <Button
           as={RouterLink}
           to="/"
-          colorScheme="vino"
+          colorScheme="brand"
           leftIcon={<Home size={16} />}
         >
           Volver al inicio

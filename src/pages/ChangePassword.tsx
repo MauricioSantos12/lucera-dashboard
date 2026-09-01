@@ -74,7 +74,7 @@ export default function ChangePassword() {
         direction="column"
         justify="space-between"
         p={12}
-        bgGradient="linear(135deg, vino.700 0%, vino.500 60%, naranja.800 100%)"
+        bgGradient="linear(135deg, brand.700 0%, brand.500 60%, accent.800 100%)"
         color="white"
         position="relative"
         overflow="hidden"
@@ -120,7 +120,7 @@ export default function ChangePassword() {
           >
             Un paso más
             <br />
-            <Text as="span" color="naranja.300">
+            <Text as="span" color="accent.300">
               para asegurar tu cuenta.
             </Text>
           </Heading>
@@ -159,7 +159,7 @@ export default function ChangePassword() {
                   h="48px"
                   w="48px"
                   borderRadius="full"
-                  bg="naranja.50"
+                  bg="accent.50"
                   align="center"
                   justify="center"
                   mb={4}
@@ -206,7 +206,7 @@ export default function ChangePassword() {
 
               <Button
                 type="submit"
-                colorScheme="vino"
+                colorScheme="brand"
                 isLoading={loading}
                 loadingText="Guardando…"
               >
@@ -221,14 +221,14 @@ export default function ChangePassword() {
                 spacing={2}
                 fontSize="xs"
                 color="lucera.textMuted"
-                bg="crema.100"
+                bg="cream.100"
                 borderRadius="md"
                 p={3}
                 borderWidth="1px"
                 borderColor="lucera.border"
                 align="flex-start"
               >
-                <Box color="naranja.500" mt={0.5}>
+                <Box color="accent.500" mt={0.5}>
                   <ShieldCheck size={14} />
                 </Box>
                 <Text>

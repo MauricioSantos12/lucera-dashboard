@@ -201,7 +201,7 @@ function SidebarLink({
         borderRadius="md"
         color={active ? "white" : "lucera.sidebarFg"}
         bgGradient={
-          active ? "linear(135deg, naranja.400 0%, naranja.600 100%)" : undefined
+          active ? "linear(135deg, accent.400 0%, accent.600 100%)" : undefined
         }
         _hover={active ? undefined : { bg: "whiteAlpha.200", color: "white" }}
         boxShadow={active ? "0 6px 16px -8px rgba(240,129,89,0.6)" : undefined}
@@ -231,7 +231,7 @@ function SidebarBody({ onNav }: { onNav?: () => void }) {
       direction="column"
       h="100%"
       w="100%"
-      bgGradient="linear(180deg, vino.700 0%, vino.900 100%)"
+      bgGradient="linear(180deg, brand.700 0%, brand.900 100%)"
       color="lucera.sidebarFg"
     >
       <HStack
@@ -239,7 +239,7 @@ function SidebarBody({ onNav }: { onNav?: () => void }) {
         to="/"
         p={4}
         borderBottomWidth="1px"
-        borderColor="vino.600"
+        borderColor="brand.600"
         spacing={3}
         style={{ textDecoration: "none" }}
       >
@@ -264,7 +264,7 @@ function SidebarBody({ onNav }: { onNav?: () => void }) {
             fontFamily="heading"
             fontSize="xl"
             fontWeight={400}
-            color="amarillo.300"
+            color="gold.300"
             lineHeight={1}
           >
             Lucera
@@ -315,7 +315,7 @@ function SidebarBody({ onNav }: { onNav?: () => void }) {
         px={4}
         py={3}
         borderTopWidth="1px"
-        borderColor="vino.600"
+        borderColor="brand.600"
         fontSize="10px"
         opacity={0.6}
       >

@@ -170,7 +170,7 @@ export default function Login() {
         direction="column"
         justify="space-between"
         p={12}
-        bgGradient="linear(135deg, vino.700 0%, vino.500 60%, naranja.800 100%)"
+        bgGradient="linear(135deg, brand.700 0%, brand.500 60%, accent.800 100%)"
         color="white"
         position="relative"
         overflow="hidden"
@@ -216,7 +216,7 @@ export default function Login() {
           >
             Teleorientación pediátrica
             <br />
-            <Text as="span" color="naranja.300">
+            <Text as="span" color="accent.300">
               accesible y segura
             </Text>
             <br />
@@ -286,7 +286,7 @@ export default function Login() {
                     href="https://pdfobject.com/pdf/sample.pdf"
                     target="_blank"
                     rel="noopener noreferrer"
-                    color="vino.500"
+                    color="brand.500"
                     fontWeight={600}
                     _hover={{ textDecoration: "underline" }}
                   >
@@ -297,7 +297,7 @@ export default function Login() {
 
                 <Button
                   type="submit"
-                  colorScheme="vino"
+                  colorScheme="brand"
                   isLoading={loading}
                   loadingText="Verificando…"
                 >
@@ -308,14 +308,14 @@ export default function Login() {
                   spacing={2}
                   fontSize="xs"
                   color="lucera.textMuted"
-                  bg="crema.100"
+                  bg="cream.100"
                   borderRadius="md"
                   p={3}
                   borderWidth="1px"
                   borderColor="lucera.border"
                   align="flex-start"
                 >
-                  <Box color="naranja.500" mt={0.5}>
+                  <Box color="accent.500" mt={0.5}>
                     <ShieldCheck size={14} />
                   </Box>
                   <Text>
@@ -332,7 +332,7 @@ export default function Login() {
                     h="48px"
                     w="48px"
                     borderRadius="full"
-                    bg="naranja.50"
+                    bg="accent.50"
                     align="center"
                     justify="center"
                     mb={4}
@@ -354,7 +354,7 @@ export default function Login() {
                       onChange={setOtp}
                       otp
                       size="lg"
-                      focusBorderColor="vino.500"
+                      focusBorderColor="brand.500"
                     >
                       <PinInputField />
                       <PinInputField />
@@ -372,7 +372,7 @@ export default function Login() {
                 <VStack spacing={2} align="stretch">
                   <Button
                     type="submit"
-                    colorScheme="vino"
+                    colorScheme="brand"
                     isLoading={loading}
                     loadingText="Validando…"
                     leftIcon={loading ? <Spinner size="sm" /> : undefined}

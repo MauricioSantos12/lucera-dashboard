@@ -237,21 +237,21 @@ export default function UsageLLM() {
               icon={MessageSquare}
               label="Llamadas"
               value={formatNumber(summary?.calls ?? 0)}
-              accent={{ bg: "vino.50", fg: "vino.500" }}
+              accent={{ bg: "brand.50", fg: "brand.500" }}
               sub="Total de invocaciones al LLM"
             />
             <Stat
               icon={DollarSign}
               label="Costo total"
               value={formatCurrency(summary?.costUsd ?? 0, 4)}
-              accent={{ bg: "exito.500", fg: "white" }}
+              accent={{ bg: "success.500", fg: "white" }}
               sub="USD acumulado"
             />
             <Stat
               icon={Clock}
               label="Latencia promedio"
               value={`${formatNumber(summary?.avgLatencyMs ?? 0)} ms`}
-              accent={{ bg: "amarillo.50", fg: "amarillo.700" }}
+              accent={{ bg: "gold.50", fg: "gold.700" }}
               sub="Por llamada"
             />
           </SimpleGrid>
@@ -261,19 +261,19 @@ export default function UsageLLM() {
               icon={LogIn}
               label="Tokens de entrada"
               value={formatNumber(summary?.inputTokens ?? 0)}
-              accent={{ bg: "naranja.50", fg: "naranja.500" }}
+              accent={{ bg: "accent.50", fg: "accent.500" }}
             />
             <Stat
               icon={LogOut}
               label="Tokens de salida"
               value={formatNumber(summary?.outputTokens ?? 0)}
-              accent={{ bg: "naranja.50", fg: "naranja.500" }}
+              accent={{ bg: "accent.50", fg: "accent.500" }}
             />
             <Stat
               icon={Cpu}
               label="Tokens totales"
               value={formatNumber(summary?.totalTokens ?? 0)}
-              accent={{ bg: "vino.50", fg: "vino.500" }}
+              accent={{ bg: "brand.50", fg: "brand.500" }}
             />
           </SimpleGrid>
 
@@ -473,7 +473,7 @@ export default function UsageLLM() {
               borderRadius="md"
             >
               <Table size="sm">
-                <Thead bg="crema.100">
+                <Thead bg="cream.100">
                   <Tr>
                     <Th>Acudiente</Th>
                     <Th display={{ base: "none", md: "table-cell" }}>
@@ -486,7 +486,7 @@ export default function UsageLLM() {
                 </Thead>
                 <Tbody>
                   {filteredUsers.map((u) => (
-                    <Tr key={u.phone} _hover={{ bg: "crema.50" }}>
+                    <Tr key={u.phone} _hover={{ bg: "cream.50" }}>
                       <Td fontSize="sm" fontWeight={600}>
                         {u.guardian}
                       </Td>

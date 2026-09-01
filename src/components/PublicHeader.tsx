@@ -34,7 +34,7 @@ export function PublicHeader() {
         >
           <Image src={logoSymbol} alt="Lucera" boxSize="32px" objectFit="contain" />
         </Box>
-        <Heading size="md" fontFamily="heading" color="vino.500">
+        <Heading size="md" fontFamily="heading" color="brand.500">
           Lucera
         </Heading>
       </HStack>
@@ -42,7 +42,7 @@ export function PublicHeader() {
         as={RouterLink}
         to="/register"
         size="sm"
-        colorScheme="vino"
+        colorScheme="brand"
         rightIcon={<ArrowRight size={14} />}
       >
         Registrarse

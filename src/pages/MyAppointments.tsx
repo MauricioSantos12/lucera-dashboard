@@ -26,8 +26,8 @@ export default function MyAppointments() {
               <Box
                 key={c.id} as="button" w="100%" textAlign="left" px={4} py={3}
                 borderBottomWidth="1px" borderColor="lucera.borderSoft"
-                bg={selected.id === c.id ? "vino.50" : "transparent"}
-                _hover={{ bg: "crema.50" }}
+                bg={selected.id === c.id ? "brand.50" : "transparent"}
+                _hover={{ bg: "cream.50" }}
                 onClick={() => setSelected(c)}
               >
                 <Flex justify="space-between" mb={1}>
@@ -50,7 +50,7 @@ export default function MyAppointments() {
             <TriageBadge level={selected.triage} />
           </Flex>
 
-          <Box flex={1} overflowY="auto" p={4} bg="crema.50">
+          <Box flex={1} overflowY="auto" p={4} bg="cream.50">
             <VStack spacing={3} maxW="2xl" mx="auto" align="stretch">
               {selected.messages.map((m, i) => {
                 const isUser = m.role === "acudiente";
@@ -59,13 +59,13 @@ export default function MyAppointments() {
                   <Flex key={i} gap={2} justify={isUser ? "flex-end" : "flex-start"}>
                     {!isUser && (
                       <Flex h={7} w={7} borderRadius="full" align="center" justify="center" flexShrink={0}
-                        bg={isBot ? "vino.50" : "naranja.50"} color={isBot ? "vino.500" : "naranja.500"}>
+                        bg={isBot ? "brand.50" : "accent.50"} color={isBot ? "brand.500" : "accent.500"}>
                         {isBot ? <Bot size={14} /> : <Stethoscope size={14} />}
                       </Flex>
                     )}
                     <Box
                       maxW="75%" px={4} py={2.5} borderRadius="2xl" boxShadow="sm" fontSize="sm"
-                      bg={isUser ? "vino.500" : isBot ? "white" : "naranja.500"}
+                      bg={isUser ? "brand.500" : isBot ? "white" : "accent.500"}
                       color={isUser || (!isUser && !isBot) ? "white" : "lucera.text"}
                       borderWidth={isBot ? "1px" : 0} borderColor="lucera.border"
                     >
@@ -77,14 +77,14 @@ export default function MyAppointments() {
                       <Text>{m.text}</Text>
                       <Text fontSize="10px" mt={1} opacity={0.7} sx={{ fontVariantNumeric: "tabular-nums" }}>{m.time}</Text>
                     </Box>
-                    {isUser && <Flex h={7} w={7} borderRadius="full" bg="vino.50" color="vino.500" align="center" justify="center"><User size={14} /></Flex>}
+                    {isUser && <Flex h={7} w={7} borderRadius="full" bg="brand.50" color="brand.500" align="center" justify="center"><User size={14} /></Flex>}
                   </Flex>
                 );
               })}
             </VStack>
           </Box>
 
-          <HStack justify="center" p={3} borderTopWidth="1px" borderColor="lucera.border" bg="crema.50" fontSize="xs" color="lucera.textMuted" spacing={2}>
+          <HStack justify="center" p={3} borderTopWidth="1px" borderColor="lucera.border" bg="cream.50" fontSize="xs" color="lucera.textMuted" spacing={2}>
             <Lock size={12} />
             <Text>Esta vista es solo lectura. Para enviar mensajes utiliza WhatsApp con Lucera IA.</Text>
           </HStack>

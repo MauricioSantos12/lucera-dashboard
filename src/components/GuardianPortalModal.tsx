@@ -123,7 +123,7 @@ export function GuardianPortalModal({
             borderWidth="1px"
             borderColor="lucera.border"
             borderRadius="md"
-            bg="crema.50"
+            bg="cream.50"
             p={3}
             mb={4}
           >
@@ -141,7 +141,7 @@ export function GuardianPortalModal({
             <Button
               variant="link"
               size="xs"
-              colorScheme="vino"
+              colorScheme="brand"
               leftIcon={<RefreshCw size={12} />}
               onClick={resetPassword}
               isLoading={resetting}
@@ -155,7 +155,7 @@ export function GuardianPortalModal({
             Cancelar
           </Button>
           <Button
-            colorScheme="vino"
+            colorScheme="brand"
             leftIcon={<Link2 size={16} />}
             onClick={generateLink}
             isLoading={generating}

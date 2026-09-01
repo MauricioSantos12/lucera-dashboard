@@ -53,11 +53,11 @@ import { exportToExcel } from "@/lib/exportToExcel";
 import { useAuth } from "@/lib/auth";
 
 const catTone: Record<Medication["category"], string> = {
-  Analgésico: "vino",
-  Antipirético: "naranja",
+  Analgésico: "brand",
+  Antipirético: "accent",
   Antihistamínico: "blue",
   Antibiótico: "red",
-  Antitusivo: "amarillo",
+  Antitusivo: "gold",
   Otros: "gray",
 };
 
@@ -138,11 +138,11 @@ export default function Medications() {
         status="warning"
         borderRadius="md"
         mb={4}
-        bg="amarillo.50"
+        bg="gold.50"
         borderWidth="1px"
-        borderColor="amarillo.300"
+        borderColor="gold.300"
       >
-        <AlertIcon color="amarillo.700" />
+        <AlertIcon color="gold.700" />
         <Text fontSize="xs">
           La dosis se calcula con base en el{" "}
           <strong>peso registrado del niño</strong>. Si el acudiente no ha
@@ -214,7 +214,7 @@ export default function Medications() {
           </Button>
           {canEdit && (
             <Button
-              colorScheme="vino"
+              colorScheme="brand"
               variant="solid"
               leftIcon={<Plus size={16} />}
               onClick={() => openEdit(null)}
@@ -230,7 +230,7 @@ export default function Medications() {
           borderRadius="md"
         >
           <Table size="sm">
-            <Thead bg="crema.100">
+            <Thead bg="cream.100">
               <Tr>
                 <Th>Medicamento</Th>
                 <Th display={{ base: "none", md: "table-cell" }}>Genérico</Th>
@@ -245,14 +245,14 @@ export default function Medications() {
             </Thead>
             <Tbody>
               {paginated.map((m) => (
-                <Tr key={m.id} _hover={{ bg: "crema.50" }}>
+                <Tr key={m.id} _hover={{ bg: "cream.50" }}>
                   <Td>
                     <HStack>
                       <Flex
                         h={8}
                         w={8}
                         borderRadius="full"
-                        bg="naranja.50"
+                        bg="accent.50"
                         align="center"
                         justify="center"
                       >
@@ -325,7 +325,7 @@ export default function Medications() {
                         aria-label="Eliminar"
                         size="sm"
                         variant="ghost"
-                        color="peligro.500"
+                        color="danger.500"
                         icon={<Trash2 size={14} />}
                         onClick={() => setToDelete(m)}
                       />
@@ -423,7 +423,7 @@ export default function Medications() {
                   <Switch
                     isChecked={recommendable}
                     onChange={(e) => setRecommendable(e.target.checked)}
-                    colorScheme="naranja"
+                    colorScheme="accent"
                   />
                 </FormControl>
               </SimpleGrid>
@@ -432,7 +432,7 @@ export default function Medications() {
               <Button variant="outline" mr={2} onClick={onClose}>
                 Cancelar
               </Button>
-              <Button type="submit" colorScheme="vino">
+              <Button type="submit" colorScheme="brand">
                 Guardar
               </Button>
             </ModalFooter>

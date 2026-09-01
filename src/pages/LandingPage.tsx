@@ -325,7 +325,7 @@ export default function LandingPage() {
           <Heading
             size="md"
             fontFamily="heading"
-            color={scrolled ? "vino.500" : "white"}
+            color={scrolled ? "brand.500" : "white"}
             transition="color 0.25s ease"
           >
             Lucera
@@ -350,10 +350,10 @@ export default function LandingPage() {
             to="/dashboard"
             size="sm"
             rightIcon={<ArrowRight size={14} />}
-            colorScheme={scrolled ? "vino" : undefined}
+            colorScheme={scrolled ? "brand" : undefined}
             bg={scrolled ? undefined : "white"}
-            color={scrolled ? undefined : "vino.500"}
-            _hover={scrolled ? undefined : { bg: "crema.100" }}
+            color={scrolled ? undefined : "brand.500"}
+            _hover={scrolled ? undefined : { bg: "cream.100" }}
           >
             Ir al Dashboard
           </Button>
@@ -422,7 +422,7 @@ export default function LandingPage() {
             >
               Teleorientación pediátrica
               <br />
-              <Text as="span" color="naranja.300">
+              <Text as="span" color="accent.300">
                 accesible y segura
               </Text>
               <br />
@@ -458,7 +458,7 @@ export default function LandingPage() {
               <Button
                 as={RouterLink}
                 to="/dashboard"
-                colorScheme="naranja"
+                colorScheme="accent"
                 size="lg"
                 borderRadius="full"
                 rightIcon={<ArrowRight size={16} />}
@@ -523,7 +523,7 @@ export default function LandingPage() {
                 fontWeight={700}
                 letterSpacing="widest"
                 textTransform="uppercase"
-                color="naranja.500"
+                color="accent.500"
               >
                 Cuando tu hijo se enferma a medianoche
               </Text>
@@ -532,7 +532,7 @@ export default function LandingPage() {
                 fontFamily="heading"
                 fontWeight={800}
                 lineHeight={1.15}
-                color="vino.500"
+                color="brand.500"
               >
                 Frente a eso, hay tres caminos.
               </Heading>
@@ -552,13 +552,13 @@ export default function LandingPage() {
                 <Text as="span" mx={2} opacity={0.5}>
                   ·
                 </Text>
-                <Text as="span" color="naranja.300">
+                <Text as="span" color="accent.300">
                   Confiar en Lucera
                 </Text>
                 <Text as="span" mx={2} opacity={0.5}>
                   ·
                 </Text>
-                <Text as="span" color="amarillo.300">
+                <Text as="span" color="gold.300">
                   o arriesgarte a adivinar
                 </Text>
               </Flex>
@@ -568,7 +568,7 @@ export default function LandingPage() {
       </Box>
 
       {/* Features */}
-      <Box bg="vino.700" color="white" py={{ base: 12, md: 20 }}>
+      <Box bg="brand.700" color="white" py={{ base: 12, md: 20 }}>
         <Container maxW="5xl">
           <FadeInSection display="flex" justifyContent="center">
             <VStack spacing={3} mb={12} textAlign="center">
@@ -592,7 +592,7 @@ export default function LandingPage() {
                   borderColor="whiteAlpha.300"
                   borderRadius="xl"
                   whileHover={{ y: -6, scale: 1.02 }}
-                  _hover={{ borderColor: "naranja.300", bg: "whiteAlpha.200" }}
+                  _hover={{ borderColor: "accent.300", bg: "whiteAlpha.200" }}
                   transition={{ duration: 0.2 }}
                   display="flex"
                   flexDir="column"
@@ -607,7 +607,7 @@ export default function LandingPage() {
                     justify="center"
                     mb={4}
                   >
-                    <Icon as={f.icon} boxSize={5} color="naranja.300" />
+                    <Icon as={f.icon} boxSize={5} color="accent.300" />
                   </Flex>
                   <Heading size="sm" fontFamily="heading" color="white" mb={2}>
                     {f.title}
@@ -623,7 +623,7 @@ export default function LandingPage() {
       </Box>
 
       {/* Stats */}
-      <Box bg="crema.50" py={12}>
+      <Box bg="cream.50" py={12}>
         <Container maxW="4xl">
           <Stack
             flexDir="row"
@@ -640,7 +640,7 @@ export default function LandingPage() {
                     value={s.value}
                     size="xl"
                     fontFamily="heading"
-                    color="vino.500"
+                    color="brand.500"
                   />
                   <Text fontSize="sm" color="lucera.textMuted">
                     {s.label}
@@ -653,7 +653,7 @@ export default function LandingPage() {
       </Box>
 
       {/* How it works */}
-      <Box bg="crema.100" py={{ base: 12, md: 20 }}>
+      <Box bg="cream.100" py={{ base: 12, md: 20 }}>
         <Container maxW="4xl">
           <FadeInSection>
             <VStack spacing={3} mb={12} textAlign="center">
@@ -670,7 +670,7 @@ export default function LandingPage() {
               left="16.5%"
               right="16.5%"
               height="2px"
-              bg="vino.200"
+              bg="brand.200"
               zIndex={0}
             />
             <SimpleGrid
@@ -686,7 +686,7 @@ export default function LandingPage() {
                       h={12}
                       w={12}
                       borderRadius="full"
-                      bg="vino.500"
+                      bg="brand.500"
                       color="white"
                       align="center"
                       justify="center"
@@ -716,7 +716,7 @@ export default function LandingPage() {
       </Box>
 
       {/* Principios */}
-      <Box bg="vino.700" color="white" py={{ base: 14, md: 24 }}>
+      <Box bg="brand.700" color="white" py={{ base: 14, md: 24 }}>
         <Container maxW="6xl">
           <SimpleGrid
             columns={{ base: 1, md: 2 }}
@@ -735,7 +735,7 @@ export default function LandingPage() {
                   fontWeight={700}
                   letterSpacing="widest"
                   textTransform="uppercase"
-                  color="naranja.300"
+                  color="accent.300"
                   fontFamily="body"
                 >
                   Nuestra mentalidad
@@ -749,13 +749,13 @@ export default function LandingPage() {
                   <Text as="span" color="gray.200">
                     No queremos que
                   </Text>{" "}
-                  <Text as="span" color="naranja.300">
+                  <Text as="span" color="accent.300">
                     LATAM consuma IA.
                   </Text>{" "}
                   <Text as="span" color="gray.200">
                     Queremos que la
                   </Text>{" "}
-                  <Text as="span" color="amarillo.300">
+                  <Text as="span" color="gold.300">
                     construya.
                   </Text>
                 </Heading>
@@ -787,7 +787,7 @@ export default function LandingPage() {
                     p={{ base: 5, md: 6 }}
                     transition="all 0.2s ease"
                     _hover={{
-                      borderColor: "naranja.200",
+                      borderColor: "accent.200",
                       boxShadow: "0 8px 24px -12px rgba(109,18,43,0.15)",
                     }}
                   >
@@ -795,7 +795,7 @@ export default function LandingPage() {
                       fontFamily="heading"
                       fontSize="3xl"
                       fontWeight={400}
-                      color="naranja.400"
+                      color="accent.400"
                       lineHeight={1}
                       flexShrink={0}
                     >
@@ -827,7 +827,7 @@ export default function LandingPage() {
       </Box>
 
       {/* Pricing */}
-      <Box bg="crema.50" py={{ base: 12, md: 20 }}>
+      <Box bg="cream.50" py={{ base: 12, md: 20 }}>
         <Container maxW="5xl">
           <FadeInSection>
             <VStack spacing={3} mb={12} alignItems="flex-start">
@@ -854,7 +854,7 @@ export default function LandingPage() {
                   p={6}
                   bg="white"
                   borderWidth={plan.highlighted ? "2px" : "1px"}
-                  borderColor={plan.highlighted ? "vino.500" : "lucera.border"}
+                  borderColor={plan.highlighted ? "brand.500" : "lucera.border"}
                   borderRadius="xl"
                   position="relative"
                   boxShadow={
@@ -871,7 +871,7 @@ export default function LandingPage() {
                       top={-3}
                       left="50%"
                       transform="translateX(-50%)"
-                      colorScheme="naranja"
+                      colorScheme="accent"
                       borderRadius="full"
                       px={3}
                       py={0.5}
@@ -887,7 +887,7 @@ export default function LandingPage() {
                   </Heading>
                   <Badge
                     alignSelf="flex-start"
-                    colorScheme="amarillo"
+                    colorScheme="gold"
                     variant="subtle"
                     borderRadius="full"
                     px={3}
@@ -903,7 +903,7 @@ export default function LandingPage() {
                         <Icon
                           as={Check}
                           boxSize={4}
-                          color="exito.500"
+                          color="success.500"
                           mt={0.5}
                           flexShrink={0}
                         />
@@ -918,7 +918,7 @@ export default function LandingPage() {
                     href={WHATSAPP_URL}
                     target="_blank"
                     rel="noopener noreferrer"
-                    colorScheme={plan.highlighted ? "vino" : undefined}
+                    colorScheme={plan.highlighted ? "brand" : undefined}
                     variant={plan.highlighted ? "solid" : "outline"}
                     size="sm"
                   >
@@ -945,7 +945,7 @@ export default function LandingPage() {
           transform="translate(-50%, -50%)"
           boxSize="500px"
           borderRadius="full"
-          bg="naranja.50"
+          bg="accent.50"
           opacity={0.6}
           filter="blur(60px)"
           pointerEvents="none"
@@ -962,7 +962,7 @@ export default function LandingPage() {
             <Button
               as={RouterLink}
               to="/dashboard"
-              colorScheme="vino"
+              colorScheme="brand"
               size="lg"
               rightIcon={<ArrowRight size={16} />}
             >
@@ -973,7 +973,7 @@ export default function LandingPage() {
       </Box>
 
       {/* Footer */}
-      <Box bg="vino.700" color="white" py={10} px={{ base: 4, md: 8 }}>
+      <Box bg="brand.700" color="white" py={10} px={{ base: 4, md: 8 }}>
         <Container maxW="5xl">
           <SimpleGrid columns={{ base: 1, md: 3 }} spacing={8} mb={8}>
             <VStack align={{ base: "center", md: "flex-start" }} spacing={2}>
@@ -994,7 +994,7 @@ export default function LandingPage() {
                     objectFit="contain"
                   />
                 </Box>
-                <Heading size="sm" color="amarillo.300" fontFamily="heading">
+                <Heading size="sm" color="gold.300" fontFamily="heading">
                   Lucera
                 </Heading>
               </HStack>

@@ -3,7 +3,7 @@ import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { useAuth } from "@/lib/auth";
 import { useFetch } from "@/hooks/useFetch";
 import type { GuardianApi, PortalPayment } from "@/lib/apiTypes";
-import { planLabelEs } from "@/lib/guardianForm";
+import { planLabel } from "@/lib/guardianForm";
 import {
   Box,
   Flex,
@@ -70,7 +70,7 @@ export default function MySubscription() {
     );
   }
 
-  const planName = me ? planLabelEs[me.plan] ?? me.plan : "—";
+  const planName = me ? planLabel[me.plan] ?? me.plan : "—";
   const isPaid = !!me && me.plan !== "free";
   const cycle = cycleLabel(me?.planTier);
 
@@ -80,7 +80,7 @@ export default function MySubscription() {
       subtitle="Plan actual e historial de pagos"
     >
       <Box
-        bgGradient="linear(135deg, vino.700 0%, vino.500 60%, naranja.600 100%)"
+        bgGradient="linear(135deg, brand.700 0%, brand.500 60%, accent.600 100%)"
         color="white"
         borderRadius="xl"
         p={6}
@@ -125,7 +125,7 @@ export default function MySubscription() {
             borderRadius="md"
           >
             <Table size="sm">
-              <Thead bg="crema.100">
+              <Thead bg="cream.100">
                 <Tr>
                   <Th>Plan</Th>
                   <Th>Método</Th>
@@ -136,8 +136,8 @@ export default function MySubscription() {
               </Thead>
               <Tbody>
                 {payments.map((p) => (
-                  <Tr key={p.id} _hover={{ bg: "crema.50" }}>
-                    <Td fontSize="sm">{planLabelEs[p.plan] ?? p.plan}</Td>
+                  <Tr key={p.id} _hover={{ bg: "cream.50" }}>
+                    <Td fontSize="sm">{planLabel[p.plan] ?? p.plan}</Td>
                     <Td>
                       <Badge variant="outline" textTransform="capitalize">
                         {p.method}

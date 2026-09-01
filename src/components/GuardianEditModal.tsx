@@ -22,13 +22,13 @@ import { toast } from "@/lib/toast";
 import { Relationship, AccountStatus } from "@/lib/mockData";
 import { useGeo } from "@/hooks/useGeo";
 import {
-  relationToEs,
-  relationToApi,
-  statusToEs,
+  relationshipFromApi,
+  relationshipToApi,
+  statusFromApi,
   statusToApi,
-  planToEs,
-  countryApiToEs,
-  countryEsToApi,
+  planFromApi,
+  countryFromApi,
+  countryToApi,
   genderToValue,
 } from "@/lib/apiMappings";
 import type {
@@ -68,7 +68,7 @@ export function GuardianEditModal({
 
   useEffect(() => {
     setCountry(
-      guardian ? countryApiToEs[guardian.country] ?? guardian.country : ""
+      guardian ? countryFromApi[guardian.country] ?? guardian.country : ""
     );
     setProvince(guardian?.province ?? "");
   }, [guardian]);
@@ -83,11 +83,11 @@ export function GuardianEditModal({
     // El email no se puede editar → no viaja en el PATCH.
     const payload: GuardianPatchPayload = {
       name: String(fd.get("name")),
-      country: countryEsToApi[country] ?? (country || undefined),
+      country: countryToApi[country] ?? (country || undefined),
       city: String(fd.get("city")),
       province: province || undefined,
       address: address,
-      relationship: relationToApi[fd.get("relationship") as Relationship],
+      relationship: relationshipToApi[fd.get("relationship") as Relationship],
       status: statusToApi[fd.get("status") as AccountStatus],
       plan: (String(fd.get("plan") || "") || undefined) as PlanApi | undefined,
       insuranceId: insuranceId ? Number(insuranceId) : undefined,
@@ -139,7 +139,7 @@ export function GuardianEditModal({
                   <Input
                     value={guardian.phone}
                     isReadOnly
-                    bg="crema.50"
+                    bg="cream.50"
                   />
                   <Text fontSize="xs" color="lucera.textMuted" mt={1}>
                     El teléfono no se puede editar vía API.
@@ -150,7 +150,7 @@ export function GuardianEditModal({
                   <Input
                     value={guardian.email}
                     isReadOnly
-                    bg="crema.50"
+                    bg="cream.50"
                   />
                   <Text fontSize="xs" color="lucera.textMuted" mt={1}>
                     El correo no se puede editar.
@@ -160,7 +160,7 @@ export function GuardianEditModal({
                   <FormLabel>Relación</FormLabel>
                   <Select
                     name="relationship"
-                    defaultValue={relationToEs[guardian.relationship] ?? "Madre"}
+                    defaultValue={relationshipFromApi[guardian.relationship] ?? "Madre"}
                   >
                     {["Madre", "Padre", "Tutor", "Abuelo/a", "Otro"].map((r) => (
                       <option key={r} value={r}>
@@ -260,7 +260,7 @@ export function GuardianEditModal({
                       ["free", "premium_monthly", "premium_annual"] as const
                     ).map((p) => (
                       <option key={p} value={p}>
-                        {planToEs[p]}
+                        {planFromApi[p]}
                       </option>
                     ))}
                   </Select>
@@ -269,7 +269,7 @@ export function GuardianEditModal({
                   <FormLabel>Estado</FormLabel>
                   <Select
                     name="status"
-                    defaultValue={statusToEs[guardian.status] ?? "activa"}
+                    defaultValue={statusFromApi[guardian.status] ?? "activa"}
                   >
                     <option value="activa">Activa</option>
                     <option value="suspendida">Suspendida</option>
@@ -287,7 +287,7 @@ export function GuardianEditModal({
               >
                 Cancelar
               </Button>
-              <Button type="submit" colorScheme="vino" isLoading={saving}>
+              <Button type="submit" colorScheme="brand" isLoading={saving}>
                 Actualizar
               </Button>
             </ModalFooter>

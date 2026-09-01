@@ -5,11 +5,11 @@ import { ChatSession } from "@/lib/mockData";
 import { useAuth } from "@/lib/auth";
 import { useFetchAll } from "@/hooks/useFetchAll";
 import {
-  chatTriageToLevel,
-  chatAttentionToEs,
-  chatStatusToEstado,
-  chatRoleToEs,
-  relationToEs,
+  triageFromApi,
+  attentionFromApi,
+  chatStatusFromApi,
+  chatRoleFromApi,
+  relationshipFromApi,
 } from "@/lib/apiMappings";
 import type {
   ChatApi,
@@ -117,7 +117,7 @@ function FilterPill({
       borderColor={active ? activeColor : "lucera.border"}
       color={active ? "white" : "lucera.textMuted"}
       _hover={
-        active ? undefined : { bg: "crema.50", borderColor: "lucera.textMuted" }
+        active ? undefined : { bg: "cream.50", borderColor: "lucera.textMuted" }
       }
       transition="all 120ms"
     >
@@ -132,8 +132,8 @@ function chatApiToSession(c: ChatApi): ChatSession {
     guardian: c.guardian,
     patient: c.patient,
     phone: c.phone,
-    triage: chatTriageToLevel[c.triage],
-    attentionType: chatAttentionToEs[c.attentionType] ?? "Virtual",
+    triage: triageFromApi[c.triage],
+    attentionType: attentionFromApi[c.attentionType] ?? "Virtual",
     aiSummary: c.aiSummary ?? undefined,
     rating: c.rating ?? undefined,
     lastMessage: c.lastMessage,
@@ -141,12 +141,12 @@ function chatApiToSession(c: ChatApi): ChatSession {
     startedAt: c.startedAt,
     closedAt: c.closedAt ?? undefined,
     messages: c.messages.map((m) => ({
-      role: chatRoleToEs[m.role] ?? "sistema",
+      role: chatRoleFromApi[m.role] ?? "sistema",
       text: m.text,
       time: m.time,
       alerts: m.alerts,
     })),
-    status: chatStatusToEstado[c.status] ?? "cerrada",
+    status: chatStatusFromApi[c.status] ?? "cerrada",
     derivation: c.derivation,
   };
 }
@@ -476,7 +476,7 @@ export default function Chats() {
                 <FilterPill
                   key={t.key}
                   active={tab === t.key}
-                  activeColor="exito.500"
+                  activeColor="success.500"
                   onClick={() => setTab(t.key)}
                 >
                   {t.label} ({t.count})
@@ -511,7 +511,7 @@ export default function Chats() {
                 <FilterPill
                   key={d.key}
                   active={disposition === d.key}
-                  activeColor="vino.500"
+                  activeColor="brand.500"
                   onClick={() => setDisposition(d.key)}
                 >
                   {d.label}
@@ -559,15 +559,15 @@ export default function Chats() {
                     p={3}
                     borderBottomWidth="1px"
                     borderColor="lucera.borderSoft"
-                    bg={active ? "crema.100" : "white"}
-                    _hover={{ bg: "crema.50" }}
+                    bg={active ? "cream.100" : "white"}
+                    _hover={{ bg: "cream.50" }}
                   >
                     <HStack justify="space-between" align="flex-start" mb={1}>
                       <HStack spacing={2} minW={0}>
                         <Avatar
                           size="sm"
                           name={c.guardian}
-                          bg="vino.500"
+                          bg="brand.500"
                           color="white"
                         />
                         <Text fontSize="sm" fontWeight={700} noOfLines={1}>
@@ -629,7 +629,7 @@ export default function Chats() {
         </Flex>
 
         {/* Columna central: conversación */}
-        <Flex direction="column" flex={1} minW={0} bg="crema.50">
+        <Flex direction="column" flex={1} minW={0} bg="cream.50">
           {selected ? (
             <>
               <Flex
@@ -644,7 +644,7 @@ export default function Chats() {
                   <Avatar
                     size="sm"
                     name={selected.guardian}
-                    bg="vino.500"
+                    bg="brand.500"
                     color="white"
                   />
                   <Box minW={0}>
@@ -664,7 +664,7 @@ export default function Chats() {
                               fontWeight={700}
                               fontSize="sm"
                               noOfLines={1}
-                              _hover={{ color: "vino.500" }}
+                              _hover={{ color: "brand.500" }}
                             >
                               {selected.guardian}
                             </Text>
@@ -709,7 +709,7 @@ export default function Chats() {
                           borderRadius="2xl"
                           boxShadow="sm"
                           fontSize="sm"
-                          bg={isUser ? "exito.500" : "white"}
+                          bg={isUser ? "success.500" : "white"}
                           color={isUser ? "white" : "lucera.text"}
                           borderWidth={!isUser ? "1px" : 0}
                           borderColor="lucera.border"
@@ -820,7 +820,7 @@ export default function Chats() {
                 label="Relación"
                 value={
                   selectedGuardian
-                    ? relationToEs[selectedGuardian.relationship]
+                    ? relationshipFromApi[selectedGuardian.relationship]
                     : "—"
                 }
               />
@@ -902,7 +902,7 @@ export default function Chats() {
                   <Button
                     size="sm"
                     variant="outline"
-                    colorScheme="vino"
+                    colorScheme="brand"
                     leftIcon={<Plus size={14} />}
                     onClick={() => setNoteChat(selectedRaw)}
                   >

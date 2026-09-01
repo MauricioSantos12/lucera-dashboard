@@ -186,7 +186,7 @@ export default function MyChildren() {
         <>
           <Flex justify="flex-end" mb={4}>
             <Button
-              colorScheme="vino"
+              colorScheme="brand"
               leftIcon={<Plus size={16} />}
               onClick={openAdd}
             >
@@ -213,7 +213,7 @@ export default function MyChildren() {
                           h={12}
                           w={12}
                           borderRadius="xl"
-                          bg="naranja.50"
+                          bg="accent.50"
                           align="center"
                           justify="center"
                           flexShrink={0}
@@ -296,7 +296,7 @@ export default function MyChildren() {
                             <Wrap spacing={1}>
                               {(n.allergies ?? []).map((a) => (
                                 <WrapItem key={a}>
-                                  <Badge colorScheme="amarillo">
+                                  <Badge colorScheme="gold">
                                     <HStack spacing={1}>
                                       <AlertTriangle size={10} />
                                       <Text>{a}</Text>
@@ -422,7 +422,7 @@ export default function MyChildren() {
             <Button variant="outline" mr={2} onClick={close} isDisabled={saving}>
               Cancelar
             </Button>
-            <Button type="submit" colorScheme="vino" isLoading={saving}>
+            <Button type="submit" colorScheme="brand" isLoading={saving}>
               {editing?.child ? "Guardar" : "Agregar"}
             </Button>
           </ModalFooter>

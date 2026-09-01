@@ -3,9 +3,9 @@ import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Payment } from "@/lib/mockData";
 import { useFetchAll } from "@/hooks/useFetchAll";
 import {
-  paymentMethodToEs,
-  paymentStatusToEs,
-  paymentPlanToEs,
+  paymentMethodFromApi,
+  paymentStatusFromApi,
+  paymentPlanLabel,
 } from "@/lib/apiMappings";
 import type { PaymentApi, GuardianApi, InsuranceRef } from "@/lib/apiTypes";
 import { toast } from "@/lib/toast";
@@ -76,9 +76,9 @@ function paymentApiToRow(
     id: p.id,
     guardian: p.guardian,
     amount: p.amount,
-    method: paymentMethodToEs[p.method] ?? "Stripe",
-    plan: (paymentPlanToEs[p.plan] ?? p.plan) as Payment["plan"],
-    status: paymentStatusToEs[p.status] ?? "pendiente",
+    method: paymentMethodFromApi[p.method] ?? "Stripe",
+    plan: (paymentPlanLabel[p.plan] ?? p.plan) as Payment["plan"],
+    status: paymentStatusFromApi[p.status] ?? "pendiente",
     date: p.date,
     providerResponse: p.providerResponse,
     paymentType: p.paymentType,
@@ -264,28 +264,28 @@ export default function Payments() {
           icon={DollarSign}
           label="Ingresos hoy"
           value={formatCurrency(revenueToday)}
-          bg="naranja.50"
-          fg="naranja.500"
+          bg="accent.50"
+          fg="accent.500"
         />
         <Kpi
           icon={DollarSign}
           label="Ingresos del mes"
           value={formatCurrency(revenueMonth)}
-          bg="vino.50"
-          fg="vino.500"
+          bg="brand.50"
+          fg="brand.500"
         />
         <Kpi
           icon={Clock}
           label="Pendientes"
           value={pending}
-          bg="amarillo.50"
-          fg="amarillo.700"
+          bg="gold.50"
+          fg="gold.700"
         />
         <Kpi
           icon={XCircle}
           label="Fallidos (24h)"
           value={failed24h}
-          bg="peligro.500"
+          bg="danger.500"
           fg="white"
         />
       </SimpleGrid>
@@ -429,7 +429,7 @@ export default function Payments() {
           borderRadius="md"
         >
           <Table size="sm">
-            <Thead bg="crema.100">
+            <Thead bg="cream.100">
               <Tr>
                 <Th>ID Transacción</Th>
                 <Th>Acudiente</Th>
@@ -444,7 +444,7 @@ export default function Payments() {
               {paginated.map((p) => {
                 const { tone, label, Icon } = statusStyle[p.status];
                 return (
-                  <Tr key={p.id} _hover={{ bg: "crema.50" }}>
+                  <Tr key={p.id} _hover={{ bg: "cream.50" }}>
                     <Td fontFamily="mono" fontSize="xs">
                       {p.id}
                     </Td>

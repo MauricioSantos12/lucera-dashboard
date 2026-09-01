@@ -440,20 +440,20 @@ export default function Statistics() {
               icon={Users}
               label="Usuarios activos"
               value={formatNumber(activeUsers)}
-              accent={{ bg: "vino.50", fg: "vino.500" }}
+              accent={{ bg: "brand.50", fg: "brand.500" }}
             />
             <Stat
               icon={Baby}
               label="Total de hijos registrados"
               value={formatNumber(totalChildren)}
-              accent={{ bg: "naranja.50", fg: "naranja.500" }}
+              accent={{ bg: "accent.50", fg: "accent.500" }}
               sub="Pacientes pediátricos"
             />
             <Stat
               icon={Users2}
               label="Niños por cuenta"
               value={childrenPerAccount.toFixed(1)}
-              accent={{ bg: "amarillo.50", fg: "amarillo.700" }}
+              accent={{ bg: "gold.50", fg: "gold.700" }}
               sub="Promedio"
             />
           </SimpleGrid>
@@ -464,20 +464,20 @@ export default function Statistics() {
               icon={Users}
               label="Total de cuentas"
               value={formatNumber(totalAccounts)}
-              accent={{ bg: "vino.50", fg: "vino.500" }}
+              accent={{ bg: "brand.50", fg: "brand.500" }}
             />
             <Stat
               icon={UserX}
               label="Cuentas Free"
               value={formatNumber(freeAccounts)}
-              accent={{ bg: "crema.100", fg: "lucera.textMuted" }}
+              accent={{ bg: "cream.100", fg: "lucera.textMuted" }}
               sub="Plan gratuito"
             />
             <Stat
               icon={Crown}
               label="Cuentas Premium"
               value={formatNumber(premiumAccounts)}
-              accent={{ bg: "amarillo.50", fg: "amarillo.700" }}
+              accent={{ bg: "gold.50", fg: "gold.700" }}
               sub="Planes de pago"
             />
           </SimpleGrid>

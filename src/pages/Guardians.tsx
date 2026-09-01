@@ -7,7 +7,7 @@ import { useFetchAll } from "@/hooks/useFetchAll";
 import { useGeo } from "@/hooks/useGeo";
 import { apiFetch } from "@/lib/apiClient";
 import {
-  planLabelEs,
+  planLabel,
   PLAN_TIERS,
   ACCEPTED_PLANS,
   BILLING_CYCLES,
@@ -15,14 +15,14 @@ import {
 } from "@/lib/guardianForm";
 import type { BillingCycle } from "@/lib/apiTypes";
 import {
-  relationToEs,
-  relationToApi,
-  statusToEs,
+  relationshipFromApi,
+  relationshipToApi,
+  statusFromApi,
   statusToApi,
-  planToEs,
-  countryApiToEs,
-  countryEsToApi,
-  chatTriageToLevel,
+  planFromApi,
+  countryFromApi,
+  countryToApi,
+  triageFromApi,
   genderToValue,
   genderLabel,
 } from "@/lib/apiMappings";
@@ -107,13 +107,13 @@ function guardianApiToRow(g: GuardianApi): Guardian {
     phone: g.phone,
     email: g.email,
     name: g.name,
-    relationship: relationToEs[g.relationship] ?? "Tutor",
-    country: countryApiToEs[g.country] ?? g.country,
+    relationship: relationshipFromApi[g.relationship] ?? "Tutor",
+    country: countryFromApi[g.country] ?? g.country,
     city: g.city,
     insurance: g.insurance?.name as Guardian["insurance"],
     policyNumber: g.insurance ? String(g.insurance.id) : undefined,
-    status: statusToEs[g.status] ?? "activa",
-    plan: planToEs[g.plan] ?? "Gratuito",
+    status: statusFromApi[g.status] ?? "activa",
+    plan: planFromApi[g.plan] ?? "Gratuito",
     registeredAt: g.registeredAt,
     accountCode: g.accountCode,
     gender: g.gender,
@@ -342,9 +342,9 @@ export default function Guardians() {
         name: String(fd.get("name")),
         phone: String(fd.get("phone")),
         email: String(fd.get("email")),
-        relationship: relationToApi[fd.get("relationship") as Relationship],
+        relationship: relationshipToApi[fd.get("relationship") as Relationship],
         idNumber: String(fd.get("idNumber") || "") || undefined,
-        country: countryEsToApi[country] ?? (country || undefined),
+        country: countryToApi[country] ?? (country || undefined),
         city: String(fd.get("city") || "") || undefined,
         province: province || undefined,
         address: String(fd.get("address") || "") || undefined,
@@ -427,12 +427,12 @@ export default function Guardians() {
     // El email no se puede editar → no viaja en el PATCH.
     const payload: GuardianPatchPayload = {
       name: String(fd.get("name")),
-      country: countryEsToApi[country] ?? (country || undefined),
+      country: countryToApi[country] ?? (country || undefined),
       city: String(fd.get("city")),
       province: province || undefined,
       address: String(fd.get("address") || "") || undefined,
       idNumber: String(fd.get("idNumber") || "") || undefined,
-      relationship: relationToApi[fd.get("relationship") as Relationship],
+      relationship: relationshipToApi[fd.get("relationship") as Relationship],
       status: statusToApi[fd.get("status") as AccountStatus],
       plan: (plan || undefined) as PlanApi | undefined,
       billingCycle: isPaidPlan(plan) ? billingCycle : undefined,
@@ -537,7 +537,7 @@ export default function Guardians() {
               {[...new Set(data.map((g) => g.planApi).filter(Boolean))].map(
                 (p) => (
                   <option key={p} value={p as string}>
-                    {planLabelEs[p as string] ?? p}
+                    {planLabel[p as string] ?? p}
                   </option>
                 )
               )}
@@ -588,7 +588,7 @@ export default function Guardians() {
           />
           {canEdit && (
             <Button
-              colorScheme="vino"
+              colorScheme="brand"
               variant={"solid"}
               leftIcon={<Plus size={16} />}
               onClick={() => openEdit(null)}
@@ -608,7 +608,7 @@ export default function Guardians() {
               borderRadius="md"
             >
               <Table size="sm">
-                <Thead bg="crema.100">
+                <Thead bg="cream.100">
                   <Tr>
                     <Th>Código</Th>
                     <Th>Acudiente</Th>
@@ -636,7 +636,7 @@ export default function Guardians() {
                 </Thead>
                 <Tbody>
                   {paginated.map((g) => (
-                    <Tr key={g.id} _hover={{ bg: "crema.50" }}>
+                    <Tr key={g.id} _hover={{ bg: "cream.50" }}>
                       <Td>
                         <Text
                           as="button"
@@ -646,7 +646,7 @@ export default function Guardians() {
                           fontWeight={600}
                           color="lucera.textMuted"
                           fontFamily="mono"
-                          _hover={{ color: "vino.500" }}
+                          _hover={{ color: "brand.500" }}
                         >
                           {g.accountCode ?? "—"}
                         </Text>
@@ -656,14 +656,14 @@ export default function Guardians() {
                           as="button"
                           type="button"
                           onClick={() => setDetail(g)}
-                          _hover={{ color: "vino.500" }}
+                          _hover={{ color: "brand.500" }}
                           textAlign="left"
                         >
                           <Flex
                             h={8}
                             w={8}
                             borderRadius="full"
-                            bg="vino.50"
+                            bg="brand.50"
                             align="center"
                             justify="center"
                             flexShrink={0}
@@ -736,7 +736,7 @@ export default function Guardians() {
                       </Td>
                       <Td>
                         <Badge variant="outline">
-                          {planLabelEs[g.planApi ?? ""] ?? g.plan}
+                          {planLabel[g.planApi ?? ""] ?? g.plan}
                         </Badge>
                       </Td>
                       <Td
@@ -807,7 +807,7 @@ export default function Guardians() {
                               aria-label="Eliminar"
                               size="sm"
                               variant="ghost"
-                              color="peligro.500"
+                              color="danger.500"
                               icon={<Trash2 size={14} />}
                               onClick={() => setToDelete(g)}
                             />
@@ -951,9 +951,9 @@ export default function Guardians() {
                       fontSize="xs"
                       fontWeight={600}
                       borderWidth="1px"
-                      bg={selectedChild === null ? "vino.500" : "white"}
+                      bg={selectedChild === null ? "brand.500" : "white"}
                       borderColor={
-                        selectedChild === null ? "vino.500" : "lucera.border"
+                        selectedChild === null ? "brand.500" : "lucera.border"
                       }
                       color={
                         selectedChild === null ? "white" : "lucera.textMuted"
@@ -961,7 +961,7 @@ export default function Guardians() {
                       _hover={
                         selectedChild === null
                           ? undefined
-                          : { bg: "crema.50", borderColor: "lucera.textMuted" }
+                          : { bg: "cream.50", borderColor: "lucera.textMuted" }
                       }
                       transition="all 120ms"
                     >
@@ -981,14 +981,14 @@ export default function Guardians() {
                           fontSize="xs"
                           fontWeight={600}
                           borderWidth="1px"
-                          bg={active ? "vino.500" : "white"}
-                          borderColor={active ? "vino.500" : "lucera.border"}
+                          bg={active ? "brand.500" : "white"}
+                          borderColor={active ? "brand.500" : "lucera.border"}
                           color={active ? "white" : "lucera.textMuted"}
                           _hover={
                             active
                               ? undefined
                               : {
-                                  bg: "crema.50",
+                                  bg: "cream.50",
                                   borderColor: "lucera.textMuted",
                                 }
                           }
@@ -1027,12 +1027,12 @@ export default function Guardians() {
                         borderColor="lucera.border"
                         borderRadius="md"
                         p={3}
-                        _hover={{ bg: "crema.50", borderColor: "vino.500" }}
+                        _hover={{ bg: "cream.50", borderColor: "brand.500" }}
                         transition="all 120ms"
                       >
                         <Box flex={1} minW={0}>
                           <HStack spacing={2} mb={1}>
-                            <TriageBadge level={chatTriageToLevel[c.triage]} />
+                            <TriageBadge level={triageFromApi[c.triage]} />
                             <Badge textTransform="capitalize" variant="outline">
                               {chatStatusLabel[c.status] ?? c.status}
                             </Badge>
@@ -1089,7 +1089,7 @@ export default function Guardians() {
                     name="phone"
                     defaultValue={editing?.phone}
                     isReadOnly={!!editing}
-                    bg={editing ? "crema.50" : undefined}
+                    bg={editing ? "cream.50" : undefined}
                   />
                   {editing && (
                     <Text fontSize="xs" color="lucera.textMuted" mt={1}>
@@ -1104,7 +1104,7 @@ export default function Guardians() {
                     type="email"
                     defaultValue={editing?.email}
                     isReadOnly={!!editing}
-                    bg={editing ? "crema.50" : undefined}
+                    bg={editing ? "cream.50" : undefined}
                   />
                   {editing && (
                     <Text fontSize="xs" color="lucera.textMuted" mt={1}>
@@ -1247,12 +1247,12 @@ export default function Guardians() {
                         ? null
                         : plan && (
                             <option value={plan}>
-                              {planLabelEs[plan] ?? plan} (actual)
+                              {planLabel[plan] ?? plan} (actual)
                             </option>
                           )}
                       {ACCEPTED_PLANS.map((value) => (
                         <option key={value} value={value}>
-                          {planLabelEs[value] ?? value}
+                          {planLabel[value] ?? value}
                         </option>
                       ))}
                     </Select>
@@ -1296,7 +1296,7 @@ export default function Guardians() {
                 <>
                   {/* Elige tu plan */}
                   <Divider my={5} borderColor="lucera.borderSoft" />
-                  <Text fontSize="sm" fontWeight={700} color="vino.500" mb={1}>
+                  <Text fontSize="sm" fontWeight={700} color="brand.500" mb={1}>
                     Elige tu plan
                   </Text>
                   <Text fontSize="xs" color="lucera.textMuted" mb={3}>
@@ -1318,9 +1318,9 @@ export default function Guardians() {
                           borderWidth="1px"
                           borderRadius="md"
                           textAlign="left"
-                          borderColor={active ? "vino.500" : "lucera.border"}
-                          bg={active ? "naranja.50" : "white"}
-                          _hover={active ? undefined : { bg: "crema.50" }}
+                          borderColor={active ? "brand.500" : "lucera.border"}
+                          bg={active ? "accent.50" : "white"}
+                          _hover={active ? undefined : { bg: "cream.50" }}
                           transition="all 120ms"
                         >
                           <Box>
@@ -1334,7 +1334,7 @@ export default function Guardians() {
                           <Text
                             fontSize="xs"
                             fontWeight={600}
-                            color={active ? "vino.500" : "lucera.textMuted"}
+                            color={active ? "brand.500" : "lucera.textMuted"}
                             flexShrink={0}
                           >
                             {t.maxDependents} niño{t.maxDependents > 1 ? "s" : ""}
@@ -1367,13 +1367,13 @@ export default function Guardians() {
                       su cuenta, define su clave y agrega a sus hijos. */}
                   <Divider my={5} borderColor="lucera.borderSoft" />
                   <Box
-                    bg="crema.50"
+                    bg="cream.50"
                     borderWidth="1px"
                     borderColor="lucera.border"
                     borderRadius="md"
                     p={3}
                   >
-                    <Text fontSize="sm" fontWeight={700} color="vino.500" mb={1}>
+                    <Text fontSize="sm" fontWeight={700} color="brand.500" mb={1}>
                       Activación por link
                     </Text>
                     <Text fontSize="xs" color="lucera.textMuted">
@@ -1395,7 +1395,7 @@ export default function Guardians() {
               >
                 Cancelar
               </Button>
-              <Button type="submit" colorScheme="vino" isLoading={saving}>
+              <Button type="submit" colorScheme="brand" isLoading={saving}>
                 {editing ? "Actualizar" : "Crear"}
               </Button>
             </ModalFooter>

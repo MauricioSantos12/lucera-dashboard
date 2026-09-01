@@ -20,14 +20,14 @@ import type {
   Center,
 } from "@/lib/mockData";
 
-export const relationToEs: Record<GuardianRelationship, Relationship> = {
+export const relationshipFromApi: Record<GuardianRelationship, Relationship> = {
   madre: "Madre",
   padre: "Padre",
   tutor: "Tutor",
   abuelo: "Abuelo/a",
   otro: "Otro",
 };
-export const relationToApi: Record<Relationship, GuardianRelationship> = {
+export const relationshipToApi: Record<Relationship, GuardianRelationship> = {
   Madre: "madre",
   Padre: "padre",
   Tutor: "tutor",
@@ -35,7 +35,7 @@ export const relationToApi: Record<Relationship, GuardianRelationship> = {
   Otro: "otro",
 };
 
-export const statusToEs: Record<GuardianStatus, AccountStatus> = {
+export const statusFromApi: Record<GuardianStatus, AccountStatus> = {
   active: "activa",
   suspended: "suspendida",
   inactive: "baja",
@@ -47,8 +47,8 @@ export const statusToApi: Record<AccountStatus, GuardianStatus> = {
 };
 
 // Solo cubre los planes "legacy"; los tiers nuevos (1_hijo, …) se muestran con
-// planLabelEs en Guardians. Por eso es parcial.
-export const planToEs: Partial<Record<PlanApi, Guardian["plan"]>> = {
+// planLabel en Guardians. Por eso es parcial.
+export const planFromApi: Partial<Record<PlanApi, Guardian["plan"]>> = {
   free: "Gratuito",
   premium_monthly: "Premium Mensual",
   premium_annual: "Premium Anual",
@@ -59,24 +59,24 @@ export const planToApi: Record<Guardian["plan"], PlanApi> = {
   "Premium Anual": "premium_annual",
 };
 
-export const chatTriageToLevel: Record<ChatTriageApi, TriageLevel> = {
+export const triageFromApi: Record<ChatTriageApi, TriageLevel> = {
   general: "general",
   urgent: "urgente",
   emergency: "emergencia",
 };
 
-export const chatAttentionToEs: Record<ChatAttentionApi, ChatSession["attentionType"]> = {
+export const attentionFromApi: Record<ChatAttentionApi, ChatSession["attentionType"]> = {
   virtual: "Virtual",
   in_person: "Presencial",
 };
 
-export const chatStatusToEstado: Record<ChatStatusApi, ChatSession["status"]> = {
+export const chatStatusFromApi: Record<ChatStatusApi, ChatSession["status"]> = {
   active: "activa",
   waiting: "esperando",
   closed: "cerrada",
 };
 
-export const chatRoleToEs: Record<
+export const chatRoleFromApi: Record<
   ChatMessageRoleApi,
   ChatSession["messages"][number]["role"]
 > = {
@@ -85,41 +85,41 @@ export const chatRoleToEs: Record<
   system: "sistema",
 };
 
-export const paymentMethodToEs: Record<PaymentMethodApi, Payment["method"]> = {
+export const paymentMethodFromApi: Record<PaymentMethodApi, Payment["method"]> = {
   stripe: "Stripe",
   yappy: "Yappy",
 };
 
-export const paymentStatusToEs: Record<PaymentStatusApi, Payment["status"]> = {
+export const paymentStatusFromApi: Record<PaymentStatusApi, Payment["status"]> = {
   confirmed: "confirmado",
   pending: "pendiente",
   failed: "fallido",
   refunded: "reembolsado",
 };
 
-// El plan de un pago puede ser cualquier PlanApi; a diferencia de planToEs
+// El plan de un pago puede ser cualquier PlanApi; a diferencia de planFromApi
 // (usado para el plan del guardián), aquí no hay "Gratuito" porque un pago
 // siempre corresponde a un plan pagado.
-export const paymentPlanToEs: Record<string, string> = {
+export const paymentPlanLabel: Record<string, string> = {
   premium_monthly: "Premium Mensual",
   premium_annual: "Premium Anual",
 };
 
-export const centerTypeToEs: Record<CenterTypeApi, Center["type"]> = {
+export const centerTypeFromApi: Record<CenterTypeApi, Center["type"]> = {
   Hospital: "Hospital",
   Clinic: "Clínica",
   Emergency: "Urgencias",
 };
 
-// El backend devuelve el país sin tilde ("Panama"), pero countriesCities
+// El backend devuelve el país sin tilde ("Panama"), pero citiesByCountry
 // (mockData.ts) usa "Panamá" como clave para las opciones de país/ciudad
 // del filtro y del formulario. Este mapa homologa ambos lados.
-export const countryApiToEs: Record<string, string> = {
+export const countryFromApi: Record<string, string> = {
   Panama: "Panamá",
   Colombia: "Colombia",
 };
-export const countryEsToApi: Record<string, string> = Object.fromEntries(
-  Object.entries(countryApiToEs).map(([api, es]) => [es, api])
+export const countryToApi: Record<string, string> = Object.fromEntries(
+  Object.entries(countryFromApi).map(([api, es]) => [es, api])
 );
 
 // --- Género -----------------------------------------------------------------

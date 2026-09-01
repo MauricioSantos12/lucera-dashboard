@@ -37,7 +37,7 @@ import { toast } from "@/lib/toast";
 
 const slotTone: Record<Availability["status"], string> = {
   disponible: "green",
-  reservado: "vino",
+  reservado: "brand",
   cancelado: "red",
 };
 
@@ -126,7 +126,7 @@ export default function Schedule() {
                 key={d}
                 size="sm"
                 variant={d === date ? "solid" : "outline"}
-                colorScheme="vino"
+                colorScheme="brand"
                 onClick={() => setDate(d)}
                 justifyContent="flex-start"
               >
@@ -136,15 +136,15 @@ export default function Schedule() {
           </VStack>
           <VStack align="stretch" mt={4} spacing={2} fontSize="xs">
             <HStack>
-              <Box h="10px" w="10px" borderRadius="full" bg="exito.500" />
+              <Box h="10px" w="10px" borderRadius="full" bg="success.500" />
               <Text>Disponible</Text>
             </HStack>
             <HStack>
-              <Box h="10px" w="10px" borderRadius="full" bg="vino.500" />
+              <Box h="10px" w="10px" borderRadius="full" bg="brand.500" />
               <Text>Reservado por paciente</Text>
             </HStack>
             <HStack>
-              <Box h="10px" w="10px" borderRadius="full" bg="peligro.500" />
+              <Box h="10px" w="10px" borderRadius="full" bg="danger.500" />
               <Text>Cancelado</Text>
             </HStack>
           </VStack>
@@ -161,7 +161,7 @@ export default function Schedule() {
               </Text>
             </Box>
             <Button
-              colorScheme="naranja"
+              colorScheme="accent"
               size="sm"
               leftIcon={<Plus size={14} />}
               onClick={onOpen}
@@ -232,7 +232,7 @@ export default function Schedule() {
                       aria-label="Eliminar"
                       size="sm"
                       variant="ghost"
-                      color="peligro.500"
+                      color="danger.500"
                       icon={<Trash2 size={14} />}
                       onClick={() => setToDelete(s)}
                     />
@@ -283,7 +283,7 @@ export default function Schedule() {
               <Button variant="outline" mr={2} onClick={onClose}>
                 Cancelar
               </Button>
-              <Button type="submit" colorScheme="vino">
+              <Button type="submit" colorScheme="brand">
                 Añadir
               </Button>
             </ModalFooter>

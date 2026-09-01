@@ -326,7 +326,7 @@ export default function Accounts() {
             />
             {canManage && (
               <Button
-                colorScheme="vino"
+                colorScheme="brand"
                 leftIcon={<Plus size={16} />}
                 onClick={createModal.onOpen}
               >
@@ -346,7 +346,7 @@ export default function Accounts() {
               borderRadius="md"
             >
               <Table size="sm">
-                <Thead bg="crema.100">
+                <Thead bg="cream.100">
                   <Tr>
                     <Th>Nombre</Th>
                     <Th display={{ base: "none", md: "table-cell" }}>Email</Th>
@@ -368,7 +368,7 @@ export default function Accounts() {
                 </Thead>
                 <Tbody>
                   {paginated.map((u) => (
-                    <Tr key={u.id} _hover={{ bg: "crema.50" }}>
+                    <Tr key={u.id} _hover={{ bg: "cream.50" }}>
                       <Td>
                         <Text fontSize="sm" fontWeight={600}>
                           {u.name}
@@ -534,7 +534,7 @@ export default function Accounts() {
               >
                 Cancelar
               </Button>
-              <Button type="submit" colorScheme="vino" isLoading={savingUser}>
+              <Button type="submit" colorScheme="brand" isLoading={savingUser}>
                 Crear usuario
               </Button>
             </ModalFooter>

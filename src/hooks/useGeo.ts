@@ -1,6 +1,6 @@
 import { useCallback, useMemo } from "react";
 import { useFetch } from "./useFetch";
-import { countryApiToEs } from "@/lib/apiMappings";
+import { countryFromApi } from "@/lib/apiMappings";
 import type { GeoCountry } from "@/lib/apiTypes";
 
 // Catálogo geográfico real (GET /api/geo): países + provincias/estados.
@@ -18,7 +18,7 @@ export function useGeo() {
   const statesOf = useCallback(
     (countryName: string | null | undefined): string[] => {
       if (!countryName) return [];
-      const target = countryApiToEs[countryName] ?? countryName;
+      const target = countryFromApi[countryName] ?? countryName;
       return countries.find((c) => c.name === target)?.states ?? [];
     },
     [countries]

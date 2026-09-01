@@ -76,7 +76,7 @@ const faqJsonLd = {
 
 export default function Faq() {
   return (
-    <Box minH="100vh" bg="crema.50">
+    <Box minH="100vh" bg="cream.50">
       <Seo
         title="Preguntas frecuentes"
         description="Resolvemos las dudas más comunes sobre Lucera: cómo funciona la teleorientación pediátrica por WhatsApp, el triaje con IA, planes, privacidad y más."
@@ -113,7 +113,7 @@ export default function Faq() {
           >
             <Image src={logoSymbol} alt="Lucera" boxSize="32px" objectFit="contain" />
           </Box>
-          <Heading size="md" fontFamily="heading" color="vino.500">
+          <Heading size="md" fontFamily="heading" color="brand.500">
             Lucera
           </Heading>
         </HStack>
@@ -121,7 +121,7 @@ export default function Faq() {
           as={RouterLink}
           to="/register"
           size="sm"
-          colorScheme="vino"
+          colorScheme="brand"
           rightIcon={<ArrowRight size={14} />}
         >
           Registrarse
@@ -129,14 +129,14 @@ export default function Faq() {
       </Flex>
 
       {/* Encabezado */}
-      <Box bgGradient="linear(180deg, crema.100 0%, crema.50 100%)" py={{ base: 12, md: 16 }}>
+      <Box bgGradient="linear(180deg, cream.100 0%, cream.50 100%)" py={{ base: 12, md: 16 }}>
         <Container maxW="3xl" textAlign="center">
           <Text
             fontSize="xs"
             fontWeight={700}
             letterSpacing="widest"
             textTransform="uppercase"
-            color="naranja.500"
+            color="accent.500"
             mb={3}
           >
             Preguntas frecuentes
@@ -173,15 +173,15 @@ export default function Faq() {
               <AccordionButton
                 py={5}
                 px={{ base: 4, md: 6 }}
-                _hover={{ bg: "crema.50" }}
-                _expanded={{ bg: "crema.50" }}
+                _hover={{ bg: "cream.50" }}
+                _expanded={{ bg: "cream.50" }}
               >
                 <Box flex="1" textAlign="left">
                   <Heading as="h2" size="sm" fontFamily="heading">
                     {f.q}
                   </Heading>
                 </Box>
-                <AccordionIcon color="naranja.500" />
+                <AccordionIcon color="accent.500" />
               </AccordionButton>
               <AccordionPanel px={{ base: 4, md: 6 }} pb={5} pt={0}>
                 <Text color="lucera.textMuted" lineHeight={1.7}>
@@ -216,7 +216,7 @@ export default function Faq() {
           <Button
             as={RouterLink}
             to="/register"
-            colorScheme="vino"
+            colorScheme="brand"
             rightIcon={<ArrowRight size={16} />}
             flexShrink={0}
           >

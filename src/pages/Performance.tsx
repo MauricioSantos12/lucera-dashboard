@@ -120,28 +120,28 @@ export default function Performance() {
               icon={Timer}
               label="Time to first consult"
               value={fmtMinutes(perf.timeToFirstConsultMin)}
-              accent={{ bg: "naranja.50", fg: "naranja.500" }}
+              accent={{ bg: "accent.50", fg: "accent.500" }}
               sub="Registro → 1ª consulta"
             />
             <Stat
               icon={Clock}
               label="Time to Resolution"
               value={fmtMinutes(perf.timeToResolutionMin)}
-              accent={{ bg: "vino.50", fg: "vino.500" }}
+              accent={{ bg: "brand.50", fg: "brand.500" }}
               sub="Duración media de sesión"
             />
             <Stat
               icon={UserCheck}
               label="Active Account Rate"
               value={pct(perf.activeAccountRate)}
-              accent={{ bg: "exito.500", fg: "white" }}
+              accent={{ bg: "success.500", fg: "white" }}
               sub="Cuentas activas / total"
             />
             <Stat
               icon={TrendingDown}
               label="Churn Rate"
               value={pct(perf.churnRate)}
-              accent={{ bg: "peligro.500", fg: "white" }}
+              accent={{ bg: "danger.500", fg: "white" }}
               sub="Cuentas inactivas (~60 días)"
             />
           </SimpleGrid>
@@ -151,14 +151,14 @@ export default function Performance() {
               icon={Ban}
               label="Límite Free sin conversión"
               value={formatNumber(perf.freeLimitNoConversion)}
-              accent={{ bg: "amarillo.50", fg: "amarillo.700" }}
+              accent={{ bg: "gold.50", fg: "gold.700" }}
               sub="Cuentas Free en el tope"
             />
             <Stat
               icon={Unplug}
               label="Sesiones con fallo técnico"
               value={formatNumber(perf.techFailureSessions)}
-              accent={{ bg: "peligro.500", fg: "white" }}
+              accent={{ bg: "danger.500", fg: "white" }}
               sub={`${pct(perf.techFailureRate)} de las sesiones`}
             />
           </SimpleGrid>

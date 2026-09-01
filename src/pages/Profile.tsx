@@ -146,7 +146,7 @@ export default function Profile() {
             <Avatar
               size="xl"
               name={initials}
-              bg="vino.500"
+              bg="brand.500"
               color="white"
               mb={2}
             />
@@ -156,7 +156,7 @@ export default function Profile() {
             <Text fontSize="xs" color="lucera.textMuted">
               {email || user.email}
             </Text>
-            <Badge colorScheme="vino">{user.role}</Badge>
+            <Badge colorScheme="brand">{user.role}</Badge>
             {user.refId && (
               <Text
                 fontSize="10px"
@@ -220,7 +220,7 @@ export default function Profile() {
                     value={phone}
                     onChange={(e) => setPhone(e.target.value)}
                     isReadOnly={user.isPortal}
-                    bg={user.isPortal ? "crema.50" : undefined}
+                    bg={user.isPortal ? "cream.50" : undefined}
                   />
                   {user.isPortal && (
                     <Text fontSize="xs" color="lucera.textMuted" mt={1}>
@@ -243,7 +243,7 @@ export default function Profile() {
               <HStack pt={2}>
                 <Button
                   type="submit"
-                  colorScheme="vino"
+                  colorScheme="brand"
                   leftIcon={<Save size={14} />}
                   isLoading={savingProfile}
                 >
@@ -302,7 +302,7 @@ export default function Profile() {
               >
                 Cancelar
               </Button>
-              <Button type="submit" colorScheme="vino" isLoading={savingPwd}>
+              <Button type="submit" colorScheme="brand" isLoading={savingPwd}>
                 Guardar
               </Button>
             </ModalFooter>

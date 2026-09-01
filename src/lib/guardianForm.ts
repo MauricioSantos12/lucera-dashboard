@@ -7,7 +7,7 @@
 //   - El server deriva `planTier` (premium_monthly/annual) y `planMaxDependents`.
 // `validacion_full` y premium_* existen en datos legacy pero NO son asignables
 // vía API → solo se muestran (etiquetas abajo).
-export const planLabelEs: Record<string, string> = {
+export const planLabel: Record<string, string> = {
   free: "Gratuito",
   "1_hijo": "1 hijo",
   "2_hijos": "2 hijos",

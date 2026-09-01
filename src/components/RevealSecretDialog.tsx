@@ -72,7 +72,7 @@ export function RevealSecretDialog({
               borderWidth="1px"
               borderColor="lucera.border"
               borderRadius="md"
-              bg="crema.50"
+              bg="cream.50"
               px={3}
               py={2}
               justify="space-between"
@@ -99,7 +99,7 @@ export function RevealSecretDialog({
                 borderWidth="1px"
                 borderColor="lucera.border"
                 borderRadius="md"
-                bg="crema.50"
+                bg="cream.50"
                 px={3}
                 py={2}
               >
@@ -117,7 +117,7 @@ export function RevealSecretDialog({
             color="lucera.textMuted"
             align="flex-start"
           >
-            <Box color="amarillo.700" mt={0.5}>
+            <Box color="gold.700" mt={0.5}>
               <TriangleAlert size={14} />
             </Box>
             <Text>
@@ -127,7 +127,7 @@ export function RevealSecretDialog({
           </HStack>
         </ModalBody>
         <ModalFooter>
-          <Button colorScheme="vino" onClick={onClose}>
+          <Button colorScheme="brand" onClick={onClose}>
             Entendido
           </Button>
         </ModalFooter>

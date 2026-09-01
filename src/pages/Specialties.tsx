@@ -189,7 +189,7 @@ export default function Specialties() {
             {canEdit && (
               <Button
                 size="sm"
-                colorScheme="vino"
+                colorScheme="brand"
                 leftIcon={<Plus size={16} />}
                 onClick={() => openEdit(null)}
                 flexShrink={0}
@@ -210,7 +210,7 @@ export default function Specialties() {
               borderRadius="md"
             >
               <Table size="sm">
-                <Thead bg="crema.100">
+                <Thead bg="cream.100">
                   <Tr>
                     <Th>Especialidad</Th>
                     {canEdit && <Th textAlign="right">Acciones</Th>}
@@ -218,7 +218,7 @@ export default function Specialties() {
                 </Thead>
                 <Tbody>
                   {paginated.map((s) => (
-                    <Tr key={s.id} _hover={{ bg: "crema.50" }}>
+                    <Tr key={s.id} _hover={{ bg: "cream.50" }}>
                       <Td>
                         <HStack spacing={3}>
                           <Flex
@@ -228,8 +228,8 @@ export default function Specialties() {
                             borderRadius="lg"
                             align="center"
                             justify="center"
-                            bg="naranja.50"
-                            color="naranja.500"
+                            bg="accent.50"
+                            color="accent.500"
                           >
                             <Icon as={Stethoscope} boxSize={4} />
                           </Flex>
@@ -251,7 +251,7 @@ export default function Specialties() {
                             aria-label="Eliminar"
                             size="sm"
                             variant="ghost"
-                            color="peligro.500"
+                            color="danger.500"
                             icon={<Trash2 size={14} />}
                             onClick={() => setToDelete(s)}
                           />
@@ -310,7 +310,7 @@ export default function Specialties() {
             <Button variant="outline" mr={2} onClick={onClose} isDisabled={saving}>
               Cancelar
             </Button>
-            <Button type="submit" colorScheme="vino" isLoading={saving}>
+            <Button type="submit" colorScheme="brand" isLoading={saving}>
               {editing ? "Actualizar" : "Crear"}
             </Button>
           </ModalFooter>

@@ -5,8 +5,8 @@ import { Child } from "@/lib/mockData";
 import { useFetchAll } from "@/hooks/useFetchAll";
 import { apiFetch } from "@/lib/apiClient";
 import {
-  relationToEs,
-  chatTriageToLevel,
+  relationshipFromApi,
+  triageFromApi,
   genderToValue,
   genderLabel,
 } from "@/lib/apiMappings";
@@ -178,7 +178,7 @@ export default function Children() {
   const relationshipByGuardianId = useMemo(
     () =>
       Object.fromEntries(
-        guardians.map((g) => [g.id, relationToEs[g.relationship] ?? ""])
+        guardians.map((g) => [g.id, relationshipFromApi[g.relationship] ?? ""])
       ),
     [guardians]
   );
@@ -626,7 +626,7 @@ export default function Children() {
           />
           {canEdit && (
             <Button
-              colorScheme="vino"
+              colorScheme="brand"
               variant="solid"
               leftIcon={<Plus size={16} />}
               onClick={() => openEdit(null)}
@@ -648,7 +648,7 @@ export default function Children() {
               borderRadius="md"
             >
               <Table size="sm">
-                <Thead bg="crema.100">
+                <Thead bg="cream.100">
                   <Tr>
                     <Th>#</Th>
                     <Th>Niño/a</Th>
@@ -684,7 +684,7 @@ export default function Children() {
                       (guardian) => guardian?.id === r.guardianId
                     );
                     return (
-                      <Tr key={r.id} _hover={{ bg: "crema.50" }}>
+                      <Tr key={r.id} _hover={{ bg: "cream.50" }}>
                         <Td>
                           <Text
                             as="button"
@@ -693,7 +693,7 @@ export default function Children() {
                             fontSize="sm"
                             fontWeight={600}
                             color="lucera.textMuted"
-                            _hover={{ color: "vino.500" }}
+                            _hover={{ color: "brand.500" }}
                           >
                             {guard?.accountCode}
                           </Text>
@@ -703,14 +703,14 @@ export default function Children() {
                             as="button"
                             type="button"
                             onClick={() => setDetail(r)}
-                            _hover={{ color: "vino.500" }}
+                            _hover={{ color: "brand.500" }}
                             textAlign="left"
                           >
                             <Flex
                               h={8}
                               w={8}
                               borderRadius="full"
-                              bg="naranja.50"
+                              bg="accent.50"
                               align="center"
                               justify="center"
                               flexShrink={0}
@@ -800,7 +800,7 @@ export default function Children() {
                           <Wrap spacing={1}>
                             {(r.allergies ?? []).map((a) => (
                               <WrapItem key={a}>
-                                <Badge colorScheme="amarillo">
+                                <Badge colorScheme="gold">
                                   <HStack spacing={1}>
                                     <AlertTriangle size={10} />
                                     <Text>{a}</Text>
@@ -866,7 +866,7 @@ export default function Children() {
                                 aria-label="Eliminar"
                                 size="sm"
                                 variant="ghost"
-                                color="peligro.500"
+                                color="danger.500"
                                 icon={<Trash2 size={14} />}
                                 onClick={() => setToDelete(r)}
                               />
@@ -986,7 +986,7 @@ export default function Children() {
                   <Wrap spacing={1} mb={4}>
                     {(detail.allergies ?? []).map((a) => (
                       <WrapItem key={a}>
-                        <Badge colorScheme="amarillo">
+                        <Badge colorScheme="gold">
                           <HStack spacing={1}>
                             <AlertTriangle size={10} />
                             <Text>{a}</Text>
@@ -1025,9 +1025,9 @@ export default function Children() {
                       fontSize="xs"
                       fontWeight={600}
                       borderWidth="1px"
-                      bg={selectedGuardian === null ? "vino.500" : "white"}
+                      bg={selectedGuardian === null ? "brand.500" : "white"}
                       borderColor={
-                        selectedGuardian === null ? "vino.500" : "lucera.border"
+                        selectedGuardian === null ? "brand.500" : "lucera.border"
                       }
                       color={
                         selectedGuardian === null ? "white" : "lucera.textMuted"
@@ -1035,7 +1035,7 @@ export default function Children() {
                       _hover={
                         selectedGuardian === null
                           ? undefined
-                          : { bg: "crema.50", borderColor: "lucera.textMuted" }
+                          : { bg: "cream.50", borderColor: "lucera.textMuted" }
                       }
                       transition="all 120ms"
                     >
@@ -1055,14 +1055,14 @@ export default function Children() {
                           fontSize="xs"
                           fontWeight={600}
                           borderWidth="1px"
-                          bg={active ? "vino.500" : "white"}
-                          borderColor={active ? "vino.500" : "lucera.border"}
+                          bg={active ? "brand.500" : "white"}
+                          borderColor={active ? "brand.500" : "lucera.border"}
                           color={active ? "white" : "lucera.textMuted"}
                           _hover={
                             active
                               ? undefined
                               : {
-                                  bg: "crema.50",
+                                  bg: "cream.50",
                                   borderColor: "lucera.textMuted",
                                 }
                           }
@@ -1101,7 +1101,7 @@ export default function Children() {
                         borderColor="lucera.border"
                         borderRadius="md"
                         p={3}
-                        _hover={{ bg: "crema.50", borderColor: "vino.500" }}
+                        _hover={{ bg: "cream.50", borderColor: "brand.500" }}
                         transition="all 120ms"
                       >
                         <Box flex={1} minW={0}>
@@ -1113,7 +1113,7 @@ export default function Children() {
                           >
                             <HStack spacing={2}>
                               <TriageBadge
-                                level={chatTriageToLevel[c.triage]}
+                                level={triageFromApi[c.triage]}
                               />
                               <Badge
                                 textTransform="capitalize"
@@ -1280,7 +1280,7 @@ export default function Children() {
               >
                 Cancelar
               </Button>
-              <Button type="submit" colorScheme="vino" isLoading={saving}>
+              <Button type="submit" colorScheme="brand" isLoading={saving}>
                 {editing ? "Actualizar" : "Crear"}
               </Button>
             </ModalFooter>

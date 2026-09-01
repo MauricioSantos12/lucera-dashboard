@@ -31,7 +31,7 @@ const blogJsonLd = {
 
 export default function Blog() {
   return (
-    <Box minH="100vh" bg="crema.50">
+    <Box minH="100vh" bg="cream.50">
       <Seo
         title="Recursos y guías para padres"
         description="Guías prácticas de salud pediátrica para familias en Panamá: fiebre, señales de alarma, cuándo acudir a urgencias y más. Orientación clara, no diagnósticos."
@@ -41,14 +41,14 @@ export default function Blog() {
       <PublicHeader />
 
       {/* Encabezado */}
-      <Box bgGradient="linear(180deg, crema.100 0%, crema.50 100%)" py={{ base: 12, md: 16 }}>
+      <Box bgGradient="linear(180deg, cream.100 0%, cream.50 100%)" py={{ base: 12, md: 16 }}>
         <Container maxW="3xl" textAlign="center">
           <Text
             fontSize="xs"
             fontWeight={700}
             letterSpacing="widest"
             textTransform="uppercase"
-            color="naranja.500"
+            color="accent.500"
             mb={3}
           >
             Recursos
@@ -110,7 +110,7 @@ export default function Blog() {
             <Text color="lucera.textMuted" mb={3}>
               {a.excerpt}
             </Text>
-            <HStack spacing={1} color="naranja.600" fontWeight={600} fontSize="sm">
+            <HStack spacing={1} color="accent.600" fontWeight={600} fontSize="sm">
               <Text>Leer más</Text>
               <Icon as={ArrowRight} boxSize={4} />
             </HStack>

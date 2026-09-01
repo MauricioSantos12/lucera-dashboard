@@ -44,7 +44,7 @@ const queryClient = new QueryClient();
 function RouteFallback() {
   return (
     <Flex minH="100vh" align="center" justify="center" bg="lucera.bg">
-      <Spinner thickness="3px" color="vino.500" size="lg" />
+      <Spinner thickness="3px" color="brand.500" size="lg" />
     </Flex>
   );
 }

@@ -57,7 +57,7 @@ export function MultiSelect({ options, value, onChange, placeholder = "Seleccion
             align="center"
             cursor="pointer"
             onClick={onOpen}
-            _hover={{ borderColor: "naranja.300" }}
+            _hover={{ borderColor: "accent.300" }}
             transition="border-color 0.2s"
             gap={2}
             flexWrap="wrap"
@@ -68,7 +68,7 @@ export function MultiSelect({ options, value, onChange, placeholder = "Seleccion
                   const opt = options.find((o) => o.value === v);
                   return (
                     <WrapItem key={v}>
-                      <Tag size="sm" colorScheme="vino" borderRadius="md">
+                      <Tag size="sm" colorScheme="brand" borderRadius="md">
                         <TagLabel>{opt?.label ?? v}</TagLabel>
                         <TagCloseButton onClick={(e) => { e.stopPropagation(); toggle(v); }} />
                       </Tag>
@@ -103,7 +103,7 @@ export function MultiSelect({ options, value, onChange, placeholder = "Seleccion
                   fontSize="sm"
                   borderRadius="md"
                   cursor="pointer"
-                  _hover={{ bg: "crema.100" }}
+                  _hover={{ bg: "cream.100" }}
                   onClick={() => toggle(o.value)}
                 >
                   {o.label}

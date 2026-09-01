@@ -58,7 +58,7 @@ export function Pagination({
             key={p}
             size="sm"
             variant={p === page ? "solid" : "ghost"}
-            colorScheme={p === page ? "vino" : undefined}
+            colorScheme={p === page ? "brand" : undefined}
             onClick={() => onPageChange(p)}
           >
             {p}

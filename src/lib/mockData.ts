@@ -83,7 +83,7 @@ export const insuranceNames = [
 export type InsuranceName = (typeof insuranceNames)[number];
 
 // ---------------- País / Ciudad ----------------
-export const countriesCities: Record<string, string[]> = {
+export const citiesByCountry: Record<string, string[]> = {
   Panamá: [
     "Ciudad de Panamá",
     "San Miguelito",

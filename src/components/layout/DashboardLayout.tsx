@@ -84,7 +84,7 @@ function Header({ title, subtitle }: { title: string; subtitle?: string }) {
               borderRadius: 8,
             }}
           >
-            <Avatar size="xs" name={initials} bg="vino.500" color="white" />
+            <Avatar size="xs" name={initials} bg="brand.500" color="white" />
             <Box
               px={3}
               py={1.5}
@@ -115,7 +115,7 @@ function Header({ title, subtitle }: { title: string; subtitle?: string }) {
               onClick={() => navigate("/profile")}
               cursor="pointer"
               transition="background 0.2s ease-in-out, color 0.2s ease-in-out"
-              _hover={{ bg: "crema.100" }}
+              _hover={{ bg: "cream.100" }}
             >
               Mi perfil
             </MenuItem>
@@ -124,7 +124,7 @@ function Header({ title, subtitle }: { title: string; subtitle?: string }) {
               onClick={logout}
               cursor="pointer"
               transition="background 0.2s ease-in-out, color 0.2s ease-in-out"
-              _hover={{ bg: "peligro.50", color: "peligro.500" }}
+              _hover={{ bg: "danger.50", color: "danger.500" }}
             >
               Cerrar sesión
             </MenuItem>

@@ -300,7 +300,7 @@ export default function Insurances() {
                 {canEdit && (
                   <Button
                     size="sm"
-                    colorScheme="vino"
+                    colorScheme="brand"
                     leftIcon={<Plus size={16} />}
                     onClick={() => openEdit(null)}
                     flexShrink={0}
@@ -317,7 +317,7 @@ export default function Insurances() {
               borderRadius="md"
             >
               <Table size="sm">
-                <Thead bg="crema.100">
+                <Thead bg="cream.100">
                   <Tr>
                     <Th>Seguro médico</Th>
                     <Th isNumeric>Consultas</Th>
@@ -326,7 +326,7 @@ export default function Insurances() {
                 </Thead>
                 <Tbody>
                   {paginated.map((i) => (
-                    <Tr key={i.id} _hover={{ bg: "crema.50" }}>
+                    <Tr key={i.id} _hover={{ bg: "cream.50" }}>
                       <Td>
                         <HStack spacing={3}>
                           <Flex
@@ -336,8 +336,8 @@ export default function Insurances() {
                             borderRadius="lg"
                             align="center"
                             justify="center"
-                            bg="vino.50"
-                            color="vino.500"
+                            bg="brand.50"
+                            color="brand.500"
                           >
                             <Icon as={ShieldCheck} boxSize={4} />
                           </Flex>
@@ -364,7 +364,7 @@ export default function Insurances() {
                             aria-label="Eliminar"
                             size="sm"
                             variant="ghost"
-                            color="peligro.500"
+                            color="danger.500"
                             icon={<Trash2 size={14} />}
                             onClick={() => setToDelete(i)}
                           />
@@ -661,7 +661,7 @@ export default function Insurances() {
             >
               Cancelar
             </Button>
-            <Button type="submit" colorScheme="vino" isLoading={saving}>
+            <Button type="submit" colorScheme="brand" isLoading={saving}>
               {editing ? "Actualizar" : "Crear"}
             </Button>
           </ModalFooter>

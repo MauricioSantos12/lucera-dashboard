@@ -130,7 +130,7 @@ export function StatsFilterBar({
 
       <Flex gap={3} mt={4} justify="flex-end" wrap="wrap">
         <Button
-          colorScheme="vino"
+          colorScheme="brand"
           size="sm"
           leftIcon={<Search size={14} />}
           onClick={onSearch}

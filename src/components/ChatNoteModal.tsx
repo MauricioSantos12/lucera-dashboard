@@ -112,7 +112,7 @@ export function ChatNoteModal({
               >
                 Cancelar
               </Button>
-              <Button type="submit" colorScheme="vino" isLoading={saving}>
+              <Button type="submit" colorScheme="brand" isLoading={saving}>
                 Guardar
               </Button>
             </ModalFooter>

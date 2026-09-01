@@ -43,9 +43,9 @@ function BlockView({ block }: { block: Block }) {
     case "callout":
       return (
         <Box
-          bg="crema.100"
+          bg="cream.100"
           borderLeftWidth="4px"
-          borderColor="naranja.500"
+          borderColor="accent.500"
           borderRadius="md"
           px={4}
           py={3}
@@ -85,7 +85,7 @@ export default function BlogArticle() {
   };
 
   return (
-    <Box minH="100vh" bg="crema.50">
+    <Box minH="100vh" bg="cream.50">
       <Seo
         title={article.title}
         description={article.description}
@@ -99,7 +99,7 @@ export default function BlogArticle() {
           as={RouterLink}
           to="/blog"
           fontSize="sm"
-          color="naranja.600"
+          color="accent.600"
           fontWeight={600}
           _hover={{ textDecoration: "underline" }}
         >
@@ -156,7 +156,7 @@ export default function BlogArticle() {
           <Button
             as={RouterLink}
             to="/register"
-            colorScheme="vino"
+            colorScheme="brand"
             rightIcon={<ArrowRight size={16} />}
           >
             Registrarse

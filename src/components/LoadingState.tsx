@@ -9,7 +9,7 @@ export function LoadingState({ label = "Cargando…" }: { label?: string }) {
       py={20}
       color="lucera.textMuted"
     >
-      <Spinner size="lg" color="vino.500" thickness="3px" mb={3} />
+      <Spinner size="lg" color="brand.500" thickness="3px" mb={3} />
       <Text fontSize="sm">{label}</Text>
     </Flex>
   );

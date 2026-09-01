@@ -54,7 +54,7 @@ const semaphoreConfig: Record<
     label: "Activo",
     description: "El bot respondió y todas sus dependencias están OK.",
     color: "#2f9e6b",
-    bg: "exito.500",
+    bg: "success.500",
     fg: "white",
     Icon: CheckCircle2,
   },
@@ -62,15 +62,15 @@ const semaphoreConfig: Record<
     label: "Degradado",
     description: "El bot está arriba pero una dependencia está caída.",
     color: "#f6ca35",
-    bg: "amarillo.50",
-    fg: "amarillo.700",
+    bg: "gold.50",
+    fg: "gold.700",
     Icon: AlertTriangle,
   },
   down: {
     label: "Caído",
     description: "El bot no respondió (caído, cold-start o red).",
     color: "#b91c1c",
-    bg: "peligro.500",
+    bg: "danger.500",
     fg: "white",
     Icon: XCircle,
   },
@@ -175,7 +175,7 @@ export default function BotStatus() {
         <LoadingState label="Consultando estado del bot…" />
       ) : error ? (
         <StatCard>
-          <HStack spacing={3} color="peligro.500">
+          <HStack spacing={3} color="danger.500">
             <Icon as={XCircle} boxSize={5} />
             <Box>
               <Text fontWeight={700}>No se pudo consultar el estado</Text>
@@ -238,7 +238,7 @@ export default function BotStatus() {
                   {cfg.description}
                 </Text>
                 {data.error && (
-                  <Text fontSize="sm" color="peligro.500" mt={1}>
+                  <Text fontSize="sm" color="danger.500" mt={1}>
                     Detalle del fallo: <strong>{data.error}</strong>
                   </Text>
                 )}
@@ -282,20 +282,20 @@ export default function BotStatus() {
                 const ok = data.checks[key] === true;
                 const tone = !hasData
                   ? {
-                      bg: "crema.100",
+                      bg: "cream.100",
                       fg: "lucera.textMuted",
                       text: "Sin datos",
                       Ico: null as LucideIcon | null,
                     }
                   : ok
                   ? {
-                      bg: "exito.500",
+                      bg: "success.500",
                       fg: "white",
                       text: "OK",
                       Ico: CheckCircle2,
                     }
                   : {
-                      bg: "peligro.500",
+                      bg: "danger.500",
                       fg: "white",
                       text: "Caído",
                       Ico: XCircle,
@@ -317,7 +317,7 @@ export default function BotStatus() {
                       borderRadius="lg"
                       align="center"
                       justify="center"
-                      bg="crema.100"
+                      bg="cream.100"
                       color="lucera.text"
                     >
                       <Icon as={icon} boxSize={4} />

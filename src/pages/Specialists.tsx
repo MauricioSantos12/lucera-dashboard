@@ -170,7 +170,7 @@ export default function Specialists() {
           </Button>
           {canEdit && (
             <Button
-              colorScheme="vino"
+              colorScheme="brand"
               variant={"solid"}
               leftIcon={<Plus size={16} />}
               onClick={() => openEdit(null)}
@@ -186,7 +186,7 @@ export default function Specialists() {
           borderRadius="md"
         >
           <Table size="sm">
-            <Thead bg="crema.100">
+            <Thead bg="cream.100">
               <Tr>
                 <Th>ID</Th>
                 <Th>Médico</Th>
@@ -204,7 +204,7 @@ export default function Specialists() {
             </Thead>
             <Tbody>
               {paginated.map((e) => (
-                <Tr key={e.id} _hover={{ bg: "crema.50" }}>
+                <Tr key={e.id} _hover={{ bg: "cream.50" }}>
                   <Td fontFamily="mono" fontSize="xs" color="lucera.textMuted">
                     {e.id}
                   </Td>
@@ -214,7 +214,7 @@ export default function Specialists() {
                         h={8}
                         w={8}
                         borderRadius="full"
-                        bg="naranja.50"
+                        bg="accent.50"
                         align="center"
                         justify="center"
                       >
@@ -273,7 +273,7 @@ export default function Specialists() {
                         aria-label="Eliminar"
                         size="sm"
                         variant="ghost"
-                        color="peligro.500"
+                        color="danger.500"
                         icon={<Trash2 size={14} />}
                         onClick={() => setToDelete(e)}
                       />
@@ -380,7 +380,7 @@ export default function Specialists() {
               <Button variant="outline" mr={2} onClick={onClose}>
                 Cancelar
               </Button>
-              <Button type="submit" colorScheme="vino">
+              <Button type="submit" colorScheme="brand">
                 Guardar
               </Button>
             </ModalFooter>

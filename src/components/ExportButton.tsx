@@ -70,7 +70,7 @@ export function ExportButton<T extends Record<string, unknown>>({
             </Text>
             <VStack spacing={3} align="stretch">
               <Button
-                colorScheme="vino"
+                colorScheme="brand"
                 leftIcon={<FileSpreadsheet size={16} />}
                 onClick={() => handleExport("xlsx")}
                 isLoading={isExporting}

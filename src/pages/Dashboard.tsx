@@ -52,11 +52,11 @@ interface StatProps {
 // color (sin gradiente ni sombra), para un look más liviano. Los semánticos
 // (éxito/peligro) usan un tinte claro con el icono en su color.
 const chipStyleByBg: Record<string, { bg: string; color: string }> = {
-  "vino.50": { bg: "vino.50", color: "vino.500" },
-  "naranja.50": { bg: "naranja.50", color: "naranja.600" },
-  "amarillo.50": { bg: "amarillo.50", color: "amarillo.700" },
-  "exito.500": { bg: "rgba(47,158,107,0.12)", color: "exito.500" },
-  "peligro.500": { bg: "rgba(185,28,28,0.12)", color: "peligro.500" },
+  "brand.50": { bg: "brand.50", color: "brand.500" },
+  "accent.50": { bg: "accent.50", color: "accent.600" },
+  "gold.50": { bg: "gold.50", color: "gold.700" },
+  "success.500": { bg: "rgba(47,158,107,0.12)", color: "success.500" },
+  "danger.500": { bg: "rgba(185,28,28,0.12)", color: "danger.500" },
 };
 
 function Stat({ icon, label, value, accent, sub }: StatProps) {
@@ -152,28 +152,28 @@ function DashboardSummary() {
           icon={Users}
           label="Cuentas activas"
           value={formatNumber(accounts.active)}
-          accent={{ bg: "vino.50", fg: "vino.500" }}
+          accent={{ bg: "brand.50", fg: "brand.500" }}
           sub={`de ${formatNumber(accounts.total)} totales`}
         />
         <Stat
           icon={UserX}
           label="Cuentas Free"
           value={formatNumber(accounts.free)}
-          accent={{ bg: "crema.100", fg: "lucera.textMuted" }}
+          accent={{ bg: "cream.100", fg: "lucera.textMuted" }}
           sub="Plan gratuito"
         />
         <Stat
           icon={Crown}
           label="Cuentas Premium"
           value={formatNumber(accounts.premium)}
-          accent={{ bg: "amarillo.50", fg: "amarillo.700" }}
+          accent={{ bg: "gold.50", fg: "gold.700" }}
           sub="Planes de pago"
         />
         <Stat
           icon={TrendingUp}
           label="Conversión a Premium"
           value={pct(accounts.conversionRate)}
-          accent={{ bg: "naranja.50", fg: "naranja.500" }}
+          accent={{ bg: "accent.50", fg: "accent.500" }}
           sub="Free → Pago"
         />
       </SimpleGrid>
@@ -184,21 +184,21 @@ function DashboardSummary() {
           icon={MessageSquare}
           label="Sesiones"
           value={formatNumber(usage.sessions)}
-          accent={{ bg: "amarillo.50", fg: "amarillo.700" }}
+          accent={{ bg: "gold.50", fg: "gold.700" }}
           sub="Consultas registradas"
         />
         <Stat
           icon={CheckCircle2}
           label="Tasa de finalización"
           value={pct(usage.sessionCompletionRate)}
-          accent={{ bg: "exito.500", fg: "white" }}
+          accent={{ bg: "success.500", fg: "white" }}
           sub="Sesiones completadas"
         />
         <Stat
           icon={CircleSlash}
           label="Sesiones abandonadas"
           value={formatNumber(usage.abandoned)}
-          accent={{ bg: "crema.100", fg: "lucera.textMuted" }}
+          accent={{ bg: "cream.100", fg: "lucera.textMuted" }}
           sub="Sin cerrar por inactividad"
         />
       </SimpleGrid>
@@ -209,14 +209,14 @@ function DashboardSummary() {
           icon={DollarSign}
           label="Ingresos del mes"
           value={formatCurrency(revenueUsd)}
-          accent={{ bg: "exito.500", fg: "white" }}
+          accent={{ bg: "success.500", fg: "white" }}
           sub="Stripe + Yappy"
         />
         <Stat
           icon={Heart}
           label="CSAT"
           value={pct(csat)}
-          accent={{ bg: "vino.50", fg: "vino.500" }}
+          accent={{ bg: "brand.50", fg: "brand.500" }}
           sub="Calificación ≥ 4★"
         />
       </SimpleGrid>
@@ -227,28 +227,28 @@ function DashboardSummary() {
           icon={Siren}
           label="Red flags a Urgencias"
           value={formatNumber(safety.redFlagsToEmergency)}
-          accent={{ bg: "peligro.500", fg: "white" }}
+          accent={{ bg: "danger.500", fg: "white" }}
           sub="Triaje de emergencia (rojo)"
         />
         <Stat
           icon={CircleDot}
           label="Tasa de red flags"
           value={pct(safety.redFlagRate)}
-          accent={{ bg: "naranja.50", fg: "naranja.500" }}
+          accent={{ bg: "accent.50", fg: "accent.500" }}
           sub="Red flags / sesiones"
         />
         <Stat
           icon={Ambulance}
           label="Reported ER Rate"
           value={pct(safety.reportedErRate)}
-          accent={{ bg: "amarillo.50", fg: "amarillo.700" }}
+          accent={{ bg: "gold.50", fg: "gold.700" }}
           sub="Derivaciones a urgencias"
         />
         <Stat
           icon={CheckCircle2}
           label="ER confirmados"
           value={formatNumber(safety.erConfirmed)}
-          accent={{ bg: "crema.100", fg: "lucera.textMuted" }}
+          accent={{ bg: "cream.100", fg: "lucera.textMuted" }}
           sub={`de ${formatNumber(safety.erAnswered)} respondidos`}
         />
       </SimpleGrid>
@@ -327,14 +327,14 @@ function DoctorSummary() {
           icon={Heart}
           label="CSAT"
           value={`${metrics.csat}%`}
-          accent={{ bg: "vino.50", fg: "vino.500" }}
+          accent={{ bg: "brand.50", fg: "brand.500" }}
           sub="Calificación ≥ 4★"
         />
         <Stat
           icon={CheckCircle2}
           label="Session Completion Rate"
           value={`${metrics.sessionCompletionRate}%`}
-          accent={{ bg: "exito.500", fg: "white" }}
+          accent={{ bg: "success.500", fg: "white" }}
           sub="Sesiones cerradas / total"
         />
       </SimpleGrid>
@@ -345,14 +345,14 @@ function DoctorSummary() {
           icon={Siren}
           label="Red flags a Urgencias"
           value={formatNumber(metrics.redFlagsToER)}
-          accent={{ bg: "peligro.500", fg: "white" }}
+          accent={{ bg: "danger.500", fg: "white" }}
           sub="Triaje de emergencia (rojo)"
         />
         <Stat
           icon={Ambulance}
           label="Reported ER Rate"
           value={`${metrics.reportedERRate}%`}
-          accent={{ bg: "amarillo.50", fg: "amarillo.700" }}
+          accent={{ bg: "gold.50", fg: "gold.700" }}
           sub="Derivaciones presenciales / total"
         />
       </SimpleGrid>
@@ -363,25 +363,25 @@ function DoctorSummary() {
           icon={CheckCircle2}
           label="Cerradas"
           value={formatNumber(metrics.closed)}
-          accent={{ bg: "exito.500", fg: "white" }}
+          accent={{ bg: "success.500", fg: "white" }}
         />
         <Stat
           icon={CircleDot}
           label="Abiertas"
           value={formatNumber(metrics.active)}
-          accent={{ bg: "vino.50", fg: "vino.500" }}
+          accent={{ bg: "brand.50", fg: "brand.500" }}
         />
         <Stat
           icon={CircleSlash}
           label="Abandonadas"
           value={formatNumber(metrics.waiting)}
-          accent={{ bg: "amarillo.50", fg: "amarillo.700" }}
+          accent={{ bg: "gold.50", fg: "gold.700" }}
         />
         <Stat
           icon={MessageSquare}
           label="Total"
           value={formatNumber(metrics.total)}
-          accent={{ bg: "crema.100", fg: "lucera.textMuted" }}
+          accent={{ bg: "cream.100", fg: "lucera.textMuted" }}
         />
       </SimpleGrid>
     </Box>
@@ -411,7 +411,7 @@ function WelcomeHero({ cta }: { cta: { to: string; label: string } | null }) {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.3 }}
         >
-          <Heading size="md" fontFamily="heading" color="vino.500">
+          <Heading size="md" fontFamily="heading" color="brand.500">
             Lucera
           </Heading>
           <Text
@@ -429,7 +429,7 @@ function WelcomeHero({ cta }: { cta: { to: string; label: string } | null }) {
           <Button
             as={RouterLink}
             to={cta.to}
-            colorScheme="vino"
+            colorScheme="brand"
             variant="solid"
           >
             {cta.label}

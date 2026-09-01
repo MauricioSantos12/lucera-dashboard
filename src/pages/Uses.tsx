@@ -425,21 +425,21 @@ export default function Uses() {
               icon={MessageSquare}
               label="Total de chats"
               value={formatNumber(totalChats)}
-              accent={{ bg: "vino.50", fg: "vino.500" }}
+              accent={{ bg: "brand.50", fg: "brand.500" }}
               sub="Consultas en el filtro"
             />
             <Stat
               icon={Activity}
               label="Consultas por cuenta"
               value={chatsPerAccount.toFixed(1)}
-              accent={{ bg: "naranja.50", fg: "naranja.500" }}
+              accent={{ bg: "accent.50", fg: "accent.500" }}
               sub="Promedio (chats / cuentas)"
             />
             <Stat
               icon={Siren}
               label="Urgencias por cuenta"
               value={emergenciesPerAccount.toFixed(1)}
-              accent={{ bg: "peligro.500", fg: "white" }}
+              accent={{ bg: "danger.500", fg: "white" }}
               sub="Promedio"
             />
           </SimpleGrid>
@@ -450,25 +450,25 @@ export default function Uses() {
               icon={CheckCircle2}
               label="Cerradas"
               value={formatNumber(chatStatus.closed)}
-              accent={{ bg: "exito.500", fg: "white" }}
+              accent={{ bg: "success.500", fg: "white" }}
             />
             <Stat
               icon={CircleDot}
               label="Abiertas"
               value={formatNumber(chatStatus.active)}
-              accent={{ bg: "vino.50", fg: "vino.500" }}
+              accent={{ bg: "brand.50", fg: "brand.500" }}
             />
             <Stat
               icon={CircleSlash}
               label="Pendientes"
               value={formatNumber(chatStatus.waiting)}
-              accent={{ bg: "amarillo.50", fg: "amarillo.700" }}
+              accent={{ bg: "gold.50", fg: "gold.700" }}
             />
             <Stat
               icon={MessageSquare}
               label="Total"
               value={formatNumber(chatStatus.total)}
-              accent={{ bg: "crema.100", fg: "lucera.textMuted" }}
+              accent={{ bg: "cream.100", fg: "lucera.textMuted" }}
             />
           </SimpleGrid>
 

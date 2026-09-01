@@ -48,8 +48,8 @@ export function ConfirmDialog({
             <HStack align="flex-start" spacing={3}>
               <Box
                 h={10} w={10} borderRadius="lg" display="grid" placeItems="center"
-                bg={destructive ? "vino.50" : "naranja.50"}
-                color={destructive ? "vino.500" : "naranja.500"}
+                bg={destructive ? "brand.50" : "accent.50"}
+                color={destructive ? "brand.500" : "accent.500"}
               >
                 <AlertTriangle size={20} />
               </Box>
@@ -73,7 +73,7 @@ export function ConfirmDialog({
             </Button>
             <Button
               ml={2} size="sm"
-              colorScheme={destructive ? "vino" : "naranja"}
+              colorScheme={destructive ? "brand" : "accent"}
               isLoading={loading}
               onClick={handleConfirm}
             >
