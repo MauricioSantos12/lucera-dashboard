@@ -21,16 +21,18 @@ import type {
 } from "@/lib/mockData";
 
 export const relationToEs: Record<GuardianRelationship, Relationship> = {
-  mother: "Madre",
-  father: "Padre",
-  guardian: "Tutor",
-  grandparent: "Abuelo/a",
+  madre: "Madre",
+  padre: "Padre",
+  tutor: "Tutor",
+  abuelo: "Abuelo/a",
+  otro: "Otro",
 };
 export const relationToApi: Record<Relationship, GuardianRelationship> = {
-  Madre: "mother",
-  Padre: "father",
-  Tutor: "guardian",
-  "Abuelo/a": "grandparent",
+  Madre: "madre",
+  Padre: "padre",
+  Tutor: "tutor",
+  "Abuelo/a": "abuelo",
+  Otro: "otro",
 };
 
 export const statusToEs: Record<GuardianStatus, AccountStatus> = {

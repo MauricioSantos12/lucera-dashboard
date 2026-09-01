@@ -108,7 +108,7 @@ export const countriesCities: Record<string, string[]> = {
 };
 
 // ---------------- Acudientes y pacientes pediátricos ----------------
-export type Relationship = "Madre" | "Padre" | "Tutor" | "Abuelo/a";
+export type Relationship = "Madre" | "Padre" | "Tutor" | "Abuelo/a" | "Otro";
 export type AccountStatus = "activa" | "suspendida" | "baja";
 
 export type Child = {

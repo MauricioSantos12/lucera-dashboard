@@ -227,11 +227,14 @@ export interface ChatNotePayload {
   reviewed_by: string;
 }
 
+// El backend acepta/devuelve el parentesco en español (las etiquetas inglesas
+// viejas se aceptan en input, pero la RESPUESTA siempre viene en español).
 export type GuardianRelationship =
-  | "mother"
-  | "father"
-  | "guardian"
-  | "grandparent";
+  | "madre"
+  | "padre"
+  | "tutor"
+  | "abuelo"
+  | "otro";
 
 export type GuardianStatus = "active" | "suspended" | "inactive";
 
@@ -405,6 +408,39 @@ export interface PortalRegisterPayload {
   };
   children: PortalRegisterChild[];
 }
+
+// ---- Escritura del portal del acudiente (solo lo propio) ------------------
+// PATCH /portal/me → el acudiente edita sus datos. NO incluye phone (es el
+// identificador de login). gender: femenino/masculino/otro/prefiere_no_decir.
+export interface PortalMeUpdatePayload {
+  name?: string;
+  email?: string;
+  country?: string;
+  city?: string;
+  province?: string;
+  address?: string;
+  idNumber?: string;
+  gender?: string;
+  relationship?: GuardianRelationship;
+  insuranceId?: number;
+  policyNumber?: string;
+}
+
+// POST /portal/children → el acudiente agrega un hijo (name y birthDate req).
+export interface PortalChildCreatePayload {
+  name: string;
+  birthDate: string;
+  weightKg?: number;
+  bloodType?: string;
+  conditions?: string[];
+  allergies?: string[];
+  idNumber?: string;
+  school?: string;
+}
+
+// PATCH /portal/children/{pid} → edita un hijo (todos los campos opcionales).
+// (No hay DELETE en el portal; el borrado lo hace el admin.)
+export type PortalChildUpdatePayload = Partial<PortalChildCreatePayload>;
 
 // Pago tal como lo devuelve /portal/payments (portal del acudiente).
 export interface PortalPayment {

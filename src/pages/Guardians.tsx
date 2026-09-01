@@ -1126,7 +1126,7 @@ export default function Guardians() {
                     name="relationship"
                     defaultValue={editing?.relationship ?? "Madre"}
                   >
-                    {["Madre", "Padre", "Tutor", "Abuelo/a"].map((r) => (
+                    {["Madre", "Padre", "Tutor", "Abuelo/a", "Otro"].map((r) => (
                       <option key={r} value={r}>
                         {r}
                       </option>

@@ -31,6 +31,7 @@ import { StatCard } from "@/components/StatCard";
 import { MultiSelect } from "@/components/MultiSelect";
 import { centers } from "@/lib/mockData";
 import { toast } from "@/lib/toast";
+import { apiFetch } from "@/lib/apiClient";
 import { changePassword, changePortalPassword } from "@/lib/passwordApi";
 
 const MIN_LENGTH = 8;
@@ -47,6 +48,7 @@ export default function Profile() {
   const [email, setEmail] = useState(user?.email ?? "");
   const [phone, setPhone] = useState(user?.phone ?? "");
   const [selectedCenters, setSelectedCenters] = useState<string[]>([]);
+  const [savingProfile, setSavingProfile] = useState(false);
 
   useEffect(() => {
     if (me) {
@@ -105,8 +107,30 @@ export default function Profile() {
     .slice(0, 2)
     .join("");
 
-  const onSave = (e: React.FormEvent) => {
+  const onSave = async (e: React.FormEvent) => {
     e.preventDefault();
+    // Acudiente (portal): persiste en el backend con PATCH /portal/me (el
+    // teléfono no es editable por el portal, es el identificador de login).
+    if (user?.isPortal) {
+      setSavingProfile(true);
+      try {
+        const t = await getValidToken();
+        await apiFetch("/portal/me", t, {
+          method: "PATCH",
+          body: JSON.stringify({ name, email }),
+        });
+        updateProfile({ name, email });
+        toast.success("Perfil actualizado");
+      } catch (err) {
+        toast.error("No se pudo actualizar el perfil", {
+          description: err instanceof Error ? err.message : undefined,
+        });
+      } finally {
+        setSavingProfile(false);
+      }
+      return;
+    }
+    // Operador: por ahora solo actualiza la sesión local (sin endpoint propio).
     updateProfile({ name, email, phone });
     toast.success("Perfil actualizado");
   };
@@ -195,7 +219,14 @@ export default function Profile() {
                   <Input
                     value={phone}
                     onChange={(e) => setPhone(e.target.value)}
+                    isReadOnly={user.isPortal}
+                    bg={user.isPortal ? "crema.50" : undefined}
                   />
+                  {user.isPortal && (
+                    <Text fontSize="xs" color="lucera.textMuted" mt={1}>
+                      Para cambiar tu teléfono, escríbenos por WhatsApp.
+                    </Text>
+                  )}
                 </FormControl>
               </SimpleGrid>
               {showCenters && (
@@ -214,6 +245,7 @@ export default function Profile() {
                   type="submit"
                   colorScheme="vino"
                   leftIcon={<Save size={14} />}
+                  isLoading={savingProfile}
                 >
                   Guardar cambios
                 </Button>

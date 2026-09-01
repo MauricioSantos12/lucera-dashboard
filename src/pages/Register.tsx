@@ -346,6 +346,7 @@ export default function Register() {
                     <option value="padre">Padre</option>
                     <option value="tutor">Tutor</option>
                     <option value="abuelo">Abuelo/a</option>
+                    <option value="otro">Otro</option>
                   </Select>
                 </FormControl>
                 <FormControl>
