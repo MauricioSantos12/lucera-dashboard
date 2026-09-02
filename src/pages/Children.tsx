@@ -406,6 +406,21 @@ export default function Children() {
     const school = String(fd.get("school") || "") || undefined;
     const gender = String(fd.get("gender") || "") || undefined;
 
+    // Límite por plan: al registrar un niño nuevo, no exceder el tope de hijos
+    // del acudiente (planMaxDependents). null = sin tope conocido.
+    if (!editing) {
+      const guardianId = String(fd.get("guardianId"));
+      const guard = guardians.find((g) => g.id === guardianId);
+      const max = guard?.planMaxDependents ?? null;
+      const current = guard?.children?.length ?? 0;
+      if (max != null && current >= max) {
+        toast.error("Límite del plan alcanzado", {
+          description: `Este acudiente ya tiene ${current} de ${max} niños permitidos por su plan. Actualiza el plan para agregar más.`,
+        });
+        return;
+      }
+    }
+
     setSaving(true);
     try {
       const freshToken = await getValidToken();

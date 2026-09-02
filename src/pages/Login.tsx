@@ -118,12 +118,34 @@ export default function Login() {
           /* sin red: seguimos sin forzar */
         }
       }
+      // El login del acudiente a veces no trae el nombre → el header mostraría el
+      // literal "Acudiente". Lo enriquecemos con /portal/me (fuente real del
+      // perfil) cuando no hay cambio de clave pendiente (si lo hay, /portal/me
+      // daría 403). Último recurso: el identificador que tecleó, nunca el rol.
+      let name = gData.user?.name;
+      let profileEmail = gData.user?.email;
+      let profilePhone = gData.user?.phone;
+      if (!mustChange) {
+        try {
+          const meRes = await fetch(`${BACKEND_URL}/portal/me`, {
+            headers: { Authorization: `Bearer ${gData.access_token}` },
+          });
+          if (meRes.ok) {
+            const me = await meRes.json();
+            name = me.name ?? name;
+            profileEmail = me.email ?? profileEmail;
+            profilePhone = me.phone ?? profilePhone;
+          }
+        } catch {
+          /* sin red: usamos lo del login */
+        }
+      }
       const gAcc: AuthUser = {
-        email: gData.user?.email ?? "",
-        name: gData.user?.name ?? "Acudiente",
+        email: profileEmail ?? "",
+        name: name || identifier,
         role: roleFromApi(gData.user?.role ?? "Guardian"),
         id: gData.user?.id ?? gData.user?.gid ?? "",
-        phone: gData.user?.phone ?? identifier,
+        phone: profilePhone ?? identifier,
         isPortal: true,
         // Si aplica, ProtectedRoute muestra el cambio de clave (/portal/password).
         mustChangePassword: mustChange,

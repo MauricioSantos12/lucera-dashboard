@@ -439,8 +439,38 @@ export interface PortalChildCreatePayload {
 }
 
 // PATCH /portal/children/{pid} → edita un hijo (todos los campos opcionales).
-// (No hay DELETE en el portal; el borrado lo hace el admin.)
+// DELETE /portal/children/{pid} → baja lógica (deleted_at), scopeada al acudiente.
 export type PortalChildUpdatePayload = Partial<PortalChildCreatePayload>;
+
+// GET /portal/chats → PortalChatResumen[]: las consultas del acudiente.
+// `patient` es un string (nombre del hijo) para asociar cada chat a un hijo.
+export interface PortalChatSummary {
+  id: string;
+  patient: string;
+  triage: string;
+  attentionType: string;
+  aiSummary: string | null;
+  rating: number | null;
+  startedAt: string;
+  closedAt: string | null;
+  status: string;
+}
+
+// GET /portal/chats/{sid} → PortalChatDetalle: los mensajes de una consulta.
+// `from` = "guardian" (el acudiente) | "lucera" (el asistente).
+export interface PortalChatMessage {
+  from: string;
+  text: string;
+  at: string;
+}
+export interface PortalChatDetail {
+  id: string;
+  patient: string;
+  aiSummary: string | null;
+  startedAt: string;
+  closedAt: string | null;
+  messages: PortalChatMessage[];
+}
 
 // Pago tal como lo devuelve /portal/payments (portal del acudiente).
 export interface PortalPayment {

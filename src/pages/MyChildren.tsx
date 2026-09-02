@@ -1,16 +1,21 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { useAuth } from "@/lib/auth";
 import { useFetch } from "@/hooks/useFetch";
 import { apiFetch } from "@/lib/apiClient";
 import type {
   ChildApi,
+  GuardianApi,
   PortalChildCreatePayload,
   PortalChildUpdatePayload,
+  PortalChatSummary,
+  PortalChatDetail,
 } from "@/lib/apiTypes";
 import {
   Box,
   Button,
+  Collapse,
+  Divider,
   Flex,
   HStack,
   IconButton,
@@ -24,6 +29,7 @@ import {
   ModalFooter,
   ModalHeader,
   ModalOverlay,
+  Spinner,
   Text,
   Badge,
   Heading,
@@ -32,17 +38,31 @@ import {
   Wrap,
   WrapItem,
 } from "@chakra-ui/react";
-import { Baby, Droplet, AlertTriangle, Pencil, Plus } from "lucide-react";
+import {
+  Baby,
+  Droplet,
+  AlertTriangle,
+  Pencil,
+  Plus,
+  Trash2,
+  MessageSquare,
+  Star,
+  ChevronDown,
+} from "lucide-react";
 import { StatCard } from "@/components/StatCard";
 import { LoadingState } from "@/components/LoadingState";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { TriageBadge } from "@/components/TriageBadge";
+import { triageFromApi } from "@/lib/apiMappings";
+import { chatStatusLabel } from "./Children";
 import { toast } from "@/lib/toast";
 import { motion, AnimatePresence } from "framer-motion";
 
 const MotionDiv = motion(Box);
 
-// Vista del portal del acudiente. Lee de /portal/children (token scope=portal) y
-// permite agregar (POST /portal/children) y editar (PATCH /portal/children/{id}).
-// El borrado NO está disponible en el portal (lo gestiona el admin).
+// Vista del portal del acudiente (token scope=portal): lista /portal/children y
+// permite agregar (POST), editar (PATCH), eliminar (DELETE, baja lógica) y ver
+// el historial de consultas de cada hijo (cruzando /portal/chats).
 function ageFromBirth(birthDate: string): number | null {
   const d = new Date(`${birthDate}T00:00:00`);
   if (Number.isNaN(d.getTime())) return null;
@@ -100,12 +120,67 @@ export default function MyChildren() {
   );
   const children = data ?? [];
 
+  // Tope de hijos según el plan (planMaxDependents de /portal/me). null = sin
+  // tope conocido → no se bloquea.
+  const { data: me } = useFetch<GuardianApi>(token ? "/portal/me" : null);
+  const maxChildren = me?.planMaxDependents ?? null;
+  const atLimit = maxChildren != null && children.length >= maxChildren;
+
+  // Consultas del acudiente (solo lectura). Se cruzan con cada hijo por nombre
+  // o id (el backend devuelve `patient` como string con el nombre del hijo).
+  const { data: chatsData } = useFetch<PortalChatSummary[]>(
+    token ? "/portal/chats" : null
+  );
+  const chats = useMemo(() => chatsData ?? [], [chatsData]);
+  const chatsForChild = useCallback(
+    (c: ChildApi) =>
+      chats.filter((ch) => ch.patient === c.name || ch.patient === c.id),
+    [chats]
+  );
+
   // null = cerrado; { child: null } = agregar; { child } = editar.
   const [editing, setEditing] = useState<{ child: ChildApi | null } | null>(
     null
   );
   const [form, setForm] = useState<ChildForm>(emptyForm());
   const [saving, setSaving] = useState(false);
+  // Hijo cuyo historial de consultas se está viendo (modal de detalle).
+  const [viewing, setViewing] = useState<ChildApi | null>(null);
+  // Hijo pendiente de dar de baja (DELETE /portal/children/{id}).
+  const [toDelete, setToDelete] = useState<ChildApi | null>(null);
+  // Consulta expandida: se trae su detalle (mensajes) de /portal/chats/{sid}.
+  const [openChatId, setOpenChatId] = useState<string | null>(null);
+  const [chatDetail, setChatDetail] = useState<PortalChatDetail | null>(null);
+  const [loadingChat, setLoadingChat] = useState(false);
+
+  const toggleChat = async (sid: string) => {
+    if (openChatId === sid) {
+      setOpenChatId(null);
+      return;
+    }
+    setOpenChatId(sid);
+    setChatDetail(null);
+    setLoadingChat(true);
+    try {
+      const t = await getValidToken();
+      const detail = await apiFetch<PortalChatDetail>(
+        `/portal/chats/${sid}`,
+        t
+      );
+      setChatDetail(detail);
+    } catch {
+      setChatDetail(null);
+    } finally {
+      setLoadingChat(false);
+    }
+  };
+
+  // Al cerrar el modal de consultas se resetea la consulta expandida.
+  const closeViewing = () => {
+    setViewing(null);
+    setOpenChatId(null);
+    setChatDetail(null);
+  };
 
   useEffect(() => {
     if (error) {
@@ -114,6 +189,14 @@ export default function MyChildren() {
   }, [error]);
 
   const openAdd = () => {
+    if (atLimit) {
+      toast.error("Límite del plan alcanzado", {
+        description: `Tu plan permite ${maxChildren} ${
+          maxChildren === 1 ? "niño" : "niños"
+        }. Para agregar más, mejora tu plan escribiéndonos por WhatsApp.`,
+      });
+      return;
+    }
     setForm(emptyForm());
     setEditing({ child: null });
   };
@@ -134,6 +217,14 @@ export default function MyChildren() {
       return;
     }
     const isNew = editing.child === null;
+    if (isNew && atLimit) {
+      toast.error("Límite del plan alcanzado", {
+        description: `Tu plan permite ${maxChildren} ${
+          maxChildren === 1 ? "niño" : "niños"
+        }.`,
+      });
+      return;
+    }
 
     // Base común. weightKg/bloodType/listas se envían siempre; idNumber/school
     // solo si el acudiente los escribió (no los vemos al editar, no clobbering).
@@ -184,15 +275,30 @@ export default function MyChildren() {
         <LoadingState label="Cargando tus hijos…" />
       ) : (
         <>
-          <Flex justify="flex-end" mb={4}>
+          <Flex justify="space-between" align="center" mb={4} gap={3} wrap="wrap">
+            {maxChildren != null ? (
+              <Text fontSize="sm" color="lucera.textMuted">
+                {children.length} de {maxChildren}{" "}
+                {maxChildren === 1 ? "niño" : "niños"} de tu plan
+              </Text>
+            ) : (
+              <Box />
+            )}
             <Button
               colorScheme="brand"
               leftIcon={<Plus size={16} />}
               onClick={openAdd}
+              isDisabled={atLimit}
             >
               Agregar hijo
             </Button>
           </Flex>
+          {atLimit && (
+            <Text fontSize="xs" color="lucera.textMuted" mb={4}>
+              Alcanzaste el límite de niños de tu plan. Para agregar más, mejora
+              tu plan escribiéndonos por WhatsApp.
+            </Text>
+          )}
 
           <SimpleGrid columns={{ base: 1, md: 2 }} spacing={4}>
             <AnimatePresence mode="popLayout">
@@ -231,13 +337,31 @@ export default function MyChildren() {
                                 {n.birthDate}
                               </Text>
                             </Box>
-                            <IconButton
-                              aria-label="Editar hijo"
-                              size="sm"
-                              variant="ghost"
-                              icon={<Pencil size={14} />}
-                              onClick={() => openEdit(n)}
-                            />
+                            <HStack spacing={0.5}>
+                              <Button
+                                size="xs"
+                                variant="ghost"
+                                leftIcon={<MessageSquare size={13} />}
+                                onClick={() => setViewing(n)}
+                              >
+                                {chatsForChild(n).length}
+                              </Button>
+                              <IconButton
+                                aria-label="Editar hijo"
+                                size="sm"
+                                variant="ghost"
+                                icon={<Pencil size={14} />}
+                                onClick={() => openEdit(n)}
+                              />
+                              <IconButton
+                                aria-label="Eliminar hijo"
+                                size="sm"
+                                variant="ghost"
+                                color="danger.500"
+                                icon={<Trash2 size={14} />}
+                                onClick={() => setToDelete(n)}
+                              />
+                            </HStack>
                           </Flex>
 
                           <SimpleGrid columns={2} spacing={3} mt={4}>
@@ -335,11 +459,6 @@ export default function MyChildren() {
               </Text>
             )}
           </SimpleGrid>
-
-          <Text fontSize="xs" color="lucera.textMuted" mt={6} textAlign="center">
-            Para eliminar un hijo, escríbenos por WhatsApp y el equipo de Lucera
-            lo gestiona por ti.
-          </Text>
         </>
       )}
 
@@ -428,6 +547,262 @@ export default function MyChildren() {
           </ModalFooter>
         </ModalContent>
       </Modal>
+
+      {/* Detalle del hijo + historial de consultas (solo lectura). */}
+      <Modal
+        isOpen={!!viewing}
+        onClose={closeViewing}
+        size="xl"
+        scrollBehavior="inside"
+      >
+        <ModalOverlay />
+        <ModalContent>
+          <ModalHeader>
+            <HStack spacing={2}>
+              <Baby size={18} color="#f08159" />
+              <Text>{viewing?.name}</Text>
+            </HStack>
+          </ModalHeader>
+          <ModalCloseButton />
+          <ModalBody pb={6}>
+            {viewing && (
+              <>
+                <SimpleGrid columns={{ base: 2, md: 3 }} spacing={3} mb={4}>
+                  <Box>
+                    <Text
+                      fontSize="10px"
+                      textTransform="uppercase"
+                      color="lucera.textMuted"
+                      letterSpacing="wider"
+                    >
+                      Edad
+                    </Text>
+                    <Text fontWeight={600}>
+                      {ageFromBirth(viewing.birthDate) != null
+                        ? `${ageFromBirth(viewing.birthDate)} años`
+                        : "—"}
+                    </Text>
+                  </Box>
+                  <Box>
+                    <Text
+                      fontSize="10px"
+                      textTransform="uppercase"
+                      color="lucera.textMuted"
+                      letterSpacing="wider"
+                    >
+                      Nacimiento
+                    </Text>
+                    <Text fontWeight={600}>{viewing.birthDate}</Text>
+                  </Box>
+                  <Box>
+                    <Text
+                      fontSize="10px"
+                      textTransform="uppercase"
+                      color="lucera.textMuted"
+                      letterSpacing="wider"
+                    >
+                      Peso
+                    </Text>
+                    <Text fontWeight={600}>
+                      {viewing.weightKg ? `${viewing.weightKg} kg` : "—"}
+                    </Text>
+                  </Box>
+                </SimpleGrid>
+
+                <Divider mb={3} />
+                <HStack mb={3} spacing={2}>
+                  <MessageSquare size={15} color="#6c122b" />
+                  <Text fontSize="sm" fontWeight={700}>
+                    Historial de consultas ({chatsForChild(viewing).length})
+                  </Text>
+                </HStack>
+
+                {chatsForChild(viewing).length === 0 ? (
+                  <Text fontSize="sm" color="lucera.textMuted">
+                    Este niño aún no tiene consultas registradas.
+                  </Text>
+                ) : (
+                  <VStack align="stretch" spacing={2}>
+                    {chatsForChild(viewing).map((c) => {
+                      const open = openChatId === c.id;
+                      return (
+                        <Box
+                          key={c.id}
+                          borderWidth="1px"
+                          borderColor={open ? "brand.500" : "lucera.border"}
+                          borderRadius="md"
+                          overflow="hidden"
+                        >
+                          <Flex
+                            as="button"
+                            type="button"
+                            onClick={() => toggleChat(c.id)}
+                            w="100%"
+                            textAlign="left"
+                            justify="space-between"
+                            align="center"
+                            gap={2}
+                            p={3}
+                            _hover={{ bg: "cream.50" }}
+                            transition="all 120ms"
+                          >
+                            <HStack spacing={2} flexWrap="wrap">
+                              <TriageBadge
+                                level={
+                                  triageFromApi[
+                                    c.triage as keyof typeof triageFromApi
+                                  ]
+                                }
+                              />
+                              <Badge
+                                textTransform="capitalize"
+                                variant="outline"
+                              >
+                                {chatStatusLabel[c.status] ?? c.status}
+                              </Badge>
+                              {c.rating != null && (
+                                <HStack spacing={0.5}>
+                                  <Star
+                                    size={11}
+                                    color="#f6ca35"
+                                    fill="#f6ca35"
+                                  />
+                                  <Text fontSize="xs" fontWeight={600}>
+                                    {c.rating}
+                                  </Text>
+                                </HStack>
+                              )}
+                            </HStack>
+                            <HStack spacing={2} flexShrink={0}>
+                              <Text
+                                fontSize="xs"
+                                color="lucera.textMuted"
+                                sx={{ fontVariantNumeric: "tabular-nums" }}
+                              >
+                                {c.startedAt}
+                              </Text>
+                              <Box
+                                as={ChevronDown}
+                                boxSize="16px"
+                                color="lucera.textMuted"
+                                transform={open ? "rotate(180deg)" : undefined}
+                                transition="transform 150ms"
+                              />
+                            </HStack>
+                          </Flex>
+
+                          <Collapse in={open} animateOpacity>
+                            <Box
+                              px={3}
+                              pb={3}
+                              borderTopWidth="1px"
+                              borderColor="lucera.borderSoft"
+                            >
+                              {c.aiSummary && (
+                                <Text
+                                  fontSize="sm"
+                                  color="lucera.textMuted"
+                                  mt={3}
+                                >
+                                  {c.aiSummary}
+                                </Text>
+                              )}
+                              {loadingChat && open ? (
+                                <HStack py={4} justify="center">
+                                  <Spinner size="sm" color="brand.500" />
+                                  <Text fontSize="sm" color="lucera.textMuted">
+                                    Cargando conversación…
+                                  </Text>
+                                </HStack>
+                              ) : chatDetail && chatDetail.id === c.id ? (
+                                chatDetail.messages.length === 0 ? (
+                                  <Text
+                                    fontSize="sm"
+                                    color="lucera.textMuted"
+                                    mt={3}
+                                  >
+                                    Sin mensajes en esta consulta.
+                                  </Text>
+                                ) : (
+                                  <VStack align="stretch" spacing={2} mt={3}>
+                                    {chatDetail.messages.map((m, i) => {
+                                      const mine = m.from === "guardian";
+                                      return (
+                                        <Flex
+                                          key={i}
+                                          justify={
+                                            mine ? "flex-end" : "flex-start"
+                                          }
+                                        >
+                                          <Box
+                                            maxW="80%"
+                                            bg={mine ? "brand.500" : "cream.100"}
+                                            color={mine ? "white" : "lucera.text"}
+                                            borderRadius="lg"
+                                            px={3}
+                                            py={2}
+                                          >
+                                            <Text
+                                              fontSize="sm"
+                                              whiteSpace="pre-wrap"
+                                            >
+                                              {m.text}
+                                            </Text>
+                                            <Text
+                                              fontSize="10px"
+                                              opacity={0.7}
+                                              mt={1}
+                                              textAlign="right"
+                                            >
+                                              {m.at}
+                                            </Text>
+                                          </Box>
+                                        </Flex>
+                                      );
+                                    })}
+                                  </VStack>
+                                )
+                              ) : null}
+                            </Box>
+                          </Collapse>
+                        </Box>
+                      );
+                    })}
+                  </VStack>
+                )}
+              </>
+            )}
+          </ModalBody>
+        </ModalContent>
+      </Modal>
+
+      <ConfirmDialog
+        open={!!toDelete}
+        onOpenChange={(o) => !o && setToDelete(null)}
+        title="Eliminar hijo"
+        description={
+          <>
+            ¿Seguro que deseas eliminar a <strong>{toDelete?.name}</strong>?
+            Dejará de aparecer en tus listados y en el selector de WhatsApp. Su
+            historial de consultas se conserva.
+          </>
+        }
+        onConfirm={async () => {
+          if (!toDelete) return;
+          try {
+            const t = await getValidToken();
+            await apiFetch(`/portal/children/${toDelete.id}`, t, {
+              method: "DELETE",
+            });
+            toast.success("Hijo eliminado");
+            refetch();
+          } catch (err) {
+            toast.error("No se pudo eliminar", {
+              description: err instanceof Error ? err.message : undefined,
+            });
+          }
+        }}
+      />
     </DashboardLayout>
   );
 }
