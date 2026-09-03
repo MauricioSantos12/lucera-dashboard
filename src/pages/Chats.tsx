@@ -16,6 +16,7 @@ import type {
   GuardianApi,
   PatientApi,
   InsuranceRef,
+  UserApi,
 } from "@/lib/apiTypes";
 import { toast } from "@/lib/toast";
 import {
@@ -235,6 +236,19 @@ export default function Chats() {
   const [noteChat, setNoteChat] = useState<ChatApi | null>(null);
   // Admin y Médico pueden dejar el comentario final del chat.
   const canReview = user?.role === "Admin" || user?.role === "Médico";
+
+  // Staff del panel, para mostrar el NOMBRE de quien revisó (reviewedBy trae el
+  // id). Solo lo cargan admin/médico (los que ven el comentario).
+  const { data: usersData } = useFetchAll<UserApi>(
+    token && canReview ? "/api/users" : null
+  );
+  const reviewerName = useMemo(() => {
+    const byId = new Map<string, string>();
+    (usersData?.items ?? []).forEach((u) => byId.set(u.id, u.name));
+    if (user?.id && user?.name) byId.set(user.id, user.name);
+    if (user?.refId && user?.name) byId.set(user.refId, user.name);
+    return (id?: string | null) => (id ? byId.get(id) ?? id : "—");
+  }, [usersData, user?.id, user?.name, user?.refId]);
 
   // Tras editar un acudiente/niño se recargan TODOS los datos (acudientes,
   // pacientes y chats) para reflejar los cambios. El chat abierto se conserva:
@@ -892,7 +906,7 @@ export default function Chats() {
                       {selectedRaw.doctorNote}
                     </Text>
                     <Text fontSize="10px" color="lucera.textMuted" mt={1.5}>
-                      Revisado por {selectedRaw.reviewedBy ?? "—"}
+                      Revisado por {reviewerName(selectedRaw.reviewedBy)}
                       {selectedRaw.reviewedAt
                         ? ` · ${selectedRaw.reviewedAt}`
                         : ""}
