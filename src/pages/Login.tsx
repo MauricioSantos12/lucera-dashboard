@@ -305,7 +305,7 @@ export default function Login() {
                   Al iniciar sesión aceptas nuestros{" "}
                   <Text
                     as="a"
-                    href="https://pdfobject.com/pdf/sample.pdf"
+                    href="/terminos"
                     target="_blank"
                     rel="noopener noreferrer"
                     color="brand.500"

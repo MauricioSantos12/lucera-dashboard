@@ -3,6 +3,7 @@ import { BrowserRouter, Route, Routes, Navigate } from "react-router-dom";
 import { Flex, Spinner } from "@chakra-ui/react";
 import { AuthProvider, useAuth, UserRole } from "@/lib/auth";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
+import { ScrollToTop } from "@/components/ScrollToTop";
 import { ReactNode, lazy, Suspense } from "react";
 
 // Páginas públicas (prerenderizadas): eager, para no mostrar un spinner encima
@@ -68,6 +69,7 @@ const App = () => (
   <QueryClientProvider client={queryClient}>
     <AuthProvider>
       <BrowserRouter>
+        <ScrollToTop />
         <Suspense fallback={<RouteFallback />}>
         <Routes>
           <Route path="/" element={<Home />} />
