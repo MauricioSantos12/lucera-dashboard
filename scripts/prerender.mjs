@@ -14,7 +14,7 @@ const DIST = path.resolve(__dirname, "..", "dist");
 const PORT = 4319;
 const SITE_URL = "https://lucera-ai.com";
 // Rutas base. Los artículos del blog se descubren solos crawleando /blog.
-const ROUTES = ["/", "/faq", "/blog"];
+const ROUTES = ["/", "/terminos", "/faq", "/blog"];
 
 const MIME = {
   ".html": "text/html; charset=utf-8",

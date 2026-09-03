@@ -16,6 +16,8 @@ import NotFound from "./pages/NotFound";
 
 // Páginas del panel (privadas): lazy — se cargan bajo demanda. Así el bundle
 // inicial del visitante público no incluye recharts ni el código del dashboard.
+const Home = lazy(() => import("./pages/Home"));
+const Terms = lazy(() => import("./pages/Terms"));
 const Dashboard = lazy(() => import("./pages/Dashboard"));
 const Statistics = lazy(() => import("./pages/Statistics"));
 const Performance = lazy(() => import("./pages/Performance"));
@@ -68,7 +70,9 @@ const App = () => (
       <BrowserRouter>
         <Suspense fallback={<RouteFallback />}>
         <Routes>
-          <Route path="/" element={<LandingPage />} />
+          <Route path="/" element={<Home />} />
+          <Route path="/lp-past" element={<LandingPage />} />
+          <Route path="/terminos" element={<Terms />} />
           <Route path="/register" element={<Register />} />
           <Route path="/faq" element={<Faq />} />
           <Route path="/blog" element={<Blog />} />
